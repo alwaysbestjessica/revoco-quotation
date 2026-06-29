@@ -50,6 +50,103 @@ function delClientImg(i) {
   renderClientImages();
 }
 
+// ── Build Cost HTML for PDF ──
+function buildCostHTML(d) {
+  const fn = n => Number(n||0).toLocaleString('zh-TW',{minimumFractionDigits:0,maximumFractionDigits:2});
+  const exRate = parseFloat(document.getElementById('costExRate')?.value)||1;
+  const costCur = document.getElementById('costCurrency')?.value||'CNY';
+  const supplier = document.getElementById('costSupplier')?.value||'-';
+  const costNote = document.getElementById('costNote')?.value||'';
+  const validItems = d.items.filter(it=>it.name);
+
+  const itemRows = validItems.map((it,i)=>{
+    const q=parseFloat(it.qty)||0;
+    const cp=parseFloat((window.costPrices||[])[i])||0;
+    const sub=q*cp, subTWD=sub*exRate;
+    return `<tr style="background:${i%2===0?'#fff':'#f4f8f6'}">
+      <td style="text-align:center;padding:6px 5px;border-bottom:1px solid #eef4f1;font-size:12px">${i+1}</td>
+      <td style="padding:6px 7px;border-bottom:1px solid #eef4f1;font-size:12px;font-weight:600">${it.name}</td>
+      <td style="text-align:right;padding:6px 7px;border-bottom:1px solid #eef4f1;font-size:12px">${fn(q)} ${it.unit||''}</td>
+      <td style="text-align:right;padding:6px 7px;border-bottom:1px solid #eef4f1;font-size:12px">${costCur} ${cp>0?fn(cp):'-'}</td>
+      <td style="text-align:right;padding:6px 7px;border-bottom:1px solid #eef4f1;font-size:12px">${sub>0?costCur+' '+fn(sub):'-'}</td>
+      <td style="text-align:right;padding:6px 7px;border-bottom:1px solid #eef4f1;font-size:12px;font-weight:700;color:#5C8070">${subTWD>0?'TWD '+fn(subTWD):'-'}</td>
+      <td style="text-align:right;padding:6px 7px;border-bottom:1px solid #eef4f1;font-size:12px;color:#E87722;font-weight:700">${d.items.filter(it=>it.name)[i]?'TWD '+fn((parseFloat(d.items.filter(it=>it.name)[i].qty)||0)*(parseFloat(d.items.filter(it=>it.name)[i].price)||0)):'-'}</td>
+    </tr>`;
+  }).join('');
+
+  const supplierTotal = validItems.reduce((s,it,i)=>{
+    return s+(parseFloat(it.qty)||0)*(parseFloat((window.costPrices||[])[i])||0);
+  },0);
+  const supplierTWD = supplierTotal*exRate;
+  const extraRows = (window.extraCosts||[]).map(ec=>{
+    const amt=parseFloat(ec.amount)||0, rate=parseFloat(ec.exRate)||1;
+    const twd=ec.currency==='TWD'?amt:amt*rate;
+    return `<tr><td style="padding:6px 10px;font-size:12px">${ec.label||'-'}</td>
+      <td style="text-align:right;padding:6px 10px;font-size:12px">${ec.currency} ${fn(amt)}</td>
+      <td style="text-align:right;padding:6px 10px;font-size:12px;color:#5C8070;font-weight:700">TWD ${fn(twd)}</td></tr>`;
+  }).join('');
+  const extraTotal = (window.extraCosts||[]).reduce((s,ec)=>{
+    const amt=parseFloat(ec.amount)||0,rate=parseFloat(ec.exRate)||1;
+    return s+(ec.currency==='TWD'?amt:amt*rate);
+  },0);
+  const totalCost = supplierTWD+extraTotal;
+  const clientGrand = parseFloat(d.grand)||0;
+  const profit = clientGrand-totalCost;
+  const margin = clientGrand>0?(profit/clientGrand*100).toFixed(1):0;
+
+  return `
+    <div style="margin-top:24px;padding-top:20px;border-top:3px dashed #C8DDD5">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+        <div style="background:#2C3830;color:white;padding:5px 14px;border-radius:16px;font-size:11px;font-weight:700">🔒 內部成本單（僅供內部參考）</div>
+        <div style="font-size:11px;color:#8a9e97">${d.qNo}</div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;font-size:12px">
+        <div style="background:#EBF2EE;padding:8px 10px;border-radius:6px"><span style="color:#5C8070;font-weight:700">廠商名稱：</span>${supplier}</div>
+        <div style="background:#EBF2EE;padding:8px 10px;border-radius:6px"><span style="color:#5C8070;font-weight:700">報價幣別：</span>${costCur}（匯率 ${exRate}）</div>
+      </div>
+
+      <table style="width:100%;border-collapse:collapse;margin-bottom:12px">
+        <thead><tr style="background:#EBF2EE">
+          <th style="padding:7px 5px;font-size:10px;color:#5C8070;border-bottom:2px solid #C8DDD5;text-align:center;width:26px">No.</th>
+          <th style="padding:7px 7px;font-size:10px;color:#5C8070;border-bottom:2px solid #C8DDD5;text-align:left">品項名稱</th>
+          <th style="padding:7px 7px;font-size:10px;color:#5C8070;border-bottom:2px solid #C8DDD5;text-align:right">數量</th>
+          <th style="padding:7px 7px;font-size:10px;color:#5C8070;border-bottom:2px solid #C8DDD5;text-align:right">廠商單價</th>
+          <th style="padding:7px 7px;font-size:10px;color:#5C8070;border-bottom:2px solid #C8DDD5;text-align:right">廠商小計</th>
+          <th style="padding:7px 7px;font-size:10px;color:#5C8070;border-bottom:2px solid #C8DDD5;text-align:right">換算TWD</th>
+          <th style="padding:7px 7px;font-size:10px;color:#E87722;border-bottom:2px solid #C8DDD5;text-align:right">客戶售價</th>
+        </tr></thead>
+        <tbody>${itemRows||'<tr><td colspan="7" style="text-align:center;padding:12px;color:#8a9e97">無品項</td></tr>'}</tbody>
+      </table>
+
+      ${extraRows?`
+      <table style="width:100%;border-collapse:collapse;margin-bottom:12px">
+        <thead><tr style="background:#EBF2EE">
+          <th style="padding:7px 10px;font-size:10px;color:#5C8070;border-bottom:2px solid #C8DDD5;text-align:left">其他費用</th>
+          <th style="padding:7px 10px;font-size:10px;color:#5C8070;border-bottom:2px solid #C8DDD5;text-align:right">原始金額</th>
+          <th style="padding:7px 10px;font-size:10px;color:#5C8070;border-bottom:2px solid #C8DDD5;text-align:right">換算TWD</th>
+        </tr></thead>
+        <tbody>${extraRows}</tbody>
+      </table>`:''}
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+        <div style="background:#1c2b26;color:white;padding:12px;border-radius:8px">
+          <div style="font-size:10px;color:rgba(255,255,255,0.5);margin-bottom:4px">總成本（TWD）</div>
+          <div style="font-size:16px;font-weight:800">TWD ${fn(totalCost)}</div>
+          <div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:2px">廠商 ${fn(supplierTWD)} + 其他 ${fn(extraTotal)}</div>
+        </div>
+        <div style="background:${profit>=0?'#e8f3ee':'#fde8e8'};padding:12px;border-radius:8px">
+          <div style="font-size:10px;color:#5C8070;margin-bottom:4px">毛利（TWD）</div>
+          <div style="font-size:16px;font-weight:800;color:${profit>=0?'#5C8070':'#c0392b'}">TWD ${fn(profit)}</div>
+          <div style="font-size:10px;color:#8a9e97;margin-top:2px">毛利率 ${margin}%</div>
+        </div>
+      </div>
+
+      ${costNote?`<div style="background:#f7faf8;border-radius:6px;padding:8px 10px;font-size:11px;color:#4a5e57"><span style="font-weight:700;color:#5C8070">備注：</span>${costNote}</div>`:''}
+    </div>
+  `;
+}
+
 // ── Status helpers ──
 function updateStatusBadge() {}
 function updatePaymentFields() {
@@ -235,8 +332,10 @@ function loadRecord(jsonStr) {
     if(h.cost_freight) document.getElementById('costFreight').value = h.cost_freight;
     if(h.cost_other) document.getElementById('costOther').value = h.cost_other;
     if(h.cost_note) document.getElementById('costNote').value = h.cost_note;
-    if(h.cost_items) window.costPrices = h.cost_items.map(i=>i.costPrice||'');
-    if(h.cost_images) { costImages = h.cost_images; renderImages(); }
+    if(h.cost_items) { window.costPrices = h.cost_items.map(i=>i.costPrice||''); }
+    if(h.cost_images) { costImages = h.cost_images||[]; renderImages(); }
+    if(h.cost_extra) { window.extraCosts = h.cost_extra; renderExtraCosts(); }
+    else { window.extraCosts = []; renderExtraCosts(); }
     if(h.client_images) { clientImages = h.client_images; renderClientImages(); }
   }, 100);
 }
@@ -757,6 +856,7 @@ tbody input:focus { outline: none; border-color: var(--mint); background: white;
 
     <div class="action-bar">
       <div class="spacer"></div>
+      <button class="btn btn-outline" onclick="showPreview('full')">🗂 完整存檔 PDF</button>
       <button class="btn btn-mint" onclick="saveCostData()">💾 儲存成本資料</button>
     </div>
 
@@ -1194,33 +1294,144 @@ async function exportExcel() {
   saveSettings(data);
   const ok = await saveToCloud(data);
   const wb = XLSX.utils.book_new();
-  const rows = [
-    ['報價編號',data.qNo,'','報價日期',data.qDate],
-    ['我方公司',data.myCompany,'','有效期限',data.qExpiry],
-    ['我方統編',data.myTaxId,'','客戶名稱',data.clientName],
-    ['業務聯絡',data.myContact,'','客戶統編',data.clientTaxId],
-    ['電話',data.myPhone,'','客戶聯絡',data.clientContact],
-    ['Email',data.myEmail,'','客戶電話',data.clientPhone],
-    ['地址',data.myAddress,'','客戶地址',data.clientAddress],
-    ['幣別',data.currency,'','',''], [],
-    ['No.','商品名稱','規格/尺寸','數量','單位','單價','小計','備注'],
+
+  // ── 工作表1：客戶報價單 ──
+  const clientRows = [
+    ['REVOCO 睿握科技有限公司', '', '', '', '', '', '', ''],
+    ['統編：' + (data.myTaxId||''), '', '', '', '', '', '', ''],
+    ['地址：' + (data.myAddress||''), '', '', '', '', '', '', ''],
+    ['電話：' + (data.myPhone||''), '','Email：' + (data.myEmail||''), '', '', '', '', ''],
+    ['', '', '', '', '', '', '', ''],
+    ['報價單', '', '', '', '', '', '', ''],
+    ['報價編號', data.qNo, '', '', '報價日期', data.qDate, '', ''],
+    ['有效期限', data.qExpiry, '', '', '幣別', data.currency, '', ''],
+    ['', '', '', '', '', '', '', ''],
+    ['客戶名稱', data.clientName||'', '', '', '統一編號', data.clientTaxId||'', '', ''],
+    ['聯絡人', data.clientContact||'', '', '', '聯絡電話', data.clientPhone||'', '', ''],
+    ['Email', data.clientEmail||'', '', '', '地址', data.clientAddress||'', '', ''],
+    ['', '', '', '', '', '', '', ''],
+    ['No.', '商品名稱', '規格/尺寸', '數量', '單位', '單價', '小計', '備注'],
     ...data.items.filter(it=>it.name).map((it,i)=>{
-      const q=parseFloat(it.qty)||0,p=parseFloat(it.price)||0;
-      return [i+1,it.name,it.spec,q,it.unit,p,q*p,it.note];
-    }), [],
-    ['','','','','','小計',data.subtotal,''],
-    ['','','','','',`稅金(${data.taxRate}%)`,data.tax,''],
-    ['','','','','','運費',data.shipping,''],
-    ['','','','','','總計',data.grand,''],
-    ...(data.remark?[['備注',data.remark]]:[])
+      const q=parseFloat(it.qty)||0, p=parseFloat(it.price)||0;
+      return [i+1, it.name, it.spec||'', q, it.unit||'', p, q*p, it.note||''];
+    }),
+    ['', '', '', '', '', '', '', ''],
+    ['', '', '', '', '', '小計', data.subtotal, ''],
+    ['', '', '', '', '', '稅金(' + data.taxRate + '%)', data.tax, ''],
+    ['', '', '', '', '', '運費', data.shipping, ''],
+    ['', '', '', '', '', '總計', data.grand, ''],
+    ['', '', '', '', '', '', '', ''],
+    ...(data.remark ? [['備注', data.remark, '', '', '', '', '', '']] : []),
+    ['', '', '', '', '', '', '', ''],
+    ['成交狀態', {pending:'報價中',won:'已成交',lost:'未成交'}[data.dealStatus]||'', '', '', '發票狀態', {not_issued:'未開發票',issued:'已開發票',void:'已作廢'}[data.invoiceStatus]||'', '', ''],
+    ['發票號碼', data.invoiceNo||'', '', '', '發票日期', data.invoiceDate||'', '', ''],
+    ['付款狀態', {unpaid:'未付款',partial:'部分付款',paid:'已付款'}[data.paymentStatus]||'', '', '', '收款金額', data.paymentAmount||0, '', ''],
+    ['收款日期', data.paymentDate||'', '', '', '', '', '', ''],
   ];
-  const ws = XLSX.utils.aoa_to_sheet(rows);
-  ws['!cols'] = [{wch:5},{wch:22},{wch:18},{wch:8},{wch:6},{wch:10},{wch:12},{wch:24}];
-  XLSX.utils.book_append_sheet(wb,'報價單',ws);
+
+  const ws1 = XLSX.utils.aoa_to_sheet(clientRows);
+  ws1['!cols'] = [
+    {wch:12}, {wch:24}, {wch:16}, {wch:8}, {wch:8}, {wch:12}, {wch:14}, {wch:20}
+  ];
+  // Merge cells for title
+  ws1['!merges'] = [
+    {s:{r:0,c:0}, e:{r:0,c:7}}, // 公司名稱
+    {s:{r:5,c:0}, e:{r:5,c:7}}, // 報價單標題
+  ];
+  XLSX.utils.book_append_sheet(wb, ws1, '客戶報價單');
+
+  // ── 工作表2：內部成本單 ──
+  const exRate = parseFloat(document.getElementById('costExRate')?.value)||1;
+  const costCur = document.getElementById('costCurrency')?.value||'CNY';
+  const supplier = document.getElementById('costSupplier')?.value||'';
+  const costNote = document.getElementById('costNote')?.value||'';
+  const validItems = data.items.filter(it=>it.name);
+
+  let supplierTotalOrig = 0, supplierTotalTWD = 0;
+  const costItemRows = validItems.map((it,i)=>{
+    const q=parseFloat(it.qty)||0;
+    const cp=parseFloat((window.costPrices||[])[i])||0;
+    const sell=parseFloat(it.price)||0;
+    const subOrig=q*cp, subTWD=subOrig*exRate;
+    const sellTWD=q*sell, profit=sellTWD-subTWD;
+    supplierTotalOrig += subOrig;
+    supplierTotalTWD += subTWD;
+    return [i+1, it.name, it.spec||'', q, it.unit||'', cp, subOrig, subTWD, sell, sellTWD, profit];
+  });
+
+  const extraCostRows = (window.extraCosts||[]).map(ec=>{
+    const amt=parseFloat(ec.amount)||0, rate=parseFloat(ec.exRate)||1;
+    const twd=ec.currency==='TWD'?amt:amt*rate;
+    return [ec.label||'', amt, ec.currency, rate, twd];
+  });
+  const extraTotal = (window.extraCosts||[]).reduce((s,ec)=>{
+    const amt=parseFloat(ec.amount)||0, rate=parseFloat(ec.exRate)||1;
+    return s+(ec.currency==='TWD'?amt:amt*rate);
+  },0);
+  const totalCost = supplierTotalTWD + extraTotal;
+  const profit = data.grand - totalCost;
+  const margin = data.grand>0?(profit/data.grand*100).toFixed(1):0;
+
+  const costRows = [
+    ['內部成本單（機密）', '', '', '', '', '', '', '', '', '', ''],
+    ['報價編號', data.qNo, '', '', '日期', data.qDate, '', '', '', '', ''],
+    ['廠商名稱', supplier, '', '', '報價幣別', costCur, '', '', '', '', ''],
+    ['匯率(對TWD)', exRate, '', '', '客戶名稱', data.clientName||'', '', '', '', '', ''],
+    ['', '', '', '', '', '', '', '', '', '', ''],
+    ['No.', '品項名稱', '規格', '數量', '單位', '廠商單價('+costCur+')', '廠商小計('+costCur+')', '廠商小計(TWD)', '客戶售價', '客戶小計(TWD)', '品項毛利(TWD)'],
+    ...costItemRows,
+    ['', '', '', '', '', '', '', '', '', '', ''],
+    ['', '', '', '', '', '廠商合計', supplierTotalOrig, supplierTotalTWD, '', data.grand, profit],
+    ['', '', '', '', '', '', '', '', '', '', ''],
+    ...(extraCostRows.length>0 ? [
+      ['其他費用', '金額', '幣別', '匯率', 'TWD金額', '', '', '', '', '', ''],
+      ...extraCostRows,
+      ['小計', '', '', '', extraTotal, '', '', '', '', '', ''],
+      ['', '', '', '', '', '', '', '', '', '', ''],
+    ] : []),
+    ['', '', '', '', '總成本(TWD)', totalCost, '', '', '', '', ''],
+    ['', '', '', '', '客戶總額(TWD)', data.grand, '', '', '', '', ''],
+    ['', '', '', '', '毛利(TWD)', profit, '', '', '', '', ''],
+    ['', '', '', '', '毛利率', margin+'%', '', '', '', '', ''],
+    ['', '', '', '', '', '', '', '', '', '', ''],
+    ...(costNote ? [['備注', costNote, '', '', '', '', '', '', '', '', '']] : []),
+  ];
+
+  const ws2 = XLSX.utils.aoa_to_sheet(costRows);
+  ws2['!cols'] = [
+    {wch:8}, {wch:22}, {wch:14}, {wch:8}, {wch:8},
+    {wch:16}, {wch:16}, {wch:14}, {wch:12}, {wch:14}, {wch:14}
+  ];
+  ws2['!merges'] = [
+    {s:{r:0,c:0}, e:{r:0,c:10}},
+  ];
+  XLSX.utils.book_append_sheet(wb, ws2, '內部成本單');
+
+  // ── 工作表3：歷史總覽 ──
+  try {
+    const histData = await dbSelect('quotations', 'select=quote_no,quote_date,client_name,currency,grand_total,deal_status,payment_status,invoice_status&order=saved_at.desc');
+    if(histData && histData.length>0) {
+      const histRows = [
+        ['報價編號','日期','客戶名稱','幣別','報價金額','成交狀態','付款狀態','發票狀態'],
+        ...histData.map(h=>[
+          h.quote_no||'', h.quote_date||'', h.client_name||'',
+          h.currency||'TWD', h.grand_total||0,
+          {pending:'報價中',won:'已成交',lost:'未成交'}[h.deal_status||'pending'],
+          {unpaid:'未付款',partial:'部分付款',paid:'已付款'}[h.payment_status||'unpaid'],
+          {not_issued:'未開發票',issued:'已開發票',void:'已作廢'}[h.invoice_status||'not_issued'],
+        ])
+      ];
+      const ws3 = XLSX.utils.aoa_to_sheet(histRows);
+      ws3['!cols'] = [{wch:18},{wch:12},{wch:20},{wch:8},{wch:12},{wch:10},{wch:10},{wch:10}];
+      XLSX.utils.book_append_sheet(wb, ws3, '歷史總覽');
+    }
+  } catch(e) {}
+
   XLSX.writeFile(wb, `報價單_${data.qNo}_${data.qDate}.xlsx`);
-  toast(ok ? '✅ Excel 已下載並同步雲端' : '✅ Excel 已下載（雲端同步失敗）');
-  if (ok) await refreshHistory();
+  toast(ok ? '✅ Excel 已下載並同步雲端' : '✅ Excel 已下載');
+  if(ok) await refreshHistory();
 }
+
 
 // ── Preview ──
 let productImages = []; // {name, dataUrl}
@@ -1259,11 +1470,15 @@ function delProductImg(i) {
   renderProductImages();
 }
 
-function showPreview() {
+function showPreview(mode) {
   const data = collectData();
   saveSettings(data);
-  document.getElementById('previewTitle').textContent = `報價單 ${data.qNo}`;
-  document.getElementById('previewContent').innerHTML = buildPreviewHTML(data);
+  const isClient = mode !== 'full';
+  document.getElementById('previewTitle').textContent = isClient ? `客戶報價單 ${data.qNo}` : `完整存檔 ${data.qNo}`;
+  document.getElementById('previewHint').textContent = isClient ? '列印/存PDF → 客戶版（不含成本）' : '列印/存PDF → 完整版（含成本，自己留存）';
+  document.getElementById('previewContent').innerHTML = isClient 
+    ? buildClientHTML(data) 
+    : buildClientHTML(data) + buildCostHTML(data);
   document.getElementById('preview').classList.add('open');
   document.body.style.overflow = 'hidden';
 }
@@ -1280,7 +1495,7 @@ function doPrint() {
     printEl.style.cssText = 'display:none';
     document.body.appendChild(printEl);
   }
-  printEl.innerHTML = buildPreviewHTML(data);
+  printEl.innerHTML = buildClientHTML(data);
   printEl.style.display = 'block';
   
   // Add print style
@@ -1315,7 +1530,7 @@ function closePreview() {
   document.body.style.overflow = '';
 }
 
-function buildPreviewHTML(d) {
+function buildClientHTML(d) {
   const fn = n => Number(n||0).toLocaleString('zh-TW',{minimumFractionDigits:0,maximumFractionDigits:2});
   const cur = d.currency;
   const myInfo = [
@@ -1458,6 +1673,103 @@ function renderClientImages() {
 function delClientImg(i) {
   clientImages.splice(i,1);
   renderClientImages();
+}
+
+// ── Build Cost HTML for PDF ──
+function buildCostHTML(d) {
+  const fn = n => Number(n||0).toLocaleString('zh-TW',{minimumFractionDigits:0,maximumFractionDigits:2});
+  const exRate = parseFloat(document.getElementById('costExRate')?.value)||1;
+  const costCur = document.getElementById('costCurrency')?.value||'CNY';
+  const supplier = document.getElementById('costSupplier')?.value||'-';
+  const costNote = document.getElementById('costNote')?.value||'';
+  const validItems = d.items.filter(it=>it.name);
+
+  const itemRows = validItems.map((it,i)=>{
+    const q=parseFloat(it.qty)||0;
+    const cp=parseFloat((window.costPrices||[])[i])||0;
+    const sub=q*cp, subTWD=sub*exRate;
+    return `<tr style="background:${i%2===0?'#fff':'#f4f8f6'}">
+      <td style="text-align:center;padding:6px 5px;border-bottom:1px solid #eef4f1;font-size:12px">${i+1}</td>
+      <td style="padding:6px 7px;border-bottom:1px solid #eef4f1;font-size:12px;font-weight:600">${it.name}</td>
+      <td style="text-align:right;padding:6px 7px;border-bottom:1px solid #eef4f1;font-size:12px">${fn(q)} ${it.unit||''}</td>
+      <td style="text-align:right;padding:6px 7px;border-bottom:1px solid #eef4f1;font-size:12px">${costCur} ${cp>0?fn(cp):'-'}</td>
+      <td style="text-align:right;padding:6px 7px;border-bottom:1px solid #eef4f1;font-size:12px">${sub>0?costCur+' '+fn(sub):'-'}</td>
+      <td style="text-align:right;padding:6px 7px;border-bottom:1px solid #eef4f1;font-size:12px;font-weight:700;color:#5C8070">${subTWD>0?'TWD '+fn(subTWD):'-'}</td>
+      <td style="text-align:right;padding:6px 7px;border-bottom:1px solid #eef4f1;font-size:12px;color:#E87722;font-weight:700">${d.items.filter(it=>it.name)[i]?'TWD '+fn((parseFloat(d.items.filter(it=>it.name)[i].qty)||0)*(parseFloat(d.items.filter(it=>it.name)[i].price)||0)):'-'}</td>
+    </tr>`;
+  }).join('');
+
+  const supplierTotal = validItems.reduce((s,it,i)=>{
+    return s+(parseFloat(it.qty)||0)*(parseFloat((window.costPrices||[])[i])||0);
+  },0);
+  const supplierTWD = supplierTotal*exRate;
+  const extraRows = (window.extraCosts||[]).map(ec=>{
+    const amt=parseFloat(ec.amount)||0, rate=parseFloat(ec.exRate)||1;
+    const twd=ec.currency==='TWD'?amt:amt*rate;
+    return `<tr><td style="padding:6px 10px;font-size:12px">${ec.label||'-'}</td>
+      <td style="text-align:right;padding:6px 10px;font-size:12px">${ec.currency} ${fn(amt)}</td>
+      <td style="text-align:right;padding:6px 10px;font-size:12px;color:#5C8070;font-weight:700">TWD ${fn(twd)}</td></tr>`;
+  }).join('');
+  const extraTotal = (window.extraCosts||[]).reduce((s,ec)=>{
+    const amt=parseFloat(ec.amount)||0,rate=parseFloat(ec.exRate)||1;
+    return s+(ec.currency==='TWD'?amt:amt*rate);
+  },0);
+  const totalCost = supplierTWD+extraTotal;
+  const clientGrand = parseFloat(d.grand)||0;
+  const profit = clientGrand-totalCost;
+  const margin = clientGrand>0?(profit/clientGrand*100).toFixed(1):0;
+
+  return `
+    <div style="margin-top:24px;padding-top:20px;border-top:3px dashed #C8DDD5">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+        <div style="background:#2C3830;color:white;padding:5px 14px;border-radius:16px;font-size:11px;font-weight:700">🔒 內部成本單（僅供內部參考）</div>
+        <div style="font-size:11px;color:#8a9e97">${d.qNo}</div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;font-size:12px">
+        <div style="background:#EBF2EE;padding:8px 10px;border-radius:6px"><span style="color:#5C8070;font-weight:700">廠商名稱：</span>${supplier}</div>
+        <div style="background:#EBF2EE;padding:8px 10px;border-radius:6px"><span style="color:#5C8070;font-weight:700">報價幣別：</span>${costCur}（匯率 ${exRate}）</div>
+      </div>
+
+      <table style="width:100%;border-collapse:collapse;margin-bottom:12px">
+        <thead><tr style="background:#EBF2EE">
+          <th style="padding:7px 5px;font-size:10px;color:#5C8070;border-bottom:2px solid #C8DDD5;text-align:center;width:26px">No.</th>
+          <th style="padding:7px 7px;font-size:10px;color:#5C8070;border-bottom:2px solid #C8DDD5;text-align:left">品項名稱</th>
+          <th style="padding:7px 7px;font-size:10px;color:#5C8070;border-bottom:2px solid #C8DDD5;text-align:right">數量</th>
+          <th style="padding:7px 7px;font-size:10px;color:#5C8070;border-bottom:2px solid #C8DDD5;text-align:right">廠商單價</th>
+          <th style="padding:7px 7px;font-size:10px;color:#5C8070;border-bottom:2px solid #C8DDD5;text-align:right">廠商小計</th>
+          <th style="padding:7px 7px;font-size:10px;color:#5C8070;border-bottom:2px solid #C8DDD5;text-align:right">換算TWD</th>
+          <th style="padding:7px 7px;font-size:10px;color:#E87722;border-bottom:2px solid #C8DDD5;text-align:right">客戶售價</th>
+        </tr></thead>
+        <tbody>${itemRows||'<tr><td colspan="7" style="text-align:center;padding:12px;color:#8a9e97">無品項</td></tr>'}</tbody>
+      </table>
+
+      ${extraRows?`
+      <table style="width:100%;border-collapse:collapse;margin-bottom:12px">
+        <thead><tr style="background:#EBF2EE">
+          <th style="padding:7px 10px;font-size:10px;color:#5C8070;border-bottom:2px solid #C8DDD5;text-align:left">其他費用</th>
+          <th style="padding:7px 10px;font-size:10px;color:#5C8070;border-bottom:2px solid #C8DDD5;text-align:right">原始金額</th>
+          <th style="padding:7px 10px;font-size:10px;color:#5C8070;border-bottom:2px solid #C8DDD5;text-align:right">換算TWD</th>
+        </tr></thead>
+        <tbody>${extraRows}</tbody>
+      </table>`:''}
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+        <div style="background:#1c2b26;color:white;padding:12px;border-radius:8px">
+          <div style="font-size:10px;color:rgba(255,255,255,0.5);margin-bottom:4px">總成本（TWD）</div>
+          <div style="font-size:16px;font-weight:800">TWD ${fn(totalCost)}</div>
+          <div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:2px">廠商 ${fn(supplierTWD)} + 其他 ${fn(extraTotal)}</div>
+        </div>
+        <div style="background:${profit>=0?'#e8f3ee':'#fde8e8'};padding:12px;border-radius:8px">
+          <div style="font-size:10px;color:#5C8070;margin-bottom:4px">毛利（TWD）</div>
+          <div style="font-size:16px;font-weight:800;color:${profit>=0?'#5C8070':'#c0392b'}">TWD ${fn(profit)}</div>
+          <div style="font-size:10px;color:#8a9e97;margin-top:2px">毛利率 ${margin}%</div>
+        </div>
+      </div>
+
+      ${costNote?`<div style="background:#f7faf8;border-radius:6px;padding:8px 10px;font-size:11px;color:#4a5e57"><span style="font-weight:700;color:#5C8070">備注：</span>${costNote}</div>`:''}
+    </div>
+  `;
 }
 
 // ── Status helpers ──
@@ -1773,8 +2085,10 @@ function loadRecord(jsonStr) {
     if(h.cost_freight) document.getElementById('costFreight').value = h.cost_freight;
     if(h.cost_other) document.getElementById('costOther').value = h.cost_other;
     if(h.cost_note) document.getElementById('costNote').value = h.cost_note;
-    if(h.cost_items) window.costPrices = h.cost_items.map(i=>i.costPrice||'');
-    if(h.cost_images) { costImages = h.cost_images; renderImages(); }
+    if(h.cost_items) { window.costPrices = h.cost_items.map(i=>i.costPrice||''); }
+    if(h.cost_images) { costImages = h.cost_images||[]; renderImages(); }
+    if(h.cost_extra) { window.extraCosts = h.cost_extra; renderExtraCosts(); }
+    else { window.extraCosts = []; renderExtraCosts(); }
     if(h.client_images) { clientImages = h.client_images; renderClientImages(); }
   }, 100);
 }
