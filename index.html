@@ -9,7 +9,7 @@
 <link rel="manifest" href="manifest.json">
 <title>REVOCO 報價系統</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <style>
 :root {
   --orange: #E87722;
@@ -150,7 +150,7 @@ tbody input:focus { outline: none; border-color: var(--mint); background: white;
 
 <div class="header">
   <div class="header-brand">
-    <span class="revoco">REVOCO</span>
+    <img src="logo2.png" alt="REVOCO" style="height:32px;width:auto;object-fit:contain;">
     <div class="divider"></div>
     <span class="cn">睿握科技有限公司</span>
   </div>
@@ -324,34 +324,75 @@ tbody input:focus { outline: none; border-color: var(--mint); background: white;
 <script>
 const SUPABASE_URL = 'https://rlnamaqqqajixoebekdw.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJsbmFtYXFxcWFqaXhvZWJla2R3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2OTY2NjEsImV4cCI6MjA5ODI3MjY2MX0.Vbw-hqRgzqTb-gAAq7sZPrRESL9Qf3sj3SAjnuS197g';
-const { createClient } = supabase;
-const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+// Plain fetch helpers for Supabase REST API
+const dbHeaders = {
+  'apikey': SUPABASE_KEY,
+  'Authorization': 'Bearer ' + SUPABASE_KEY,
+  'Content-Type': 'application/json',
+  'Prefer': 'return=representation'
+};
+
+async function dbSelect(table, params='') {
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${params}`, { headers: dbHeaders });
+  if (!r.ok) { const e = await r.json(); throw new Error(e.message || r.status); }
+  return await r.json();
+}
+
+async function dbUpsert(table, row) {
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
+    method: 'POST',
+    headers: { ...dbHeaders, 'Prefer': 'resolution=merge-duplicates,return=representation' },
+    body: JSON.stringify(row)
+  });
+  if (!r.ok) { const e = await r.json(); throw new Error(e.message || r.status); }
+  return await r.json();
+}
+
+async function dbDelete(table, col, val) {
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${col}=eq.${encodeURIComponent(val)}`, {
+    method: 'DELETE', headers: dbHeaders
+  });
+  if (!r.ok) { const e = await r.json(); throw new Error(e.message || r.status); }
+  return true;
+}
 
 let items = [];
 let pendingDel = null;
 
 // ── Init ──
+const MY_INFO = {
+  myCompany: '睿握科技有限公司',
+  myTaxId: '60341689',
+  myContact: '',
+  myPhone: '0921-386911',
+  myEmail: 'revocotw@gmail.com',
+  myAddress: '台北市大安區忠孝東路四段300號5樓'
+};
+
 window.addEventListener('DOMContentLoaded', async () => {
   setDefaults();
   genQNo();
   addRow(); addRow(); addRow();
+  loadMyInfo();
   loadSettings();
   await initDB();
 });
 
+function loadMyInfo() {
+  // 只在欄位是空的時候填入，不覆蓋使用者已填的內容
+  Object.entries(MY_INFO).forEach(([k, v]) => {
+    const el = document.getElementById(k);
+    if (el && !el.value && v) el.value = v;
+  });
+}
+
 async function initDB() {
   try {
-    const { error } = await db.from('quotations').select('id').limit(1);
-    if (error && error.code === '42P01') {
-      setSyncBar('❌ 資料表不存在，請先建立（見說明）', 'err');
-    } else if (error) {
-      setSyncBar('❌ 資料庫連線錯誤：' + error.message, 'err');
-    } else {
-      setSyncBar('✅ 已連接雲端資料庫', 'ok');
-      await refreshHistory();
-    }
+    await dbSelect('quotations', 'select=id&limit=1');
+    setSyncBar('✅ 已連接雲端資料庫', 'ok');
+    await refreshHistory();
   } catch(e) {
-    setSyncBar('❌ 連線失敗', 'err');
+    setSyncBar('❌ 資料庫連線錯誤：' + e.message, 'err');
   }
 }
 
@@ -374,7 +415,7 @@ async function genQNo() {
   const base = `Q${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}`;
   let cnt = 1;
   try {
-    const { data } = await db.from('quotations').select('quote_no').like('quote_no', base + '%');
+    const data = await dbSelect('quotations', `select=quote_no&quote_no=like.${base}%`);
     if (data) cnt = data.length + 1;
   } catch(e) {}
   document.getElementById('qNo').value = `${base}-${String(cnt).padStart(3,'0')}`;
@@ -516,35 +557,19 @@ function clearForm() {
 async function saveToCloud(data) {
   try {
     const row = {
-      quote_no: data.qNo,
-      quote_date: data.qDate,
-      expiry_date: data.qExpiry,
-      my_company: data.myCompany,
-      my_tax_id: data.myTaxId,
-      my_contact: data.myContact,
-      my_phone: data.myPhone,
-      my_email: data.myEmail,
-      my_address: data.myAddress,
-      client_name: data.clientName,
-      client_tax_id: data.clientTaxId,
-      client_contact: data.clientContact,
-      client_phone: data.clientPhone,
-      client_email: data.clientEmail,
-      client_address: data.clientAddress,
-      currency: data.currency,
-      tax_rate: data.taxRate,
-      shipping: data.shipping,
-      remark: data.remark,
-      subtotal: data.subtotal,
-      tax: data.tax,
-      grand_total: data.grand,
-      items: data.items,
-      saved_at: data.savedAt
+      quote_no: data.qNo, quote_date: data.qDate, expiry_date: data.qExpiry,
+      my_company: data.myCompany, my_tax_id: data.myTaxId, my_contact: data.myContact,
+      my_phone: data.myPhone, my_email: data.myEmail, my_address: data.myAddress,
+      client_name: data.clientName, client_tax_id: data.clientTaxId,
+      client_contact: data.clientContact, client_phone: data.clientPhone,
+      client_email: data.clientEmail, client_address: data.clientAddress,
+      currency: data.currency, tax_rate: data.taxRate, shipping: data.shipping,
+      remark: data.remark, subtotal: data.subtotal, tax: data.tax,
+      grand_total: data.grand, items: data.items, saved_at: data.savedAt
     };
-    const { error } = await db.from('quotations').upsert(row, { onConflict: 'quote_no' });
-    if (error) { toast('⚠️ 雲端儲存失敗：' + error.message); return false; }
+    await dbUpsert('quotations', row);
     return true;
-  } catch(e) { toast('⚠️ 雲端連線錯誤'); return false; }
+  } catch(e) { toast('⚠️ 雲端儲存失敗：' + e.message); return false; }
 }
 
 // ── History ──
@@ -552,8 +577,7 @@ async function refreshHistory() {
   const tbody = document.getElementById('histBody');
   tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:#8a9e97">載入中...</td></tr>';
   try {
-    const { data, error } = await db.from('quotations').select('*').order('saved_at', { ascending: false });
-    if (error) { tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:20px;color:#D96060">錯誤：${error.message}</td></tr>`; return; }
+    const data = await dbSelect('quotations', 'select=*&order=saved_at.desc');
     if (!data || data.length === 0) {
       tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:#8a9e97">尚無歷史記錄</td></tr>'; return;
     }
@@ -611,8 +635,7 @@ function confirmDelete(qNo) {
 }
 
 async function deleteRecord(qNo) {
-  const { error } = await db.from('quotations').delete().eq('quote_no', qNo);
-  if (error) { toast('❌ 刪除失敗'); return; }
+  try { await dbDelete('quotations', 'quote_no', qNo); } catch(e) { toast('❌ 刪除失敗'); return; }
   toast('已刪除'); await refreshHistory();
 }
 
@@ -701,8 +724,8 @@ function buildPreviewHTML(d) {
     <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #E87722;padding-bottom:12px;margin-bottom:14px">
       <div>
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-          <span style="font-size:20px;font-weight:900;color:#E87722;letter-spacing:.08em;font-family:Georgia,serif">REVOCO</span>
-          <div style="width:1px;height:18px;background:#C8DDD5"></div>
+          <img src="logo2.png" alt="REVOCO" style="height:36px;width:auto;object-fit:contain;">
+          <div style="width:1px;height:22px;background:#C8DDD5"></div>
           <span style="font-size:11px;color:#8a9e97">睿握科技有限公司</span>
         </div>
         <div style="background:#EBF2EE;border-radius:6px;padding:7px 10px;font-size:11px;line-height:1.8;color:#2C3830">
