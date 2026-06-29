@@ -105,78 +105,34 @@ function calcFinanceSummary(data) {
   document.getElementById('fcMargin').textContent = `毛利率 ${margin}%`;
 }
 
-// ── View Toggle ──
-let currentView = 'client';
-let costImages = []; // {name, dataUrl}
 
-function switchView(view) {
-  currentView = view;
-  document.getElementById('clientView').style.display = view==='client'?'block':'none';
-  document.getElementById('costView').style.display = view==='cost'?'block':'none';
-  document.getElementById('btnClient').className = 'view-btn' + (view==='client'?' active':'');
-  document.getElementById('btnCost').className = 'view-btn' + (view==='cost'?' cost-active':'');
-  if(view==='cost') { renderCostItems(); calcProfit(); }
-}
-
-function renderCostItems() {
-  const tbody = document.getElementById('costItemBody');
-  tbody.innerHTML = '';
-  const validItems = items.filter(it=>it.name);
-  validItems.forEach((it,i) => {
-    const costPrice = (window.costPrices||[])[i] || '';
-    const qty = parseFloat(it.qty)||0;
-    const cp = parseFloat(costPrice)||0;
-    const sub = qty * cp;
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td class="row-no">${i+1}</td>
-      <td style="padding:4px 6px;font-size:13px">${it.name}</td>
-      <td style="padding:4px 3px"><input type="text" inputmode="decimal" value="${costPrice}" 
-        oninput="updateCostPrice(${i},this.value)" placeholder="0"
-        style="border:1px solid var(--border);border-radius:5px;padding:5px 7px;font-size:13px;font-family:inherit;width:100%;text-align:right"></td>
-      <td style="padding:4px 6px;text-align:center;font-size:13px">${fmt(qty)}</td>
-      <td style="padding:4px 8px;text-align:right;font-weight:700;font-size:13px">${sub>0?fmt(sub):'-'}</td>
-    `;
-    tbody.appendChild(tr);
-  });
-}
-
-window.costPrices = [];
-function updateCostPrice(i, val) {
-  if(!window.costPrices) window.costPrices = [];
-  window.costPrices[i] = val;
-  calcProfit();
-  // update subtotal in row
-  const it = items.filter(it=>it.name)[i];
-  if(!it) return;
-  const q = parseFloat(it.qty)||0, p = parseFloat(val)||0;
-  const row = document.getElementById('costItemBody').rows[i];
-  if(row) row.cells[4].textContent = (q*p)>0 ? fmt(q*p) : '-';
-}
 
 function calcProfit() {
-  const clientTotal = parseFloat(document.getElementById('grandAmt').textContent.replace(/,/g,''))||0;
+  const clientTotal = parseFloat((document.getElementById('grandAmt')?.textContent||'0').replace(/,/g,''))||0;
   const exRate = parseFloat(document.getElementById('costExRate')?.value)||1;
   const validItems = items.filter(it=>it.name);
-  const supplierCost = validItems.reduce((s,it,i)=>{
+  const supplierCostTWD = validItems.reduce((s,it,i)=>{
     const q=parseFloat(it.qty)||0, p=parseFloat((window.costPrices||[])[i])||0;
     return s + q*p*exRate;
   },0);
-  const freight = parseFloat(document.getElementById('costFreight')?.value)||0;
-  const other = parseFloat(document.getElementById('costOther')?.value)||0;
-  const totalCost = supplierCost + freight + other;
+  const extraTWD = (window.extraCosts||[]).reduce((s,ec)=>{
+    const amt=parseFloat(ec.amount)||0, rate=parseFloat(ec.exRate)||1;
+    return s + (ec.currency==='TWD'?amt:amt*rate);
+  },0);
+  const totalCost = supplierCostTWD + extraTWD;
   const profit = clientTotal - totalCost;
   const margin = clientTotal>0 ? (profit/clientTotal*100).toFixed(1) : 0;
 
   const cur = document.getElementById('currency')?.value||'TWD';
-  document.getElementById('pcClientTotal').textContent = `${cur} ${fmt(clientTotal)}`;
-  document.getElementById('pcSupplierCost').textContent = `TWD ${fmt(supplierCost)}`;
-  document.getElementById('pcFreight').textContent = `TWD ${fmt(freight)}`;
-  document.getElementById('pcOther').textContent = `TWD ${fmt(other)}`;
-  document.getElementById('pcTotalCost').textContent = `TWD ${fmt(totalCost)}`;
+  const set = (id,v) => { const el=document.getElementById(id); if(el) el.textContent=v; };
+  set('pcClientTotal', `${cur} ${fmt(clientTotal)}`);
+  set('pcSupplierCost', `TWD ${fmt(supplierCostTWD)}`);
+  set('pcFreight', `TWD ${fmt(extraTWD)}`);
+  set('pcOther', '');
+  set('pcTotalCost', `TWD ${fmt(totalCost)}`);
   const profitEl = document.getElementById('pcProfit');
-  profitEl.textContent = `TWD ${fmt(profit)} (${margin}%)`;
-  profitEl.style.color = profit>=0 ? '#7ecba1' : '#f08080';
+  if(profitEl){ profitEl.textContent=`TWD ${fmt(profit)} (${margin}%)`; profitEl.style.color=profit>=0?'#7ecba1':'#f08080'; }
+  updateCostTotals();
 }
 
 // ── Image Upload ──
@@ -684,7 +640,7 @@ tbody input:focus { outline: none; border-color: var(--mint); background: white;
   </div><!-- /clientView -->
 
   <!-- COST VIEW - always visible below -->
-  <div id="costView">
+  <div id="costView" style="display:none">
   <div style="display:flex;align-items:center;gap:10px;margin:8px 0 14px">
     <div style="flex:1;height:2px;background:var(--border)"></div>
     <div style="background:#2C3830;color:white;padding:6px 16px;border-radius:20px;font-size:12px;font-weight:700;white-space:nowrap">🔒 內部成本（僅供內部參考）</div>
@@ -696,8 +652,7 @@ tbody input:focus { outline: none; border-color: var(--mint); background: white;
       <div style="font-size:12px;color:rgba(255,255,255,0.5);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.06em">損益分析</div>
       <div class="profit-row"><span class="label">客戶報價總額</span><span class="value" id="pcClientTotal">-</span></div>
       <div class="profit-row"><span class="label">廠商成本</span><span class="value" id="pcSupplierCost">-</span></div>
-      <div class="profit-row"><span class="label">運費成本</span><span class="value" id="pcFreight">-</span></div>
-      <div class="profit-row"><span class="label">其他費用</span><span class="value" id="pcOther">-</span></div>
+      <div class="profit-row"><span class="label">其他成本（運費等）</span><span class="value" id="pcFreight">-</span></div>
       <div class="profit-row"><span class="label">總成本</span><span class="value" id="pcTotalCost">-</span></div>
       <div class="profit-row highlight"><span class="label" style="color:white;font-weight:700;font-size:15px">毛利</span><span class="value" id="pcProfit" style="font-size:18px">-</span></div>
     </div>
@@ -709,44 +664,71 @@ tbody input:focus { outline: none; border-color: var(--mint); background: white;
         <div class="g2">
           <div class="field"><label>廠商名稱</label><input id="costSupplier" placeholder="供應商名稱"></div>
           <div class="field"><label>廠商聯絡人</label><input id="costSupplierContact" placeholder=""></div>
-          <div class="field"><label>廠商報價幣別</label>
-            <select id="costCurrency">
-              <option value="CNY">CNY 人民幣</option>
-              <option value="TWD">TWD 新台幣</option>
-              <option value="USD">USD 美元</option>
-            </select>
-          </div>
-          <div class="field"><label>匯率（對TWD）</label><input id="costExRate" placeholder="例：4.45" oninput="calcProfit()"></div>
         </div>
       </div>
     </div>
 
     <!-- Cost Items -->
     <div class="card">
-      <div class="card-head">各品項廠商報價</div>
+      <div class="card-head">廠商報價明細</div>
+      <div class="card-body" style="padding-bottom:8px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
+          <div class="field" style="flex:0 0 auto">
+            <label>廠商報價幣別</label>
+            <select id="costCurrency" onchange="calcProfit()" style="border:1px solid var(--border);border-radius:7px;padding:6px 9px;font-size:13px;font-family:inherit">
+              <option value="CNY">CNY 人民幣</option>
+              <option value="TWD">TWD 新台幣</option>
+              <option value="USD">USD 美元</option>
+              <option value="JPY">JPY 日圓</option>
+              <option value="EUR">EUR 歐元</option>
+            </select>
+          </div>
+          <div class="field" style="flex:0 0 auto">
+            <label>匯率（換算成TWD）</label>
+            <input id="costExRate" type="text" inputmode="decimal" placeholder="例：4.45" oninput="calcProfit()"
+              style="border:1px solid var(--border);border-radius:7px;padding:6px 9px;font-size:13px;font-family:inherit;width:100px">
+          </div>
+          <div style="font-size:11px;color:#8a9e97;margin-top:16px">填匯率後自動換算TWD金額</div>
+        </div>
+      </div>
       <div class="tbl-wrap">
         <table>
           <thead><tr>
             <th style="width:28px;text-align:center">No.</th>
             <th>品項名稱</th>
-            <th style="width:100px">廠商單價</th>
-            <th style="width:80px">數量</th>
+            <th style="width:90px">數量</th>
+            <th style="width:110px">廠商單價</th>
             <th style="width:100px;text-align:right">廠商小計</th>
+            <th style="width:100px;text-align:right">換算TWD</th>
           </tr></thead>
           <tbody id="costItemBody"></tbody>
         </table>
+      </div>
+      <div style="padding:10px 14px;background:var(--cream);border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:16px;font-size:13px">
+        <span style="color:#4a5e57">廠商報價合計</span>
+        <strong id="costItemTotal" style="min-width:100px;text-align:right">-</strong>
+        <strong id="costItemTotalTWD" style="min-width:100px;text-align:right;color:var(--mint-dark)">- TWD</strong>
       </div>
     </div>
 
     <!-- Other Costs -->
     <div class="card">
-      <div class="card-head">其他成本</div>
+      <div class="card-head">其他成本項目</div>
       <div class="card-body">
-        <div class="g2">
-          <div class="field"><label>運費成本</label><input id="costFreight" type="text" inputmode="decimal" value="0" oninput="calcProfit()" placeholder="0"></div>
-          <div class="field"><label>其他費用</label><input id="costOther" type="text" inputmode="decimal" value="0" oninput="calcProfit()" placeholder="關稅、包裝等"></div>
-        </div>
-        <div class="field" style="margin-top:10px"><label>備注</label><textarea id="costNote" rows="2" placeholder="成本備注、注意事項..." style="resize:vertical;border:1px solid var(--border);border-radius:7px;padding:8px 10px;font-size:13px;font-family:inherit;width:100%"></textarea></div>
+        <div id="extraCostRows"></div>
+        <button class="btn btn-outline btn-sm" onclick="addExtraCost()" style="margin-top:6px">＋ 新增費用項目</button>
+      </div>
+      <div style="padding:10px 14px;background:var(--cream);border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:16px;font-size:13px">
+        <span style="color:#4a5e57">其他成本合計（TWD）</span>
+        <strong id="extraCostTotal" style="min-width:100px;text-align:right;color:var(--mint-dark)">0</strong>
+      </div>
+    </div>
+
+    <!-- Cost Note -->
+    <div class="card">
+      <div class="card-head">備注</div>
+      <div class="card-body">
+        <textarea id="costNote" rows="2" placeholder="成本備注、注意事項..." style="resize:vertical;border:1px solid var(--border);border-radius:7px;padding:8px 10px;font-size:13px;font-family:inherit;width:100%"></textarea>
       </div>
     </div>
 
@@ -1534,30 +1516,111 @@ function switchView(view) {
   document.getElementById('costView').style.display = view==='cost'?'block':'none';
   document.getElementById('btnClient').className = 'view-btn' + (view==='client'?' active':'');
   document.getElementById('btnCost').className = 'view-btn' + (view==='cost'?' cost-active':'');
-  if(view==='cost') { renderCostItems(); calcProfit(); }
+  if(view==='cost') { 
+    renderCostItems(); 
+    renderExtraCosts();
+    calcProfit(); 
+  }
 }
 
 function renderCostItems() {
   const tbody = document.getElementById('costItemBody');
+  if(!tbody) return;
   tbody.innerHTML = '';
   const validItems = items.filter(it=>it.name);
+  if(validItems.length===0){
+    tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:14px;color:#8a9e97;font-size:12px">請先在客戶報價單填寫商品</td></tr>';
+    return;
+  }
+  const exRate = parseFloat(document.getElementById('costExRate')?.value)||1;
+  const cur = document.getElementById('costCurrency')?.value||'CNY';
   validItems.forEach((it,i) => {
     const costPrice = (window.costPrices||[])[i] || '';
     const qty = parseFloat(it.qty)||0;
     const cp = parseFloat(costPrice)||0;
     const sub = qty * cp;
+    const subTWD = sub * exRate;
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td class="row-no">${i+1}</td>
-      <td style="padding:4px 6px;font-size:13px">${it.name}</td>
-      <td style="padding:4px 3px"><input type="text" inputmode="decimal" value="${costPrice}" 
-        oninput="updateCostPrice(${i},this.value)" placeholder="0"
-        style="border:1px solid var(--border);border-radius:5px;padding:5px 7px;font-size:13px;font-family:inherit;width:100%;text-align:right"></td>
-      <td style="padding:4px 6px;text-align:center;font-size:13px">${fmt(qty)}</td>
-      <td style="padding:4px 8px;text-align:right;font-weight:700;font-size:13px">${sub>0?fmt(sub):'-'}</td>
+      <td style="padding:5px 7px;font-size:13px;font-weight:600">${it.name}</td>
+      <td style="padding:5px 7px;text-align:center;font-size:13px">${fmt(qty)}</td>
+      <td style="padding:4px 3px">
+        <div style="display:flex;align-items:center;gap:3px">
+          <span style="font-size:11px;color:#8a9e97;white-space:nowrap">${cur}</span>
+          <input type="text" inputmode="decimal" value="${costPrice}" 
+            oninput="updateCostPrice(${i},this.value)" placeholder="0"
+            style="border:1px solid var(--border);border-radius:5px;padding:5px 7px;font-size:13px;font-family:inherit;width:100%;text-align:right">
+        </div>
+      </td>
+      <td style="padding:5px 8px;text-align:right;font-size:13px;color:#4a5e57">${sub>0?cur+' '+fmt(sub):'-'}</td>
+      <td style="padding:5px 8px;text-align:right;font-weight:700;font-size:13px;color:var(--mint-dark)">${subTWD>0?'TWD '+fmt(subTWD):'-'}</td>
     `;
     tbody.appendChild(tr);
   });
+  updateCostTotals();
+}
+
+function updateCostTotals() {
+  const validItems = items.filter(it=>it.name);
+  const exRate = parseFloat(document.getElementById('costExRate')?.value)||1;
+  const cur = document.getElementById('costCurrency')?.value||'CNY';
+  let totalOrig=0, totalTWD=0;
+  validItems.forEach((it,i)=>{
+    const q=parseFloat(it.qty)||0, p=parseFloat((window.costPrices||[])[i])||0;
+    totalOrig += q*p;
+    totalTWD += q*p*exRate;
+  });
+  const t1=document.getElementById('costItemTotal');
+  const t2=document.getElementById('costItemTotalTWD');
+  if(t1) t1.textContent = totalOrig>0?`${cur} ${fmt(totalOrig)}`:'-';
+  if(t2) t2.textContent = totalTWD>0?`TWD ${fmt(totalTWD)}`:'-';
+}
+
+// Extra cost rows
+window.extraCosts = [];
+function addExtraCost() {
+  window.extraCosts.push({label:'', amount:'', currency:'TWD', exRate:'1'});
+  renderExtraCosts();
+}
+
+function renderExtraCosts() {
+  const container = document.getElementById('extraCostRows');
+  if(!container) return;
+  if(window.extraCosts.length===0){
+    container.innerHTML='<div style="color:#8a9e97;font-size:12px;padding:4px 0">尚未新增費用項目</div>';
+    updateExtraCostTotal(); return;
+  }
+  container.innerHTML = window.extraCosts.map((ec,i)=>`
+    <div style="display:grid;grid-template-columns:1fr 100px 80px 80px 28px;gap:6px;align-items:center;margin-bottom:8px">
+      <input value="${ec.label||''}" oninput="window.extraCosts[${i}].label=this.value" placeholder="費用名稱（如：運費、關稅、包裝費）"
+        style="border:1px solid var(--border);border-radius:7px;padding:6px 9px;font-size:13px;font-family:inherit">
+      <input type="text" inputmode="decimal" value="${ec.amount||''}" oninput="window.extraCosts[${i}].amount=this.value;updateExtraCostTotal()" placeholder="金額"
+        style="border:1px solid var(--border);border-radius:7px;padding:6px 9px;font-size:13px;font-family:inherit;text-align:right">
+      <select onchange="window.extraCosts[${i}].currency=this.value;updateExtraCostTotal()"
+        style="border:1px solid var(--border);border-radius:7px;padding:6px 7px;font-size:12px;font-family:inherit">
+        <option value="TWD" ${ec.currency==='TWD'?'selected':''}>TWD</option>
+        <option value="CNY" ${ec.currency==='CNY'?'selected':''}>CNY</option>
+        <option value="USD" ${ec.currency==='USD'?'selected':''}>USD</option>
+        <option value="JPY" ${ec.currency==='JPY'?'selected':''}>JPY</option>
+      </select>
+      <input type="text" inputmode="decimal" value="${ec.exRate||'1'}" oninput="window.extraCosts[${i}].exRate=this.value;updateExtraCostTotal()" placeholder="匯率"
+        style="border:1px solid var(--border);border-radius:7px;padding:6px 7px;font-size:12px;font-family:inherit;text-align:right">
+      <button onclick="window.extraCosts.splice(${i},1);renderExtraCosts()" style="background:none;border:none;color:#ccc;font-size:15px;cursor:pointer">✕</button>
+    </div>
+  `).join('');
+  updateExtraCostTotal();
+}
+
+function updateExtraCostTotal() {
+  const total = (window.extraCosts||[]).reduce((s,ec)=>{
+    const amt = parseFloat(ec.amount)||0;
+    const rate = parseFloat(ec.exRate)||1;
+    return s + (ec.currency==='TWD' ? amt : amt*rate);
+  },0);
+  const el = document.getElementById('extraCostTotal');
+  if(el) el.textContent = fmt(total);
+  calcProfit();
 }
 
 window.costPrices = [];
@@ -1574,28 +1637,31 @@ function updateCostPrice(i, val) {
 }
 
 function calcProfit() {
-  const clientTotal = parseFloat(document.getElementById('grandAmt').textContent.replace(/,/g,''))||0;
+  const clientTotal = parseFloat((document.getElementById('grandAmt')?.textContent||'0').replace(/,/g,''))||0;
   const exRate = parseFloat(document.getElementById('costExRate')?.value)||1;
   const validItems = items.filter(it=>it.name);
-  const supplierCost = validItems.reduce((s,it,i)=>{
+  const supplierCostTWD = validItems.reduce((s,it,i)=>{
     const q=parseFloat(it.qty)||0, p=parseFloat((window.costPrices||[])[i])||0;
     return s + q*p*exRate;
   },0);
-  const freight = parseFloat(document.getElementById('costFreight')?.value)||0;
-  const other = parseFloat(document.getElementById('costOther')?.value)||0;
-  const totalCost = supplierCost + freight + other;
+  const extraTWD = (window.extraCosts||[]).reduce((s,ec)=>{
+    const amt=parseFloat(ec.amount)||0, rate=parseFloat(ec.exRate)||1;
+    return s + (ec.currency==='TWD'?amt:amt*rate);
+  },0);
+  const totalCost = supplierCostTWD + extraTWD;
   const profit = clientTotal - totalCost;
   const margin = clientTotal>0 ? (profit/clientTotal*100).toFixed(1) : 0;
 
   const cur = document.getElementById('currency')?.value||'TWD';
-  document.getElementById('pcClientTotal').textContent = `${cur} ${fmt(clientTotal)}`;
-  document.getElementById('pcSupplierCost').textContent = `TWD ${fmt(supplierCost)}`;
-  document.getElementById('pcFreight').textContent = `TWD ${fmt(freight)}`;
-  document.getElementById('pcOther').textContent = `TWD ${fmt(other)}`;
-  document.getElementById('pcTotalCost').textContent = `TWD ${fmt(totalCost)}`;
+  const set = (id,v) => { const el=document.getElementById(id); if(el) el.textContent=v; };
+  set('pcClientTotal', `${cur} ${fmt(clientTotal)}`);
+  set('pcSupplierCost', `TWD ${fmt(supplierCostTWD)}`);
+  set('pcFreight', `TWD ${fmt(extraTWD)}`);
+  set('pcOther', '');
+  set('pcTotalCost', `TWD ${fmt(totalCost)}`);
   const profitEl = document.getElementById('pcProfit');
-  profitEl.textContent = `TWD ${fmt(profit)} (${margin}%)`;
-  profitEl.style.color = profit>=0 ? '#7ecba1' : '#f08080';
+  if(profitEl){ profitEl.textContent=`TWD ${fmt(profit)} (${margin}%)`; profitEl.style.color=profit>=0?'#7ecba1':'#f08080'; }
+  updateCostTotals();
 }
 
 // ── Image Upload ──
