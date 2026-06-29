@@ -743,7 +743,7 @@ tbody input:focus { outline: none; border-color: var(--mint); background: white;
     <div class="spacer"></div>
     <button class="btn btn-mint" onclick="exportExcel()">📊 匯出 Excel</button>
     <button class="btn btn-outline" onclick="showPreview()">👁 預覽</button>
-    <button class="btn btn-ink" onclick="printPDF()">🖨 存成 PDF</button>
+    <button class="btn btn-ink" onclick="showPreview('client')">📄 客戶報價 PDF</button>
   </div>
   </div><!-- /clientView -->
 
@@ -924,11 +924,11 @@ tbody input:focus { outline: none; border-color: var(--mint); background: white;
   <div class="preview-bar">
     <div class="preview-bar-info">
       <div class="preview-bar-title" id="previewTitle">報價單預覽</div>
-      <div class="preview-bar-hint">點「🖨 列印/PDF」→ 另存為PDF → 儲存</div>
+      <div class="preview-bar-hint" id="previewHint">列印/存PDF → 客戶版</div>
     </div>
     <div class="preview-bar-actions">
       <button onclick="closePreview()" style="background:rgba(255,255,255,0.12);color:white;border:none;border-radius:7px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">✕ 關閉</button>
-      <button onclick="window.print()" style="background:var(--orange);color:white;border:none;border-radius:7px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">🖨 存成 PDF</button>
+      <button onclick="window.print();" style="background:var(--orange);color:white;border:none;border-radius:7px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">🖨 存成 PDF</button>
     </div>
   </div>
   <div class="preview-page-wrap">
@@ -1473,13 +1473,18 @@ function delProductImg(i) {
 function showPreview(mode) {
   const data = collectData();
   saveSettings(data);
-  const isClient = mode !== 'full';
-  document.getElementById('previewTitle').textContent = isClient ? `客戶報價單 ${data.qNo}` : `完整存檔 ${data.qNo}`;
-  document.getElementById('previewHint').textContent = isClient ? '列印/存PDF → 客戶版（不含成本）' : '列印/存PDF → 完整版（含成本，自己留存）';
-  document.getElementById('previewContent').innerHTML = isClient 
+  const isClient = (mode !== 'full');
+  const titleEl = document.getElementById('previewTitle');
+  const hintEl = document.getElementById('previewHint');
+  const contentEl = document.getElementById('previewContent');
+  const previewEl = document.getElementById('preview');
+  if(!contentEl || !previewEl) { toast('❌ 預覽元件錯誤'); return; }
+  if(titleEl) titleEl.textContent = isClient ? `客戶報價單 ${data.qNo}` : `完整存檔 ${data.qNo}`;
+  if(hintEl) hintEl.textContent = isClient ? '客戶版（不含成本）' : '完整版（含成本，自己留存）';
+  contentEl.innerHTML = isClient 
     ? buildClientHTML(data) 
     : buildClientHTML(data) + buildCostHTML(data);
-  document.getElementById('preview').classList.add('open');
+  previewEl.classList.add('open');
   document.body.style.overflow = 'hidden';
 }
 
@@ -1521,8 +1526,7 @@ function doPrint() {
 }
 
 function printPDF() {
-  showPreview();
-  setTimeout(() => window.print(), 800);
+  showPreview('client');
 }
 
 function closePreview() {
