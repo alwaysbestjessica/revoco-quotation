@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="REVOCO報價">
+<link rel="manifest" href="manifest.json">
+<title>REVOCO 報價系統</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root {
+  --orange: #E87722;
+  --ink: #2C3830;
+  --mint: #8FAF9F;
+  --mint-light: #EBF2EE;
+  --mint-dark: #5C8070;
+  --border: #C8DDD5;
+  --cream: #F4F8F6;
+  --white: #fff;
+  --red: #D96060;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, 'PingFang TC', 'Microsoft JhengHei', sans-serif; background: var(--cream); color: var(--ink); min-height: 100vh; }
+
+/* Header */
+.header { background: var(--ink); color: white; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+.header-brand { display: flex; align-items: center; gap: 8px; }
+.header-brand .revoco { font-size: 20px; font-weight: 900; color: var(--orange); letter-spacing: 0.08em; font-family: Georgia, serif; }
+.header-brand .divider { width: 1px; height: 18px; background: rgba(255,255,255,0.2); }
+.header-brand .cn { font-size: 11px; color: rgba(255,255,255,0.45); }
+.tabs { display: flex; gap: 6px; }
+.tab { background: transparent; border: 1px solid rgba(255,255,255,0.25); color: rgba(255,255,255,0.7); padding: 6px 13px; border-radius: 20px; font-size: 12px; cursor: pointer; font-family: inherit; transition: all 0.2s; }
+.tab.active { background: var(--mint); border-color: var(--mint); color: var(--ink); font-weight: 700; }
+
+/* Sync status */
+.sync-bar { background: rgba(255,255,255,0.08); text-align: center; padding: 5px; font-size: 11px; color: rgba(255,255,255,0.5); }
+.sync-bar.ok { color: #7ecba1; }
+.sync-bar.err { color: #f08080; }
+
+/* Main */
+.main { max-width: 960px; margin: 0 auto; padding: 16px 12px 40px; }
+.panel { display: none; }
+.panel.active { display: block; }
+
+/* Cards */
+.card { background: var(--white); border-radius: 10px; box-shadow: 0 2px 12px rgba(44,56,48,0.07); border: 1px solid var(--border); margin-bottom: 14px; overflow: hidden; }
+.card-head { background: var(--mint-light); padding: 10px 16px; font-size: 11px; font-weight: 700; color: var(--mint-dark); letter-spacing: 0.06em; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+.card-body { padding: 14px 16px; }
+.g3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+.g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field label { font-size: 11px; font-weight: 700; color: #4A5E57; }
+.field input, .field select, .field textarea {
+  border: 1px solid var(--border); border-radius: 7px; padding: 7px 9px;
+  font-size: 13px; font-family: inherit; background: var(--white); width: 100%;
+  transition: border-color 0.2s;
+}
+.field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: var(--mint); }
+.sep { height: 1px; background: var(--border); margin: 12px 0; }
+.section-label { font-size: 11px; font-weight: 700; color: var(--mint-dark); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 10px; }
+
+/* Items table */
+.tbl-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+thead th { background: var(--mint-light); padding: 8px 5px; font-size: 10px; font-weight: 700; color: var(--mint-dark); border-bottom: 2px solid var(--border); text-align: left; white-space: nowrap; }
+tbody td { border-bottom: 1px solid var(--border); padding: 3px 2px; vertical-align: middle; }
+tbody tr:hover td { background: var(--cream); }
+tbody input { border: 1px solid transparent; border-radius: 5px; padding: 5px 6px; font-size: 13px; font-family: inherit; background: transparent; width: 100%; }
+tbody input:focus { outline: none; border-color: var(--mint); background: white; }
+.del-btn { background: none; border: none; color: #ccc; font-size: 15px; cursor: pointer; padding: 3px 5px; }
+.del-btn:hover { color: var(--red); }
+.row-no { text-align: center; color: #8a9e97; font-size: 11px; width: 28px; padding: 0 4px; }
+.row-total { text-align: right; font-weight: 800; color: var(--ink); font-size: 13px; white-space: nowrap; padding: 0 6px; }
+
+/* Totals */
+.totals-area { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; padding: 12px 16px; border-top: 2px solid var(--border); background: var(--cream); }
+.total-row { display: flex; align-items: center; gap: 12px; font-size: 13px; }
+.total-row label { color: #4a5e57; }
+.total-row .amt { font-weight: 700; min-width: 90px; text-align: right; color: var(--ink); }
+.total-row input.small { border: 1px solid var(--border); border-radius: 6px; padding: 4px 7px; font-size: 13px; font-family: inherit; text-align: right; }
+.grand-row { display: flex; align-items: center; gap: 12px; font-size: 18px; font-weight: 800; padding-top: 8px; border-top: 2px solid var(--border); }
+.grand-row label { color: var(--ink); }
+.grand-row .amt { color: var(--orange); min-width: 90px; text-align: right; font-size: 20px; }
+.add-row-btn { margin: 0 14px 12px; }
+
+/* Buttons */
+.btn { display: inline-flex; align-items: center; gap: 5px; padding: 9px 15px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; font-family: inherit; transition: all 0.18s; }
+.btn-ink { background: var(--ink); color: white; }
+.btn-ink:hover { background: var(--mint-dark); }
+.btn-mint { background: var(--mint); color: var(--ink); }
+.btn-mint:hover { background: var(--mint-dark); color: white; }
+.btn-outline { background: white; border: 1.5px solid var(--border); color: #4a5e57; }
+.btn-outline:hover { border-color: var(--mint); }
+.btn-sm { padding: 6px 11px; font-size: 12px; }
+.btn-danger { background: var(--red); color: white; }
+.action-bar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding: 4px 0 20px; }
+.spacer { flex: 1; }
+
+/* History table */
+.hist-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.hist-table th { background: var(--mint-light); padding: 9px 10px; font-size: 11px; font-weight: 700; color: var(--mint-dark); border-bottom: 2px solid var(--border); text-align: left; }
+.hist-table td { padding: 9px 10px; border-bottom: 1px solid var(--border); }
+.hist-table tr:hover td { background: var(--cream); }
+.hist-qno { font-family: monospace; font-size: 11px; color: #4a5e57; }
+.hist-amt { font-weight: 700; }
+
+/* Toast */
+#toast { position: fixed; bottom: 24px; right: 16px; background: var(--ink); color: white; padding: 11px 18px; border-radius: 10px; font-size: 13px; font-weight: 600; opacity: 0; transform: translateY(10px); transition: all 0.3s; z-index: 9999; pointer-events: none; }
+#toast.show { opacity: 1; transform: translateY(0); }
+
+/* Modal */
+.modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 500; align-items: center; justify-content: center; }
+.modal-bg.open { display: flex; }
+.modal { background: white; border-radius: 14px; padding: 26px; width: 90%; max-width: 380px; box-shadow: 0 20px 60px rgba(0,0,0,0.2); }
+.modal h3 { font-size: 16px; margin-bottom: 10px; }
+.modal p { font-size: 13px; color: #4a5e57; margin-bottom: 18px; line-height: 1.6; }
+.modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+
+/* Preview overlay */
+#preview { display: none; position: fixed; inset: 0; background: #f0f0f0; z-index: 2000; overflow: auto; -webkit-overflow-scrolling: touch; }
+#preview.open { display: block; }
+.preview-bar { background: var(--ink); padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; }
+.preview-bar-info { }
+.preview-bar-title { color: white; font-size: 14px; font-weight: 700; }
+.preview-bar-hint { color: rgba(255,255,255,0.45); font-size: 10px; margin-top: 2px; }
+.preview-bar-actions { display: flex; gap: 8px; }
+.preview-page-wrap { display: flex; justify-content: center; padding: 16px 8px 48px; }
+.preview-page { background: white; width: 100%; max-width: 780px; padding: 24px 20px; box-shadow: 0 4px 24px rgba(0,0,0,0.1); }
+
+/* Print */
+@media print {
+  body > *:not(#preview) { display: none !important; }
+  #preview { display: block !important; position: static; overflow: visible; background: white; }
+  .preview-bar { display: none !important; }
+  .preview-page-wrap { padding: 0; }
+  .preview-page { box-shadow: none; max-width: 100%; padding: 0; }
+  @page { margin: 10mm; size: A4; }
+}
+
+@media (max-width: 600px) {
+  .g3 { grid-template-columns: 1fr 1fr; }
+  .g3 .span3 { grid-column: span 2; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-brand">
+    <span class="revoco">REVOCO</span>
+    <div class="divider"></div>
+    <span class="cn">睿握科技有限公司</span>
+  </div>
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('editor')">報價單</button>
+    <button class="tab" onclick="switchTab('history')">歷史留檔</button>
+  </div>
+</div>
+<div class="sync-bar" id="syncBar">⏳ 連接資料庫中...</div>
+
+<div class="main">
+
+<!-- EDITOR -->
+<div class="panel active" id="panel-editor">
+
+  <div class="card">
+    <div class="card-head">我方資訊</div>
+    <div class="card-body">
+      <div class="g3">
+        <div class="field"><label>公司名稱</label><input id="myCompany" placeholder="睿握科技有限公司"></div>
+        <div class="field"><label>統一編號</label><input id="myTaxId" placeholder="統編8碼"></div>
+        <div class="field"><label>聯絡人</label><input id="myContact" placeholder="業務姓名"></div>
+        <div class="field"><label>電話/LINE</label><input id="myPhone" placeholder="+886..."></div>
+        <div class="field"><label>Email</label><input id="myEmail" placeholder="email@revoco.com"></div>
+        <div class="field"><label>地址</label><input id="myAddress" placeholder="台灣..."></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">報價資訊</div>
+    <div class="card-body">
+      <div class="g3">
+        <div class="field"><label>報價編號</label><input id="qNo"></div>
+        <div class="field"><label>報價日期</label><input id="qDate" type="date"></div>
+        <div class="field"><label>有效期限</label><input id="qExpiry" type="date"></div>
+      </div>
+      <div class="sep"></div>
+      <div class="section-label">客戶資訊</div>
+      <div class="g3">
+        <div class="field"><label>客戶/廠商名稱</label><input id="clientName" placeholder="對方公司名稱"></div>
+        <div class="field"><label>統一編號</label><input id="clientTaxId" placeholder="統編8碼"></div>
+        <div class="field"><label>聯絡人</label><input id="clientContact"></div>
+        <div class="field"><label>聯絡電話</label><input id="clientPhone"></div>
+        <div class="field"><label>Email</label><input id="clientEmail"></div>
+        <div class="field"><label>地址</label><input id="clientAddress"></div>
+      </div>
+      <div class="sep"></div>
+      <div style="max-width:180px">
+        <div class="field"><label>幣別</label>
+          <select id="currency">
+            <option value="TWD">TWD 新台幣</option>
+            <option value="CNY">CNY 人民幣</option>
+            <option value="USD">USD 美元</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">商品明細</div>
+    <div class="tbl-wrap">
+      <table id="itemTable">
+        <thead>
+          <tr>
+            <th style="width:28px;text-align:center">No.</th>
+            <th style="min-width:120px">商品名稱</th>
+            <th style="min-width:95px">規格/尺寸</th>
+            <th style="width:88px">數量</th>
+            <th style="width:58px">單位</th>
+            <th style="width:98px">單價</th>
+            <th style="width:98px;text-align:right">小計</th>
+            <th style="min-width:100px">備注</th>
+            <th style="width:28px"></th>
+          </tr>
+        </thead>
+        <tbody id="itemBody"></tbody>
+      </table>
+    </div>
+    <div class="totals-area">
+      <div class="total-row"><label>小計</label><span class="amt" id="subtotalAmt">0</span></div>
+      <div class="total-row">
+        <label>稅率 (%)</label>
+        <input class="small" id="taxRate" value="0" style="width:65px" oninput="calcTotals()">
+        <span class="amt" id="taxAmt">0</span>
+      </div>
+      <div class="total-row">
+        <label>運費</label>
+        <input class="small" id="shipping" value="0" style="width:90px;text-align:right" oninput="calcTotals()">
+      </div>
+      <div class="grand-row"><label>總計</label><span class="amt" id="grandAmt">0</span></div>
+    </div>
+    <div class="add-row-btn">
+      <button class="btn btn-outline btn-sm" onclick="addRow()">＋ 新增商品</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">備注 / 付款條件</div>
+    <div class="card-body">
+      <textarea id="remark" rows="3" placeholder="付款方式、交期、其他條件..." style="resize:vertical;min-height:60px;border:1px solid var(--border);border-radius:7px;padding:8px 10px;font-size:13px;font-family:inherit;width:100%"></textarea>
+    </div>
+  </div>
+
+  <div class="action-bar">
+    <button class="btn btn-outline" onclick="clearForm()">🗑 清空</button>
+    <button class="btn btn-outline" onclick="loadDraft()">📂 載入草稿</button>
+    <button class="btn btn-outline" onclick="saveDraft()">💾 儲存草稿</button>
+    <div class="spacer"></div>
+    <button class="btn btn-mint" onclick="exportExcel()">📊 匯出 Excel</button>
+    <button class="btn btn-ink" onclick="showPreview()">📄 預覽截圖</button>
+  </div>
+
+</div>
+
+<!-- HISTORY -->
+<div class="panel" id="panel-history">
+  <div class="card">
+    <div class="card-head" style="display:flex;justify-content:space-between;align-items:center">
+      <span>歷史報價留檔</span>
+      <button class="btn btn-outline btn-sm" onclick="refreshHistory()">🔄 重新載入</button>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="hist-table">
+        <thead>
+          <tr>
+            <th>報價編號</th><th>日期</th><th>客戶</th><th>幣別</th><th>總金額</th><th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="histBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+</div><!-- /main -->
+
+<!-- Preview -->
+<div id="preview">
+  <div class="preview-bar">
+    <div class="preview-bar-info">
+      <div class="preview-bar-title" id="previewTitle">報價單預覽</div>
+      <div class="preview-bar-hint">對報價單截圖儲存，或點「列印/PDF」存成PDF</div>
+    </div>
+    <div class="preview-bar-actions">
+      <button onclick="closePreview()" style="background:rgba(255,255,255,0.12);color:white;border:none;border-radius:7px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">✕ 關閉</button>
+      <button onclick="window.print()" style="background:var(--orange);color:white;border:none;border-radius:7px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">🖨 列印/PDF</button>
+    </div>
+  </div>
+  <div class="preview-page-wrap">
+    <div class="preview-page" id="previewContent"></div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<!-- Confirm Modal -->
+<div class="modal-bg" id="confirmModal">
+  <div class="modal">
+    <h3 id="modalTitle">確認刪除</h3>
+    <p id="modalMsg">確定要刪除嗎？</p>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">取消</button>
+      <button class="btn btn-danger" id="modalOk">確認刪除</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://rlnamaqqqajixoebekdw.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJsbmFtYXFxcWFqaXhvZWJla2R3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2OTY2NjEsImV4cCI6MjA5ODI3MjY2MX0.Vbw-hqRgzqTb-gAAq7sZPrRESL9Qf3sj3SAjnuS197g';
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let items = [];
+let pendingDel = null;
+
+// ── Init ──
+window.addEventListener('DOMContentLoaded', async () => {
+  setDefaults();
+  genQNo();
+  addRow(); addRow(); addRow();
+  loadSettings();
+  await initDB();
+});
+
+async function initDB() {
+  try {
+    const { error } = await db.from('quotations').select('id').limit(1);
+    if (error && error.code === '42P01') {
+      setSyncBar('❌ 資料表不存在，請先建立（見說明）', 'err');
+    } else if (error) {
+      setSyncBar('❌ 資料庫連線錯誤：' + error.message, 'err');
+    } else {
+      setSyncBar('✅ 已連接雲端資料庫', 'ok');
+      await refreshHistory();
+    }
+  } catch(e) {
+    setSyncBar('❌ 連線失敗', 'err');
+  }
+}
+
+function setSyncBar(msg, cls='') {
+  const el = document.getElementById('syncBar');
+  el.textContent = msg;
+  el.className = 'sync-bar ' + cls;
+}
+
+// ── Dates / QNo ──
+function setDefaults() {
+  const t = new Date();
+  document.getElementById('qDate').value = t.toISOString().split('T')[0];
+  const e = new Date(t); e.setDate(e.getDate()+30);
+  document.getElementById('qExpiry').value = e.toISOString().split('T')[0];
+}
+
+async function genQNo() {
+  const d = new Date(), p = n => String(n).padStart(2,'0');
+  const base = `Q${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}`;
+  let cnt = 1;
+  try {
+    const { data } = await db.from('quotations').select('quote_no').like('quote_no', base + '%');
+    if (data) cnt = data.length + 1;
+  } catch(e) {}
+  document.getElementById('qNo').value = `${base}-${String(cnt).padStart(3,'0')}`;
+}
+
+// ── Tab ──
+function switchTab(tab) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + tab).classList.add('active');
+  event.target.classList.add('active');
+  if (tab === 'history') refreshHistory();
+}
+
+// ── Items ──
+function addRow() {
+  items.push({name:'',spec:'',qty:'1',unit:'個',price:'',note:''});
+  renderTable();
+}
+
+function delRow(i) {
+  if (items.length <= 1) { toast('至少保留一行'); return; }
+  items.splice(i, 1);
+  renderTable(); calcTotals();
+}
+
+function renderTable() {
+  const tbody = document.getElementById('itemBody');
+  tbody.innerHTML = '';
+  items.forEach((it, i) => {
+    const q = parseFloat(it.qty)||0, p = parseFloat(it.price)||0, t = q*p;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="row-no">${i+1}</td>
+      <td><input value="${esc(it.name)}" oninput="items[${i}].name=this.value" placeholder="商品名稱"></td>
+      <td><input value="${esc(it.spec)}" oninput="items[${i}].spec=this.value" placeholder="規格/尺寸"></td>
+      <td><input value="${esc(it.qty)}" oninput="items[${i}].qty=this.value;calcTotals()" inputmode="numeric" style="text-align:right"></td>
+      <td><input value="${esc(it.unit)}" oninput="items[${i}].unit=this.value"></td>
+      <td><input value="${esc(it.price)}" oninput="items[${i}].price=this.value;calcTotals()" inputmode="decimal" placeholder="0" style="text-align:right"></td>
+      <td class="row-total">${t > 0 ? fmt(t) : '-'}</td>
+      <td><input value="${esc(it.note)}" oninput="items[${i}].note=this.value" placeholder="備注"></td>
+      <td><button class="del-btn" onclick="delRow(${i})">✕</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+  calcTotals();
+}
+
+function esc(v) { return String(v||'').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+const fmt = n => Number(n||0).toLocaleString('zh-TW',{minimumFractionDigits:0,maximumFractionDigits:2});
+
+function calcTotals() {
+  const sub = items.reduce((s,it) => s+(parseFloat(it.qty)||0)*(parseFloat(it.price)||0), 0);
+  const tax = sub * (parseFloat(document.getElementById('taxRate').value)||0) / 100;
+  const ship = parseFloat(document.getElementById('shipping').value)||0;
+  const grand = sub + tax + ship;
+  document.getElementById('subtotalAmt').textContent = fmt(sub);
+  document.getElementById('taxAmt').textContent = fmt(tax);
+  document.getElementById('grandAmt').textContent = fmt(grand);
+  // update row totals
+  items.forEach((it, i) => {
+    const t = (parseFloat(it.qty)||0)*(parseFloat(it.price)||0);
+    const cell = document.getElementById('itemBody').rows[i]?.cells[6];
+    if (cell) cell.textContent = t > 0 ? fmt(t) : '-';
+  });
+}
+
+// ── Collect data ──
+function v(id) { return document.getElementById(id)?.value || ''; }
+function collectData() {
+  const sub = items.reduce((s,it) => s+(parseFloat(it.qty)||0)*(parseFloat(it.price)||0), 0);
+  const taxRate = parseFloat(v('taxRate'))||0;
+  const ship = parseFloat(v('shipping'))||0;
+  const tax = sub * taxRate / 100;
+  return {
+    myCompany:v('myCompany'), myTaxId:v('myTaxId'), myContact:v('myContact'),
+    myPhone:v('myPhone'), myEmail:v('myEmail'), myAddress:v('myAddress'),
+    qNo:v('qNo'), qDate:v('qDate'), qExpiry:v('qExpiry'),
+    clientName:v('clientName'), clientTaxId:v('clientTaxId'), clientContact:v('clientContact'),
+    clientPhone:v('clientPhone'), clientEmail:v('clientEmail'), clientAddress:v('clientAddress'),
+    currency:v('currency'), taxRate, shipping:ship, remark:v('remark'),
+    items: JSON.parse(JSON.stringify(items)),
+    subtotal:sub, tax, grand:sub+tax+ship,
+    savedAt: new Date().toISOString()
+  };
+}
+
+function applyData(data) {
+  ['myCompany','myTaxId','myContact','myPhone','myEmail','myAddress',
+   'qNo','qDate','qExpiry','clientName','clientTaxId','clientContact',
+   'clientPhone','clientEmail','clientAddress','currency','remark'].forEach(k => {
+    const el = document.getElementById(k);
+    if (el && data[k] !== undefined) el.value = data[k];
+  });
+  if (data.taxRate !== undefined) document.getElementById('taxRate').value = data.taxRate;
+  if (data.shipping !== undefined) document.getElementById('shipping').value = data.shipping;
+  if (data.items) { items = data.items; renderTable(); }
+}
+
+// ── Settings ──
+function saveSettings(d) {
+  localStorage.setItem('rvc_settings', JSON.stringify({
+    myCompany:d.myCompany, myTaxId:d.myTaxId, myContact:d.myContact,
+    myPhone:d.myPhone, myEmail:d.myEmail, myAddress:d.myAddress
+  }));
+}
+
+function loadSettings() {
+  const s = localStorage.getItem('rvc_settings');
+  if (!s) return;
+  const d = JSON.parse(s);
+  ['myCompany','myTaxId','myContact','myPhone','myEmail','myAddress'].forEach(k => {
+    if (d[k] && document.getElementById(k)) document.getElementById(k).value = d[k];
+  });
+}
+
+// ── Draft ──
+function saveDraft() {
+  const d = collectData(); saveSettings(d);
+  localStorage.setItem('rvc_draft', JSON.stringify(d));
+  toast('✅ 草稿已儲存');
+}
+function loadDraft() {
+  const raw = localStorage.getItem('rvc_draft');
+  if (!raw) { toast('尚無草稿'); return; }
+  applyData(JSON.parse(raw)); toast('📂 草稿已載入');
+}
+function clearForm() {
+  ['clientName','clientTaxId','clientContact','clientPhone','clientEmail','clientAddress','remark'].forEach(k => {
+    const el = document.getElementById(k); if (el) el.value = '';
+  });
+  document.getElementById('taxRate').value = '0';
+  document.getElementById('shipping').value = '0';
+  items = [{name:'',spec:'',qty:'1',unit:'個',price:'',note:''}];
+  genQNo(); setDefaults(); renderTable();
+}
+
+// ── Supabase save ──
+async function saveToCloud(data) {
+  try {
+    const row = {
+      quote_no: data.qNo,
+      quote_date: data.qDate,
+      expiry_date: data.qExpiry,
+      my_company: data.myCompany,
+      my_tax_id: data.myTaxId,
+      my_contact: data.myContact,
+      my_phone: data.myPhone,
+      my_email: data.myEmail,
+      my_address: data.myAddress,
+      client_name: data.clientName,
+      client_tax_id: data.clientTaxId,
+      client_contact: data.clientContact,
+      client_phone: data.clientPhone,
+      client_email: data.clientEmail,
+      client_address: data.clientAddress,
+      currency: data.currency,
+      tax_rate: data.taxRate,
+      shipping: data.shipping,
+      remark: data.remark,
+      subtotal: data.subtotal,
+      tax: data.tax,
+      grand_total: data.grand,
+      items: data.items,
+      saved_at: data.savedAt
+    };
+    const { error } = await db.from('quotations').upsert(row, { onConflict: 'quote_no' });
+    if (error) { toast('⚠️ 雲端儲存失敗：' + error.message); return false; }
+    return true;
+  } catch(e) { toast('⚠️ 雲端連線錯誤'); return false; }
+}
+
+// ── History ──
+async function refreshHistory() {
+  const tbody = document.getElementById('histBody');
+  tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:#8a9e97">載入中...</td></tr>';
+  try {
+    const { data, error } = await db.from('quotations').select('*').order('saved_at', { ascending: false });
+    if (error) { tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:20px;color:#D96060">錯誤：${error.message}</td></tr>`; return; }
+    if (!data || data.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:#8a9e97">尚無歷史記錄</td></tr>'; return;
+    }
+    tbody.innerHTML = '';
+    data.forEach(h => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="hist-qno">${h.quote_no||'-'}</td>
+        <td>${h.quote_date||'-'}</td>
+        <td style="font-weight:600">${h.client_name||'-'}</td>
+        <td>${h.currency||'TWD'}</td>
+        <td class="hist-amt">${fmt(h.grand_total||0)}</td>
+        <td>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-outline btn-sm" onclick="loadRecord(${JSON.stringify(JSON.stringify(h)).slice(1,-1)})">載入</button>
+            <button class="btn btn-sm" style="background:white;border:1.5px solid var(--red);color:var(--red);border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer;font-family:inherit" onclick="confirmDelete('${h.quote_no}')">刪除</button>
+          </div>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  } catch(e) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:#D96060">連線失敗</td></tr>';
+  }
+}
+
+function loadRecord(jsonStr) {
+  const h = JSON.parse(jsonStr);
+  const data = {
+    myCompany:h.my_company, myTaxId:h.my_tax_id, myContact:h.my_contact,
+    myPhone:h.my_phone, myEmail:h.my_email, myAddress:h.my_address,
+    qNo:h.quote_no, qDate:h.quote_date, qExpiry:h.expiry_date,
+    clientName:h.client_name, clientTaxId:h.client_tax_id, clientContact:h.client_contact,
+    clientPhone:h.client_phone, clientEmail:h.client_email, clientAddress:h.client_address,
+    currency:h.currency, taxRate:h.tax_rate, shipping:h.shipping, remark:h.remark,
+    items: h.items || []
+  };
+  applyData(data);
+  switchTabDirect('editor');
+  toast('📂 報價單已載入');
+}
+
+function switchTabDirect(tab) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + tab).classList.add('active');
+  document.querySelector(`.tab:nth-child(${tab==='editor'?1:2})`).classList.add('active');
+}
+
+function confirmDelete(qNo) {
+  pendingDel = qNo;
+  document.getElementById('modalMsg').textContent = `確定要刪除報價單 ${qNo} 嗎？此操作不可還原。`;
+  document.getElementById('modalOk').onclick = () => { deleteRecord(pendingDel); closeModal(); };
+  document.getElementById('confirmModal').classList.add('open');
+}
+
+async function deleteRecord(qNo) {
+  const { error } = await db.from('quotations').delete().eq('quote_no', qNo);
+  if (error) { toast('❌ 刪除失敗'); return; }
+  toast('已刪除'); await refreshHistory();
+}
+
+function closeModal() { document.getElementById('confirmModal').classList.remove('open'); }
+
+// ── Excel ──
+async function exportExcel() {
+  const data = collectData();
+  saveSettings(data);
+  const ok = await saveToCloud(data);
+  const wb = XLSX.utils.book_new();
+  const rows = [
+    ['報價編號',data.qNo,'','報價日期',data.qDate],
+    ['我方公司',data.myCompany,'','有效期限',data.qExpiry],
+    ['我方統編',data.myTaxId,'','客戶名稱',data.clientName],
+    ['業務聯絡',data.myContact,'','客戶統編',data.clientTaxId],
+    ['電話',data.myPhone,'','客戶聯絡',data.clientContact],
+    ['Email',data.myEmail,'','客戶電話',data.clientPhone],
+    ['地址',data.myAddress,'','客戶地址',data.clientAddress],
+    ['幣別',data.currency,'','',''], [],
+    ['No.','商品名稱','規格/尺寸','數量','單位','單價','小計','備注'],
+    ...data.items.filter(it=>it.name).map((it,i)=>{
+      const q=parseFloat(it.qty)||0,p=parseFloat(it.price)||0;
+      return [i+1,it.name,it.spec,q,it.unit,p,q*p,it.note];
+    }), [],
+    ['','','','','','小計',data.subtotal,''],
+    ['','','','','',`稅金(${data.taxRate}%)`,data.tax,''],
+    ['','','','','','運費',data.shipping,''],
+    ['','','','','','總計',data.grand,''],
+    ...(data.remark?[['備注',data.remark]]:[])
+  ];
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [{wch:5},{wch:22},{wch:18},{wch:8},{wch:6},{wch:10},{wch:12},{wch:24}];
+  XLSX.utils.book_append_sheet(wb,'報價單',ws);
+  XLSX.writeFile(wb, `報價單_${data.qNo}_${data.qDate}.xlsx`);
+  toast(ok ? '✅ Excel 已下載並同步雲端' : '✅ Excel 已下載（雲端同步失敗）');
+  if (ok) await refreshHistory();
+}
+
+// ── Preview ──
+function showPreview() {
+  const data = collectData();
+  saveSettings(data);
+  document.getElementById('previewTitle').textContent = `報價單 ${data.qNo}`;
+  document.getElementById('previewContent').innerHTML = buildPreviewHTML(data);
+  document.getElementById('preview').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closePreview() {
+  document.getElementById('preview').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function buildPreviewHTML(d) {
+  const fn = n => Number(n||0).toLocaleString('zh-TW',{minimumFractionDigits:0,maximumFractionDigits:2});
+  const cur = d.currency;
+  const myInfo = [
+    d.myTaxId ? `統編：${d.myTaxId}` : '',
+    d.myAddress || '',
+    [d.myContact, d.myPhone].filter(Boolean).join('　'),
+    d.myEmail || ''
+  ].filter(Boolean).map(l=>`<div>${l}</div>`).join('');
+
+  const rows = d.items.filter(it=>it.name).map((it,i)=>{
+    const q=parseFloat(it.qty)||0,p=parseFloat(it.price)||0,t=q*p;
+    return `<tr style="background:${i%2===0?'#fff':'#f4f8f6'}">
+      <td style="text-align:center;padding:6px 4px;border-bottom:1px solid #eef4f1;font-size:12px">${i+1}</td>
+      <td style="padding:6px 7px;border-bottom:1px solid #eef4f1;font-size:12px;font-weight:600">${it.name}</td>
+      <td style="padding:6px 7px;border-bottom:1px solid #eef4f1;font-size:12px">${it.spec||'-'}</td>
+      <td style="text-align:right;padding:6px 7px;border-bottom:1px solid #eef4f1;font-size:12px;font-weight:700">${fn(q)}</td>
+      <td style="padding:6px 4px;border-bottom:1px solid #eef4f1;font-size:12px">${it.unit||''}</td>
+      <td style="text-align:right;padding:6px 7px;border-bottom:1px solid #eef4f1;font-size:12px">${fn(p)}</td>
+      <td style="text-align:right;padding:6px 7px;border-bottom:1px solid #eef4f1;font-size:12px;font-weight:800;color:#2C3830">${t>0?fn(t):'-'}</td>
+      <td style="padding:6px 7px;border-bottom:1px solid #eef4f1;font-size:12px;color:#4a5e57">${it.note||''}</td>
+    </tr>`;
+  }).join('');
+
+  const cell = (l,v,bg,bB,bL) =>
+    `<div style="background:${bg?'#EBF2EE':'#fff'};padding:7px 10px;${bB?'border-bottom:1px solid #C8DDD5;':''}${bL?'border-left:1px solid #C8DDD5;':''}">
+      <div style="color:#5C8070;font-size:9px;font-weight:700;text-transform:uppercase">${l}</div>
+      <div style="font-weight:600;margin-top:2px;font-size:12px">${v||'-'}</div>
+    </div>`;
+
+  return `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #E87722;padding-bottom:12px;margin-bottom:14px">
+      <div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          <span style="font-size:20px;font-weight:900;color:#E87722;letter-spacing:.08em;font-family:Georgia,serif">REVOCO</span>
+          <div style="width:1px;height:18px;background:#C8DDD5"></div>
+          <span style="font-size:11px;color:#8a9e97">睿握科技有限公司</span>
+        </div>
+        <div style="background:#EBF2EE;border-radius:6px;padding:7px 10px;font-size:11px;line-height:1.8;color:#2C3830">
+          ${d.myCompany?`<div><b style="color:#5C8070">公司：</b>${d.myCompany}</div>`:''}
+          ${d.myTaxId?`<div><b style="color:#5C8070">統編：</b>${d.myTaxId}</div>`:''}
+          ${d.myAddress?`<div><b style="color:#5C8070">地址：</b>${d.myAddress}</div>`:''}
+          ${d.myContact?`<div><b style="color:#5C8070">聯絡人：</b>${d.myContact}</div>`:''}
+          ${d.myPhone?`<div><b style="color:#5C8070">電話：</b>${d.myPhone}</div>`:''}
+          ${d.myEmail?`<div><b style="color:#5C8070">Email：</b>${d.myEmail}</div>`:''}
+        </div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:20px;font-weight:900;color:#E87722;letter-spacing:.08em">QUOTATION</div>
+        <div style="font-size:11px;color:#8a9e97;margin-top:2px">${d.qNo}</div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;border:1px solid #C8DDD5;border-radius:7px;overflow:hidden;margin-bottom:14px">
+      ${cell('報價日期',d.qDate,true,true,false)}${cell('有效期限',d.qExpiry,false,true,true)}
+      ${cell('客戶名稱',d.clientName,true,true,false)}${cell('統一編號',d.clientTaxId,false,true,true)}
+      ${cell('聯絡人',d.clientContact,true,true,false)}${cell('聯絡電話',d.clientPhone,false,true,true)}
+      ${cell('地址',d.clientAddress,true,false,false)}${cell('幣別',d.currency,false,false,true)}
+    </div>
+
+    <table style="width:100%;border-collapse:collapse;margin-bottom:12px">
+      <thead><tr style="background:#EBF2EE">
+        <th style="padding:7px 4px;font-size:9px;font-weight:700;color:#5C8070;border-bottom:2px solid #C8DDD5;text-align:center;width:26px">No.</th>
+        <th style="padding:7px 7px;font-size:9px;font-weight:700;color:#5C8070;border-bottom:2px solid #C8DDD5;text-align:left">商品名稱</th>
+        <th style="padding:7px 7px;font-size:9px;font-weight:700;color:#5C8070;border-bottom:2px solid #C8DDD5;text-align:left">規格/尺寸</th>
+        <th style="padding:7px 5px;font-size:9px;font-weight:700;color:#5C8070;border-bottom:2px solid #C8DDD5;text-align:right;width:56px">數量</th>
+        <th style="padding:7px 4px;font-size:9px;font-weight:700;color:#5C8070;border-bottom:2px solid #C8DDD5;width:36px">單位</th>
+        <th style="padding:7px 7px;font-size:9px;font-weight:700;color:#5C8070;border-bottom:2px solid #C8DDD5;text-align:right;width:76px">單價</th>
+        <th style="padding:7px 7px;font-size:9px;font-weight:700;color:#5C8070;border-bottom:2px solid #C8DDD5;text-align:right;width:84px">小計</th>
+        <th style="padding:7px 7px;font-size:9px;font-weight:700;color:#5C8070;border-bottom:2px solid #C8DDD5;text-align:left">備注</th>
+      </tr></thead>
+      <tbody>${rows||'<tr><td colspan="8" style="text-align:center;padding:14px;color:#8a9e97;font-size:12px">尚未填寫商品</td></tr>'}</tbody>
+    </table>
+
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;margin-bottom:14px">
+      <div style="display:flex;gap:16px;font-size:12px"><span style="color:#4a5e57;min-width:80px;text-align:right">小計</span><strong style="min-width:100px;text-align:right">${cur} ${fn(d.subtotal)}</strong></div>
+      <div style="display:flex;gap:16px;font-size:12px"><span style="color:#4a5e57;min-width:80px;text-align:right">稅金(${d.taxRate}%)</span><strong style="min-width:100px;text-align:right">${cur} ${fn(d.tax)}</strong></div>
+      <div style="display:flex;gap:16px;font-size:12px"><span style="color:#4a5e57;min-width:80px;text-align:right">運費</span><strong style="min-width:100px;text-align:right">${cur} ${fn(d.shipping)}</strong></div>
+      <div style="display:flex;gap:16px;font-size:15px;font-weight:800;padding-top:6px;border-top:2px solid #C8DDD5">
+        <span style="color:#2C3830;min-width:80px;text-align:right">總計</span>
+        <strong style="min-width:100px;text-align:right;color:#E87722;font-size:17px">${cur} ${fn(d.grand)}</strong>
+      </div>
+    </div>
+
+    ${d.remark?`<div style="background:#F4F8F6;border-radius:6px;padding:9px 11px;margin-bottom:12px;font-size:11px"><div style="font-weight:700;color:#5C8070;font-size:9px;text-transform:uppercase;margin-bottom:3px">備注 / 付款條件</div><div style="line-height:1.6">${d.remark}</div></div>`:''}
+    <div style="font-size:10px;color:#8a9e97;border-top:1px solid #C8DDD5;padding-top:8px">此報價單有效期至 ${d.qExpiry}。如有任何疑問請聯繫 ${d.myContact||''} ${d.myPhone||''}。</div>
+  `;
+}
+
+// ── Toast ──
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2800);
+}
+</script>
+</body>
+</html>
