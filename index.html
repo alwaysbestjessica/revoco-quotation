@@ -407,6 +407,9 @@ tbody input:focus { outline: none; border-color: var(--mint); background: white;
   .no-print { display:none !important; }
   .print-only { display:block !important; }
 }
+@media screen {
+  .no-print { display:block; }
+}
 
 /* Product images in quote */
 .product-img-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-top:8px; }
@@ -456,6 +459,12 @@ tbody input:focus { outline: none; border-color: var(--mint); background: white;
 
 <!-- EDITOR -->
 <div class="panel active" id="panel-editor">
+
+  <!-- View Toggle -->
+  <div class="view-toggle">
+    <button class="view-btn active" id="btnClient" onclick="switchView('client')">📋 客戶報價單</button>
+    <button class="view-btn" id="btnCost" onclick="switchView('cost')">🔒 內部成本單</button>
+  </div>
 
   <!-- CLIENT VIEW -->
   <div id="clientView">
