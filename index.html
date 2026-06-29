@@ -8,7 +8,283 @@
 <meta name="apple-mobile-web-app-title" content="REVOCO報價">
 <link rel="manifest" href="manifest.json">
 <title>REVOCO 報價系統</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js">
+// ── Client Images ──
+let clientImages = [];
+
+function handleClientImgUpload(input) {
+  const files = Array.from(input.files);
+  files.forEach(file => {
+    if(clientImages.length >= 6) { toast('最多上傳6張圖片'); return; }
+    const reader = new FileReader();
+    reader.onload = e => {
+      clientImages.push({name: file.name, dataUrl: e.target.result});
+      renderClientImages();
+    };
+    reader.readAsDataURL(file);
+  });
+  input.value = '';
+}
+
+function renderClientImages() {
+  const grid = document.getElementById('clientImgGrid');
+  grid.innerHTML = '';
+  clientImages.forEach((img,i) => {
+    const div = document.createElement('div');
+    div.className = 'img-thumb';
+    div.innerHTML = `<img src="${img.dataUrl}" alt="${img.name}">
+      <button class="del-img" onclick="delClientImg(${i})">✕</button>`;
+    div.querySelector('img').onclick = () => viewImg(img.dataUrl);
+    grid.appendChild(div);
+  });
+  if(clientImages.length < 6) {
+    const label = document.createElement('label');
+    label.className = 'img-upload-btn';
+    label.innerHTML = '<span style="font-size:22px">+</span><span>上傳產品圖</span><input type="file" accept="image/*" multiple style="display:none" onchange="handleClientImgUpload(this)">';
+    grid.appendChild(label);
+  }
+}
+
+function delClientImg(i) {
+  clientImages.splice(i,1);
+  renderClientImages();
+}
+
+// ── Status helpers ──
+function updateStatusBadge() {}
+function updatePaymentFields() {
+  const status = document.getElementById('paymentStatus')?.value;
+  const show = status === 'partial' || status === 'paid';
+}
+
+// ── Finance Summary ──
+function calcFinanceSummary(data) {
+  const now = new Date();
+  const thisMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  
+  let monthlyTotal = 0, monthlyCount = 0;
+  let receivable = 0, receivableCount = 0;
+  let totalAmt = 0, totalCount = 0;
+  let totalCostSum = 0;
+
+  data.forEach(h => {
+    const grand = parseFloat(h.grand_total)||0;
+    totalAmt += grand; totalCount++;
+    
+    // This month won deals
+    if(h.deal_status==='won' && (h.quote_date||'').startsWith(thisMonth)) {
+      monthlyTotal += grand; monthlyCount++;
+    }
+    // Receivable = won but unpaid
+    if(h.deal_status==='won' && h.payment_status!=='paid') {
+      receivable += grand - (parseFloat(h.payment_amount)||0);
+      receivableCount++;
+    }
+    // Cost for profit calc
+    if(h.cost_items) {
+      const exRate = 1; // simplified
+      const costSum = (h.cost_items||[]).reduce((s,it)=>{
+        return s + (parseFloat(it.costPrice)||0)*(parseFloat(it.qty)||0)*exRate;
+      },0);
+      totalCostSum += costSum + (parseFloat(h.cost_freight)||0) + (parseFloat(h.cost_other)||0);
+    }
+  });
+
+  const wonData = data.filter(h=>h.deal_status==='won');
+  const wonTotal = wonData.reduce((s,h)=>s+(parseFloat(h.grand_total)||0),0);
+  const profit = wonTotal - totalCostSum;
+  const margin = wonTotal>0 ? (profit/wonTotal*100).toFixed(1) : 0;
+
+  document.getElementById('fcMonthly').textContent = `TWD ${fmt(monthlyTotal)}`;
+  document.getElementById('fcMonthlyCount').textContent = `${monthlyCount} 筆成交`;
+  document.getElementById('fcReceivable').textContent = `TWD ${fmt(receivable)}`;
+  document.getElementById('fcReceivableCount').textContent = `${receivableCount} 筆待收`;
+  document.getElementById('fcTotal').textContent = `TWD ${fmt(totalAmt)}`;
+  document.getElementById('fcTotalCount').textContent = `共 ${totalCount} 筆報價`;
+  document.getElementById('fcProfit2').textContent = `TWD ${fmt(profit)}`;
+  document.getElementById('fcMargin').textContent = `毛利率 ${margin}%`;
+}
+
+// ── View Toggle ──
+let currentView = 'client';
+let costImages = []; // {name, dataUrl}
+
+function switchView(view) {
+  currentView = view;
+  document.getElementById('clientView').style.display = view==='client'?'block':'none';
+  document.getElementById('costView').style.display = view==='cost'?'block':'none';
+  document.getElementById('btnClient').className = 'view-btn' + (view==='client'?' active':'');
+  document.getElementById('btnCost').className = 'view-btn' + (view==='cost'?' cost-active':'');
+  if(view==='cost') { renderCostItems(); calcProfit(); }
+}
+
+function renderCostItems() {
+  const tbody = document.getElementById('costItemBody');
+  tbody.innerHTML = '';
+  const validItems = items.filter(it=>it.name);
+  validItems.forEach((it,i) => {
+    const costPrice = (window.costPrices||[])[i] || '';
+    const qty = parseFloat(it.qty)||0;
+    const cp = parseFloat(costPrice)||0;
+    const sub = qty * cp;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="row-no">${i+1}</td>
+      <td style="padding:4px 6px;font-size:13px">${it.name}</td>
+      <td style="padding:4px 3px"><input type="text" inputmode="decimal" value="${costPrice}" 
+        oninput="updateCostPrice(${i},this.value)" placeholder="0"
+        style="border:1px solid var(--border);border-radius:5px;padding:5px 7px;font-size:13px;font-family:inherit;width:100%;text-align:right"></td>
+      <td style="padding:4px 6px;text-align:center;font-size:13px">${fmt(qty)}</td>
+      <td style="padding:4px 8px;text-align:right;font-weight:700;font-size:13px">${sub>0?fmt(sub):'-'}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+window.costPrices = [];
+function updateCostPrice(i, val) {
+  if(!window.costPrices) window.costPrices = [];
+  window.costPrices[i] = val;
+  calcProfit();
+  // update subtotal in row
+  const it = items.filter(it=>it.name)[i];
+  if(!it) return;
+  const q = parseFloat(it.qty)||0, p = parseFloat(val)||0;
+  const row = document.getElementById('costItemBody').rows[i];
+  if(row) row.cells[4].textContent = (q*p)>0 ? fmt(q*p) : '-';
+}
+
+function calcProfit() {
+  const clientTotal = parseFloat(document.getElementById('grandAmt').textContent.replace(/,/g,''))||0;
+  const exRate = parseFloat(document.getElementById('costExRate')?.value)||1;
+  const validItems = items.filter(it=>it.name);
+  const supplierCost = validItems.reduce((s,it,i)=>{
+    const q=parseFloat(it.qty)||0, p=parseFloat((window.costPrices||[])[i])||0;
+    return s + q*p*exRate;
+  },0);
+  const freight = parseFloat(document.getElementById('costFreight')?.value)||0;
+  const other = parseFloat(document.getElementById('costOther')?.value)||0;
+  const totalCost = supplierCost + freight + other;
+  const profit = clientTotal - totalCost;
+  const margin = clientTotal>0 ? (profit/clientTotal*100).toFixed(1) : 0;
+
+  const cur = document.getElementById('currency')?.value||'TWD';
+  document.getElementById('pcClientTotal').textContent = `${cur} ${fmt(clientTotal)}`;
+  document.getElementById('pcSupplierCost').textContent = `TWD ${fmt(supplierCost)}`;
+  document.getElementById('pcFreight').textContent = `TWD ${fmt(freight)}`;
+  document.getElementById('pcOther').textContent = `TWD ${fmt(other)}`;
+  document.getElementById('pcTotalCost').textContent = `TWD ${fmt(totalCost)}`;
+  const profitEl = document.getElementById('pcProfit');
+  profitEl.textContent = `TWD ${fmt(profit)} (${margin}%)`;
+  profitEl.style.color = profit>=0 ? '#7ecba1' : '#f08080';
+}
+
+// ── Image Upload ──
+function handleImgUpload(input) {
+  const files = Array.from(input.files);
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      costImages.push({name: file.name, dataUrl: e.target.result});
+      renderImages();
+    };
+    reader.readAsDataURL(file);
+  });
+  input.value = '';
+}
+
+function renderImages() {
+  const grid = document.getElementById('imgGrid');
+  grid.innerHTML = '';
+  costImages.forEach((img,i) => {
+    const div = document.createElement('div');
+    div.className = 'img-thumb';
+    div.innerHTML = `<img src="${img.dataUrl}" alt="${img.name}">
+      <button class="del-img" onclick="delImg(${i})">✕</button>`;
+    div.querySelector('img').onclick = () => viewImg(img.dataUrl);
+    grid.appendChild(div);
+  });
+  // Add upload button
+  const label = document.createElement('label');
+  label.className = 'img-upload-btn';
+  label.innerHTML = '<span style="font-size:22px">+</span><span>上傳圖片</span><input type="file" accept="image/*" multiple style="display:none" onchange="handleImgUpload(this)">';
+  grid.appendChild(label);
+}
+
+function delImg(i) {
+  costImages.splice(i,1);
+  renderImages();
+}
+
+function viewImg(dataUrl) {
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:pointer';
+  overlay.innerHTML = `<img src="${dataUrl}" style="max-width:95%;max-height:95%;border-radius:8px">`;
+  overlay.onclick = () => document.body.removeChild(overlay);
+  document.body.appendChild(overlay);
+}
+
+// ── Save Cost Data ──
+async function saveCostData() {
+  const data = collectData();
+  const costData = {
+    cost_supplier: document.getElementById('costSupplier')?.value||'',
+    cost_freight: parseFloat(document.getElementById('costFreight')?.value)||0,
+    cost_other: parseFloat(document.getElementById('costOther')?.value)||0,
+    cost_note: document.getElementById('costNote')?.value||'',
+    cost_items: (window.costPrices||[]).map((p,i)=>({
+      name: items.filter(it=>it.name)[i]?.name||'',
+      costPrice: p,
+      qty: items.filter(it=>it.name)[i]?.qty||0
+    })),
+    cost_images: costImages.map(img=>({name:img.name, dataUrl:img.dataUrl}))
+  };
+  try {
+    const row = {
+      quote_no: data.qNo,
+      quote_date: data.qDate,
+      expiry_date: data.qExpiry,
+      my_company: data.myCompany, my_tax_id: data.myTaxId,
+      my_contact: data.myContact, my_phone: data.myPhone,
+      my_email: data.myEmail, my_address: data.myAddress,
+      client_name: data.clientName, client_tax_id: data.clientTaxId,
+      client_contact: data.clientContact, client_phone: data.clientPhone,
+      client_email: data.clientEmail, client_address: data.clientAddress,
+      currency: data.currency, tax_rate: data.taxRate, shipping: data.shipping,
+      remark: data.remark, subtotal: data.subtotal, tax: data.tax,
+      grand_total: data.grand, items: data.items, saved_at: data.savedAt,
+      deal_status: data.dealStatus,
+      invoice_no: data.invoiceNo,
+      invoice_date: data.invoiceDate||null,
+      invoice_status: data.invoiceStatus,
+      payment_status: data.paymentStatus,
+      payment_date: data.paymentDate||null,
+      payment_amount: data.paymentAmount,
+      ...costData
+    };
+    await dbUpsert('quotations', row);
+    toast('✅ 成本資料已儲存到雲端');
+  } catch(e) {
+    toast('❌ 儲存失敗：' + e.message);
+  }
+}
+
+// Load cost data when loading a record
+const _origLoadRecord = loadRecord;
+function loadRecord(jsonStr) {
+  _origLoadRecord(jsonStr);
+  const h = JSON.parse(jsonStr);
+  setTimeout(()=>{
+    if(h.cost_supplier) document.getElementById('costSupplier').value = h.cost_supplier;
+    if(h.cost_freight) document.getElementById('costFreight').value = h.cost_freight;
+    if(h.cost_other) document.getElementById('costOther').value = h.cost_other;
+    if(h.cost_note) document.getElementById('costNote').value = h.cost_note;
+    if(h.cost_items) window.costPrices = h.cost_items.map(i=>i.costPrice||'');
+    if(h.cost_images) { costImages = h.cost_images; renderImages(); }
+    if(h.client_images) { clientImages = h.client_images; renderClientImages(); }
+  }, 100);
+}
+</script>
 
 <style>
 :root {
@@ -144,6 +420,65 @@ tbody input:focus { outline: none; border-color: var(--mint); background: white;
   .g3 { grid-template-columns: 1fr 1fr; }
   .g3 .span3 { grid-column: span 2; }
 }
+
+/* Status badges */
+.badge { display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:700; }
+.badge-pending { background:#f0f0f0; color:#888; }
+.badge-won { background:#e8f3ee; color:#5C8070; }
+.badge-lost { background:#fde8e8; color:#c0392b; }
+.badge-not-issued { background:#fff3cd; color:#856404; }
+.badge-issued { background:#e8f3ee; color:#5C8070; }
+.badge-void { background:#f0f0f0; color:#888; }
+.badge-unpaid { background:#fde8e8; color:#c0392b; }
+.badge-partial { background:#fff3cd; color:#856404; }
+.badge-paid { background:#e8f3ee; color:#5C8070; }
+
+/* Finance summary cards */
+.finance-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px; }
+.finance-card { background:white; border-radius:10px; padding:14px 16px; border:1px solid var(--border); box-shadow:0 2px 8px rgba(44,56,48,0.06); }
+.finance-card .fc-label { font-size:11px; color:#8a9e97; font-weight:600; margin-bottom:4px; }
+.finance-card .fc-value { font-size:20px; font-weight:800; color:var(--ink); }
+.finance-card .fc-sub { font-size:11px; color:#8a9e97; margin-top:2px; }
+.finance-card.green .fc-value { color:#5C8070; }
+.finance-card.orange .fc-value { color:var(--orange); }
+.finance-card.red .fc-value { color:#c0392b; }
+
+/* Status select */
+.status-select { border:1px solid var(--border); border-radius:7px; padding:6px 9px; font-size:13px; font-family:inherit; background:white; cursor:pointer; }
+
+/* Print - hide cost section */
+@media print {
+  .no-print { display:none !important; }
+  .print-only { display:block !important; }
+}
+
+/* Product images in quote */
+.product-img-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-top:8px; }
+.product-img-thumb { position:relative; aspect-ratio:1; border-radius:7px; overflow:hidden; border:1px solid var(--border); }
+.product-img-thumb img { width:100%; height:100%; object-fit:cover; }
+.product-img-thumb .del-img { position:absolute; top:3px; right:3px; background:rgba(0,0,0,0.5); color:white; border:none; border-radius:50%; width:20px; height:20px; font-size:11px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+.product-img-upload { aspect-ratio:1; border-radius:7px; border:2px dashed var(--border); display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; font-size:10px; color:#8a9e97; gap:3px; background:white; }
+.product-img-upload:hover { border-color:var(--mint); color:var(--mint-dark); }
+
+/* Cost Section */
+.view-toggle { display:flex; gap:0; margin-bottom:16px; border-radius:9px; overflow:hidden; border:1.5px solid var(--border); }
+.view-btn { flex:1; padding:10px; font-size:13px; font-weight:700; cursor:pointer; border:none; font-family:inherit; transition:all 0.2s; background:white; color:#4a5e57; }
+.view-btn.active { background:var(--ink); color:white; }
+.view-btn.cost-active { background:#8B4513; color:white; }
+.cost-badge { display:inline-block; background:#8B4513; color:white; font-size:10px; font-weight:700; padding:2px 7px; border-radius:10px; margin-left:5px; }
+.profit-box { background:var(--ink); color:white; border-radius:10px; padding:16px; margin-bottom:14px; }
+.profit-row { display:flex; justify-content:space-between; align-items:center; padding:5px 0; border-bottom:1px solid rgba(255,255,255,0.1); font-size:13px; }
+.profit-row:last-child { border-bottom:none; padding-top:8px; margin-top:4px; }
+.profit-row .label { color:rgba(255,255,255,0.65); }
+.profit-row .value { font-weight:700; color:white; }
+.profit-row.highlight .value { color:#7ecba1; font-size:16px; }
+.profit-row.loss .value { color:#f08080; }
+.img-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:10px; }
+.img-thumb { position:relative; aspect-ratio:1; border-radius:8px; overflow:hidden; border:1px solid var(--border); cursor:pointer; }
+.img-thumb img { width:100%; height:100%; object-fit:cover; }
+.img-thumb .del-img { position:absolute; top:3px; right:3px; background:rgba(0,0,0,0.5); color:white; border:none; border-radius:50%; width:20px; height:20px; font-size:12px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+.img-upload-btn { aspect-ratio:1; border-radius:8px; border:2px dashed var(--border); display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; font-size:11px; color:#8a9e97; gap:4px; background:white; }
+.img-upload-btn:hover { border-color:var(--mint); color:var(--mint-dark); }
 </style>
 </head>
 <body>
@@ -166,6 +501,8 @@ tbody input:focus { outline: none; border-color: var(--mint); background: white;
 <!-- EDITOR -->
 <div class="panel active" id="panel-editor">
 
+  <!-- CLIENT VIEW -->
+  <div id="clientView">
   <div class="card">
     <div class="card-head">我方資訊</div>
     <div class="card-body">
@@ -256,29 +593,231 @@ tbody input:focus { outline: none; border-color: var(--mint); background: white;
     </div>
   </div>
 
+  <div class="card">
+    <div class="card-head">成交 / 發票 / 收款狀態</div>
+    <div class="card-body">
+      <div class="g3" style="margin-bottom:12px">
+        <div class="field">
+          <label>成交狀態</label>
+          <select id="dealStatus" class="status-select" onchange="updateStatusBadge()">
+            <option value="pending">⏳ 報價中</option>
+            <option value="won">✅ 已成交</option>
+            <option value="lost">❌ 未成交</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>發票狀態</label>
+          <select id="invoiceStatus" class="status-select">
+            <option value="not_issued">📄 未開發票</option>
+            <option value="issued">✅ 已開發票</option>
+            <option value="void">🚫 已作廢</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>付款狀態</label>
+          <select id="paymentStatus" class="status-select" onchange="updatePaymentFields()">
+            <option value="unpaid">❌ 未付款</option>
+            <option value="partial">⚡ 部分付款</option>
+            <option value="paid">✅ 已付款</option>
+          </select>
+        </div>
+      </div>
+      <div class="g3">
+        <div class="field">
+          <label>發票號碼</label>
+          <input id="invoiceNo" placeholder="AB-12345678">
+        </div>
+        <div class="field">
+          <label>發票日期</label>
+          <input id="invoiceDate" type="date">
+        </div>
+        <div class="field" id="paymentAmtField">
+          <label>收款金額</label>
+          <input id="paymentAmount" type="text" inputmode="decimal" placeholder="0">
+        </div>
+      </div>
+      <div class="g2" style="margin-top:10px">
+        <div class="field" id="paymentDateField">
+          <label>收款日期</label>
+          <input id="paymentDate" type="date">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">產品圖片（會出現在報價單 PDF 上）</div>
+    <div class="card-body">
+      <div class="product-img-grid" id="productImgGrid">
+        <label class="product-img-upload">
+          <span style="font-size:20px">+</span>
+          <span>新增圖片</span>
+          <input type="file" accept="image/*" multiple style="display:none" onchange="handleProductImg(this)">
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- Client Product Images -->
+  <div class="card" id="clientImgCard">
+    <div class="card-head">產品圖片（會出現在報價單PDF中）</div>
+    <div class="card-body">
+      <div class="img-grid" id="clientImgGrid">
+        <label class="img-upload-btn">
+          <span style="font-size:22px">+</span>
+          <span>上傳產品圖</span>
+          <input type="file" accept="image/*" multiple style="display:none" onchange="handleClientImgUpload(this)">
+        </label>
+      </div>
+    </div>
+  </div>
+
   <div class="action-bar">
     <button class="btn btn-outline" onclick="clearForm()">🗑 清空</button>
     <button class="btn btn-outline" onclick="loadDraft()">📂 載入草稿</button>
     <button class="btn btn-outline" onclick="saveDraft()">💾 儲存草稿</button>
     <div class="spacer"></div>
     <button class="btn btn-mint" onclick="exportExcel()">📊 匯出 Excel</button>
-    <button class="btn btn-ink" onclick="showPreview()">📄 預覽截圖</button>
+    <button class="btn btn-outline" onclick="showPreview()">👁 預覽</button>
+    <button class="btn btn-ink" onclick="printPDF()">🖨 存成 PDF</button>
   </div>
+  </div><!-- /clientView -->
+
+  <!-- COST VIEW - always visible below -->
+  <div id="costView">
+  <div style="display:flex;align-items:center;gap:10px;margin:8px 0 14px">
+    <div style="flex:1;height:2px;background:var(--border)"></div>
+    <div style="background:#2C3830;color:white;padding:6px 16px;border-radius:20px;font-size:12px;font-weight:700;white-space:nowrap">🔒 內部成本（僅供內部參考）</div>
+    <div style="flex:1;height:2px;background:var(--border)"></div>
+  </div>
+
+    <!-- Profit Summary -->
+    <div class="profit-box" id="profitBox">
+      <div style="font-size:12px;color:rgba(255,255,255,0.5);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.06em">損益分析</div>
+      <div class="profit-row"><span class="label">客戶報價總額</span><span class="value" id="pcClientTotal">-</span></div>
+      <div class="profit-row"><span class="label">廠商成本</span><span class="value" id="pcSupplierCost">-</span></div>
+      <div class="profit-row"><span class="label">運費成本</span><span class="value" id="pcFreight">-</span></div>
+      <div class="profit-row"><span class="label">其他費用</span><span class="value" id="pcOther">-</span></div>
+      <div class="profit-row"><span class="label">總成本</span><span class="value" id="pcTotalCost">-</span></div>
+      <div class="profit-row highlight"><span class="label" style="color:white;font-weight:700;font-size:15px">毛利</span><span class="value" id="pcProfit" style="font-size:18px">-</span></div>
+    </div>
+
+    <!-- Supplier Info -->
+    <div class="card">
+      <div class="card-head">廠商資訊</div>
+      <div class="card-body">
+        <div class="g2">
+          <div class="field"><label>廠商名稱</label><input id="costSupplier" placeholder="供應商名稱"></div>
+          <div class="field"><label>廠商聯絡人</label><input id="costSupplierContact" placeholder=""></div>
+          <div class="field"><label>廠商報價幣別</label>
+            <select id="costCurrency">
+              <option value="CNY">CNY 人民幣</option>
+              <option value="TWD">TWD 新台幣</option>
+              <option value="USD">USD 美元</option>
+            </select>
+          </div>
+          <div class="field"><label>匯率（對TWD）</label><input id="costExRate" placeholder="例：4.45" oninput="calcProfit()"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cost Items -->
+    <div class="card">
+      <div class="card-head">各品項廠商報價</div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th style="width:28px;text-align:center">No.</th>
+            <th>品項名稱</th>
+            <th style="width:100px">廠商單價</th>
+            <th style="width:80px">數量</th>
+            <th style="width:100px;text-align:right">廠商小計</th>
+          </tr></thead>
+          <tbody id="costItemBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Other Costs -->
+    <div class="card">
+      <div class="card-head">其他成本</div>
+      <div class="card-body">
+        <div class="g2">
+          <div class="field"><label>運費成本</label><input id="costFreight" type="text" inputmode="decimal" value="0" oninput="calcProfit()" placeholder="0"></div>
+          <div class="field"><label>其他費用</label><input id="costOther" type="text" inputmode="decimal" value="0" oninput="calcProfit()" placeholder="關稅、包裝等"></div>
+        </div>
+        <div class="field" style="margin-top:10px"><label>備注</label><textarea id="costNote" rows="2" placeholder="成本備注、注意事項..." style="resize:vertical;border:1px solid var(--border);border-radius:7px;padding:8px 10px;font-size:13px;font-family:inherit;width:100%"></textarea></div>
+      </div>
+    </div>
+
+    <!-- Images -->
+    <div class="card">
+      <div class="card-head">圖片（廠商報價截圖 / 產品圖）</div>
+      <div class="card-body">
+        <div class="img-grid" id="imgGrid">
+          <label class="img-upload-btn">
+            <span style="font-size:22px">+</span>
+            <span>上傳圖片</span>
+            <input type="file" accept="image/*" multiple style="display:none" onchange="handleImgUpload(this)">
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="action-bar">
+      <div class="spacer"></div>
+      <button class="btn btn-mint" onclick="saveCostData()">💾 儲存成本資料</button>
+    </div>
+
+  </div><!-- /costView -->
 
 </div>
 
 <!-- HISTORY -->
 <div class="panel" id="panel-history">
+
+  <!-- Finance Summary -->
+  <div class="finance-grid" id="financeSummary">
+    <div class="finance-card green">
+      <div class="fc-label">本月成交金額</div>
+      <div class="fc-value" id="fcMonthly">-</div>
+      <div class="fc-sub" id="fcMonthlyCount">-</div>
+    </div>
+    <div class="finance-card orange">
+      <div class="fc-label">應收帳款</div>
+      <div class="fc-value" id="fcReceivable">-</div>
+      <div class="fc-sub" id="fcReceivableCount">-</div>
+    </div>
+    <div class="finance-card">
+      <div class="fc-label">累計報價總額</div>
+      <div class="fc-value" id="fcTotal">-</div>
+      <div class="fc-sub" id="fcTotalCount">-</div>
+    </div>
+    <div class="finance-card green">
+      <div class="fc-label">累計毛利</div>
+      <div class="fc-value" id="fcProfit2">-</div>
+      <div class="fc-sub" id="fcMargin">-</div>
+    </div>
+  </div>
+
   <div class="card">
     <div class="card-head" style="display:flex;justify-content:space-between;align-items:center">
       <span>歷史報價留檔</span>
-      <button class="btn btn-outline btn-sm" onclick="refreshHistory()">🔄 重新載入</button>
+      <div style="display:flex;gap:6px">
+        <select id="filterStatus" class="status-select" style="font-size:12px;padding:5px 8px" onchange="refreshHistory()">
+          <option value="">全部</option>
+          <option value="pending">報價中</option>
+          <option value="won">已成交</option>
+          <option value="lost">未成交</option>
+        </select>
+        <button class="btn btn-outline btn-sm" onclick="refreshHistory()">🔄 重新載入</button>
+      </div>
     </div>
     <div style="overflow-x:auto">
       <table class="hist-table">
         <thead>
           <tr>
-            <th>報價編號</th><th>日期</th><th>客戶</th><th>幣別</th><th>總金額</th><th>操作</th>
+            <th>報價編號</th><th>日期</th><th>客戶</th><th>金額</th><th>成交</th><th>發票</th><th>收款</th><th>操作</th>
           </tr>
         </thead>
         <tbody id="histBody"></tbody>
@@ -294,11 +833,11 @@ tbody input:focus { outline: none; border-color: var(--mint); background: white;
   <div class="preview-bar">
     <div class="preview-bar-info">
       <div class="preview-bar-title" id="previewTitle">報價單預覽</div>
-      <div class="preview-bar-hint">對報價單截圖儲存，或點「列印/PDF」存成PDF</div>
+      <div class="preview-bar-hint">點「🖨 列印/PDF」→ 另存為PDF → 儲存</div>
     </div>
     <div class="preview-bar-actions">
       <button onclick="closePreview()" style="background:rgba(255,255,255,0.12);color:white;border:none;border-radius:7px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">✕ 關閉</button>
-      <button onclick="window.print()" style="background:var(--orange);color:white;border:none;border-radius:7px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">🖨 列印/PDF</button>
+      <button onclick="window.print()" style="background:var(--orange);color:white;border:none;border-radius:7px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">🖨 存成 PDF</button>
     </div>
   </div>
   <div class="preview-page-wrap">
@@ -499,6 +1038,7 @@ function collectData() {
     currency:v('currency'), taxRate, shipping:ship, remark:v('remark'),
     items: JSON.parse(JSON.stringify(items)),
     subtotal:sub, tax, grand:sub+tax+ship,
+    clientImages: clientImages,
     savedAt: new Date().toISOString()
   };
 }
@@ -506,7 +1046,8 @@ function collectData() {
 function applyData(data) {
   ['myCompany','myTaxId','myContact','myPhone','myEmail','myAddress',
    'qNo','qDate','qExpiry','clientName','clientTaxId','clientContact',
-   'clientPhone','clientEmail','clientAddress','currency','remark'].forEach(k => {
+   'clientPhone','clientEmail','clientAddress','currency','remark',
+   'dealStatus','invoiceNo','invoiceDate','invoiceStatus','paymentStatus','paymentDate','paymentAmount'].forEach(k => {
     const el = document.getElementById(k);
     if (el && data[k] !== undefined) el.value = data[k];
   });
@@ -565,7 +1106,14 @@ async function saveToCloud(data) {
       client_email: data.clientEmail, client_address: data.clientAddress,
       currency: data.currency, tax_rate: data.taxRate, shipping: data.shipping,
       remark: data.remark, subtotal: data.subtotal, tax: data.tax,
-      grand_total: data.grand, items: data.items, saved_at: data.savedAt
+      grand_total: data.grand, items: data.items, saved_at: data.savedAt,
+      deal_status: data.dealStatus,
+      invoice_no: data.invoiceNo,
+      invoice_date: data.invoiceDate||null,
+      invoice_status: data.invoiceStatus,
+      payment_status: data.paymentStatus,
+      payment_date: data.paymentDate||null,
+      payment_amount: data.paymentAmount
     };
     await dbUpsert('quotations', row);
     return true;
@@ -599,6 +1147,7 @@ async function refreshHistory() {
       `;
       tbody.appendChild(tr);
     });
+    calcFinanceSummary(data);
   } catch(e) {
     tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:#D96060">連線失敗</td></tr>';
   }
@@ -613,7 +1162,14 @@ function loadRecord(jsonStr) {
     clientName:h.client_name, clientTaxId:h.client_tax_id, clientContact:h.client_contact,
     clientPhone:h.client_phone, clientEmail:h.client_email, clientAddress:h.client_address,
     currency:h.currency, taxRate:h.tax_rate, shipping:h.shipping, remark:h.remark,
-    items: h.items || []
+    items: h.items || [],
+    dealStatus: h.deal_status||'pending',
+    invoiceNo: h.invoice_no||'',
+    invoiceDate: h.invoice_date||'',
+    invoiceStatus: h.invoice_status||'not_issued',
+    paymentStatus: h.payment_status||'unpaid',
+    paymentDate: h.payment_date||'',
+    paymentAmount: h.payment_amount||0
   };
   applyData(data);
   switchTabDirect('editor');
@@ -676,6 +1232,42 @@ async function exportExcel() {
 }
 
 // ── Preview ──
+let productImages = []; // {name, dataUrl}
+
+function handleProductImg(input) {
+  const files = Array.from(input.files);
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      productImages.push({name: file.name, dataUrl: e.target.result});
+      renderProductImages();
+    };
+    reader.readAsDataURL(file);
+  });
+  input.value = '';
+}
+
+function renderProductImages() {
+  const grid = document.getElementById('productImgGrid');
+  grid.innerHTML = '';
+  productImages.forEach((img,i) => {
+    const div = document.createElement('div');
+    div.className = 'product-img-thumb';
+    div.innerHTML = `<img src="${img.dataUrl}" alt="${img.name}">
+      <button class="del-img" onclick="delProductImg(${i})">✕</button>`;
+    grid.appendChild(div);
+  });
+  const label = document.createElement('label');
+  label.className = 'product-img-upload';
+  label.innerHTML = '<span style="font-size:20px">+</span><span>新增圖片</span><input type="file" accept="image/*" multiple style="display:none" onchange="handleProductImg(this)">';
+  grid.appendChild(label);
+}
+
+function delProductImg(i) {
+  productImages.splice(i,1);
+  renderProductImages();
+}
+
 function showPreview() {
   const data = collectData();
   saveSettings(data);
@@ -683,6 +1275,48 @@ function showPreview() {
   document.getElementById('previewContent').innerHTML = buildPreviewHTML(data);
   document.getElementById('preview').classList.add('open');
   document.body.style.overflow = 'hidden';
+}
+
+function doPrint() {
+  // Hide preview overlay, show print content directly
+  const data = collectData();
+  saveSettings(data);
+  // Set print content
+  let printEl = document.getElementById('printArea');
+  if (!printEl) {
+    printEl = document.createElement('div');
+    printEl.id = 'printArea';
+    printEl.style.cssText = 'display:none';
+    document.body.appendChild(printEl);
+  }
+  printEl.innerHTML = buildPreviewHTML(data);
+  printEl.style.display = 'block';
+  
+  // Add print style
+  const style = document.createElement('style');
+  style.id = 'printStyle';
+  style.textContent = `
+    @media print {
+      body > *:not(#printArea) { display:none !important; }
+      #printArea { display:block !important; }
+      #preview { display:none !important; }
+      @page { margin:10mm; size:A4; }
+    }
+  `;
+  document.head.appendChild(style);
+  
+  window.print();
+  
+  setTimeout(()=>{
+    printEl.style.display = 'none';
+    const s = document.getElementById('printStyle');
+    if(s) s.remove();
+  }, 1000);
+}
+
+function printPDF() {
+  showPreview();
+  setTimeout(() => window.print(), 800);
 }
 
 function closePreview() {
@@ -775,6 +1409,13 @@ function buildPreviewHTML(d) {
     </div>
 
     ${d.remark?`<div style="background:#F4F8F6;border-radius:6px;padding:9px 11px;margin-bottom:12px;font-size:11px"><div style="font-weight:700;color:#5C8070;font-size:9px;text-transform:uppercase;margin-bottom:3px">備注 / 付款條件</div><div style="line-height:1.6">${d.remark}</div></div>`:''}
+    ${d.clientImages && d.clientImages.length>0 ? `
+    <div style="margin-bottom:12px">
+      <div style="font-size:9px;font-weight:700;color:#5C8070;text-transform:uppercase;margin-bottom:8px">產品圖片</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+        ${d.clientImages.map(img=>`<img src="${img.dataUrl}" style="width:100%;border-radius:6px;border:1px solid #C8DDD5;object-fit:cover;aspect-ratio:1">`).join('')}
+      </div>
+    </div>` : ''}
     <div style="font-size:10px;color:#8a9e97;border-top:1px solid #C8DDD5;padding-top:8px">此報價單有效期至 ${d.qExpiry}。如有任何疑問請聯繫 ${d.myContact||''} ${d.myPhone||''}。</div>
   `;
 }
@@ -785,6 +1426,282 @@ function toast(msg) {
   el.textContent = msg;
   el.classList.add('show');
   setTimeout(() => el.classList.remove('show'), 2800);
+}
+
+// ── Client Images ──
+let clientImages = [];
+
+function handleClientImgUpload(input) {
+  const files = Array.from(input.files);
+  files.forEach(file => {
+    if(clientImages.length >= 6) { toast('最多上傳6張圖片'); return; }
+    const reader = new FileReader();
+    reader.onload = e => {
+      clientImages.push({name: file.name, dataUrl: e.target.result});
+      renderClientImages();
+    };
+    reader.readAsDataURL(file);
+  });
+  input.value = '';
+}
+
+function renderClientImages() {
+  const grid = document.getElementById('clientImgGrid');
+  grid.innerHTML = '';
+  clientImages.forEach((img,i) => {
+    const div = document.createElement('div');
+    div.className = 'img-thumb';
+    div.innerHTML = `<img src="${img.dataUrl}" alt="${img.name}">
+      <button class="del-img" onclick="delClientImg(${i})">✕</button>`;
+    div.querySelector('img').onclick = () => viewImg(img.dataUrl);
+    grid.appendChild(div);
+  });
+  if(clientImages.length < 6) {
+    const label = document.createElement('label');
+    label.className = 'img-upload-btn';
+    label.innerHTML = '<span style="font-size:22px">+</span><span>上傳產品圖</span><input type="file" accept="image/*" multiple style="display:none" onchange="handleClientImgUpload(this)">';
+    grid.appendChild(label);
+  }
+}
+
+function delClientImg(i) {
+  clientImages.splice(i,1);
+  renderClientImages();
+}
+
+// ── Status helpers ──
+function updateStatusBadge() {}
+function updatePaymentFields() {
+  const status = document.getElementById('paymentStatus')?.value;
+  const show = status === 'partial' || status === 'paid';
+}
+
+// ── Finance Summary ──
+function calcFinanceSummary(data) {
+  const now = new Date();
+  const thisMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  
+  let monthlyTotal = 0, monthlyCount = 0;
+  let receivable = 0, receivableCount = 0;
+  let totalAmt = 0, totalCount = 0;
+  let totalCostSum = 0;
+
+  data.forEach(h => {
+    const grand = parseFloat(h.grand_total)||0;
+    totalAmt += grand; totalCount++;
+    
+    // This month won deals
+    if(h.deal_status==='won' && (h.quote_date||'').startsWith(thisMonth)) {
+      monthlyTotal += grand; monthlyCount++;
+    }
+    // Receivable = won but unpaid
+    if(h.deal_status==='won' && h.payment_status!=='paid') {
+      receivable += grand - (parseFloat(h.payment_amount)||0);
+      receivableCount++;
+    }
+    // Cost for profit calc
+    if(h.cost_items) {
+      const exRate = 1; // simplified
+      const costSum = (h.cost_items||[]).reduce((s,it)=>{
+        return s + (parseFloat(it.costPrice)||0)*(parseFloat(it.qty)||0)*exRate;
+      },0);
+      totalCostSum += costSum + (parseFloat(h.cost_freight)||0) + (parseFloat(h.cost_other)||0);
+    }
+  });
+
+  const wonData = data.filter(h=>h.deal_status==='won');
+  const wonTotal = wonData.reduce((s,h)=>s+(parseFloat(h.grand_total)||0),0);
+  const profit = wonTotal - totalCostSum;
+  const margin = wonTotal>0 ? (profit/wonTotal*100).toFixed(1) : 0;
+
+  document.getElementById('fcMonthly').textContent = `TWD ${fmt(monthlyTotal)}`;
+  document.getElementById('fcMonthlyCount').textContent = `${monthlyCount} 筆成交`;
+  document.getElementById('fcReceivable').textContent = `TWD ${fmt(receivable)}`;
+  document.getElementById('fcReceivableCount').textContent = `${receivableCount} 筆待收`;
+  document.getElementById('fcTotal').textContent = `TWD ${fmt(totalAmt)}`;
+  document.getElementById('fcTotalCount').textContent = `共 ${totalCount} 筆報價`;
+  document.getElementById('fcProfit2').textContent = `TWD ${fmt(profit)}`;
+  document.getElementById('fcMargin').textContent = `毛利率 ${margin}%`;
+}
+
+// ── View Toggle ──
+let currentView = 'client';
+let costImages = []; // {name, dataUrl}
+
+function switchView(view) {
+  currentView = view;
+  document.getElementById('clientView').style.display = view==='client'?'block':'none';
+  document.getElementById('costView').style.display = view==='cost'?'block':'none';
+  document.getElementById('btnClient').className = 'view-btn' + (view==='client'?' active':'');
+  document.getElementById('btnCost').className = 'view-btn' + (view==='cost'?' cost-active':'');
+  if(view==='cost') { renderCostItems(); calcProfit(); }
+}
+
+function renderCostItems() {
+  const tbody = document.getElementById('costItemBody');
+  tbody.innerHTML = '';
+  const validItems = items.filter(it=>it.name);
+  validItems.forEach((it,i) => {
+    const costPrice = (window.costPrices||[])[i] || '';
+    const qty = parseFloat(it.qty)||0;
+    const cp = parseFloat(costPrice)||0;
+    const sub = qty * cp;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="row-no">${i+1}</td>
+      <td style="padding:4px 6px;font-size:13px">${it.name}</td>
+      <td style="padding:4px 3px"><input type="text" inputmode="decimal" value="${costPrice}" 
+        oninput="updateCostPrice(${i},this.value)" placeholder="0"
+        style="border:1px solid var(--border);border-radius:5px;padding:5px 7px;font-size:13px;font-family:inherit;width:100%;text-align:right"></td>
+      <td style="padding:4px 6px;text-align:center;font-size:13px">${fmt(qty)}</td>
+      <td style="padding:4px 8px;text-align:right;font-weight:700;font-size:13px">${sub>0?fmt(sub):'-'}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+window.costPrices = [];
+function updateCostPrice(i, val) {
+  if(!window.costPrices) window.costPrices = [];
+  window.costPrices[i] = val;
+  calcProfit();
+  // update subtotal in row
+  const it = items.filter(it=>it.name)[i];
+  if(!it) return;
+  const q = parseFloat(it.qty)||0, p = parseFloat(val)||0;
+  const row = document.getElementById('costItemBody').rows[i];
+  if(row) row.cells[4].textContent = (q*p)>0 ? fmt(q*p) : '-';
+}
+
+function calcProfit() {
+  const clientTotal = parseFloat(document.getElementById('grandAmt').textContent.replace(/,/g,''))||0;
+  const exRate = parseFloat(document.getElementById('costExRate')?.value)||1;
+  const validItems = items.filter(it=>it.name);
+  const supplierCost = validItems.reduce((s,it,i)=>{
+    const q=parseFloat(it.qty)||0, p=parseFloat((window.costPrices||[])[i])||0;
+    return s + q*p*exRate;
+  },0);
+  const freight = parseFloat(document.getElementById('costFreight')?.value)||0;
+  const other = parseFloat(document.getElementById('costOther')?.value)||0;
+  const totalCost = supplierCost + freight + other;
+  const profit = clientTotal - totalCost;
+  const margin = clientTotal>0 ? (profit/clientTotal*100).toFixed(1) : 0;
+
+  const cur = document.getElementById('currency')?.value||'TWD';
+  document.getElementById('pcClientTotal').textContent = `${cur} ${fmt(clientTotal)}`;
+  document.getElementById('pcSupplierCost').textContent = `TWD ${fmt(supplierCost)}`;
+  document.getElementById('pcFreight').textContent = `TWD ${fmt(freight)}`;
+  document.getElementById('pcOther').textContent = `TWD ${fmt(other)}`;
+  document.getElementById('pcTotalCost').textContent = `TWD ${fmt(totalCost)}`;
+  const profitEl = document.getElementById('pcProfit');
+  profitEl.textContent = `TWD ${fmt(profit)} (${margin}%)`;
+  profitEl.style.color = profit>=0 ? '#7ecba1' : '#f08080';
+}
+
+// ── Image Upload ──
+function handleImgUpload(input) {
+  const files = Array.from(input.files);
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      costImages.push({name: file.name, dataUrl: e.target.result});
+      renderImages();
+    };
+    reader.readAsDataURL(file);
+  });
+  input.value = '';
+}
+
+function renderImages() {
+  const grid = document.getElementById('imgGrid');
+  grid.innerHTML = '';
+  costImages.forEach((img,i) => {
+    const div = document.createElement('div');
+    div.className = 'img-thumb';
+    div.innerHTML = `<img src="${img.dataUrl}" alt="${img.name}">
+      <button class="del-img" onclick="delImg(${i})">✕</button>`;
+    div.querySelector('img').onclick = () => viewImg(img.dataUrl);
+    grid.appendChild(div);
+  });
+  // Add upload button
+  const label = document.createElement('label');
+  label.className = 'img-upload-btn';
+  label.innerHTML = '<span style="font-size:22px">+</span><span>上傳圖片</span><input type="file" accept="image/*" multiple style="display:none" onchange="handleImgUpload(this)">';
+  grid.appendChild(label);
+}
+
+function delImg(i) {
+  costImages.splice(i,1);
+  renderImages();
+}
+
+function viewImg(dataUrl) {
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:pointer';
+  overlay.innerHTML = `<img src="${dataUrl}" style="max-width:95%;max-height:95%;border-radius:8px">`;
+  overlay.onclick = () => document.body.removeChild(overlay);
+  document.body.appendChild(overlay);
+}
+
+// ── Save Cost Data ──
+async function saveCostData() {
+  const data = collectData();
+  const costData = {
+    cost_supplier: document.getElementById('costSupplier')?.value||'',
+    cost_freight: parseFloat(document.getElementById('costFreight')?.value)||0,
+    cost_other: parseFloat(document.getElementById('costOther')?.value)||0,
+    cost_note: document.getElementById('costNote')?.value||'',
+    cost_items: (window.costPrices||[]).map((p,i)=>({
+      name: items.filter(it=>it.name)[i]?.name||'',
+      costPrice: p,
+      qty: items.filter(it=>it.name)[i]?.qty||0
+    })),
+    cost_images: costImages.map(img=>({name:img.name, dataUrl:img.dataUrl}))
+  };
+  try {
+    const row = {
+      quote_no: data.qNo,
+      quote_date: data.qDate,
+      expiry_date: data.qExpiry,
+      my_company: data.myCompany, my_tax_id: data.myTaxId,
+      my_contact: data.myContact, my_phone: data.myPhone,
+      my_email: data.myEmail, my_address: data.myAddress,
+      client_name: data.clientName, client_tax_id: data.clientTaxId,
+      client_contact: data.clientContact, client_phone: data.clientPhone,
+      client_email: data.clientEmail, client_address: data.clientAddress,
+      currency: data.currency, tax_rate: data.taxRate, shipping: data.shipping,
+      remark: data.remark, subtotal: data.subtotal, tax: data.tax,
+      grand_total: data.grand, items: data.items, saved_at: data.savedAt,
+      deal_status: data.dealStatus,
+      invoice_no: data.invoiceNo,
+      invoice_date: data.invoiceDate||null,
+      invoice_status: data.invoiceStatus,
+      payment_status: data.paymentStatus,
+      payment_date: data.paymentDate||null,
+      payment_amount: data.paymentAmount,
+      ...costData
+    };
+    await dbUpsert('quotations', row);
+    toast('✅ 成本資料已儲存到雲端');
+  } catch(e) {
+    toast('❌ 儲存失敗：' + e.message);
+  }
+}
+
+// Load cost data when loading a record
+const _origLoadRecord = loadRecord;
+function loadRecord(jsonStr) {
+  _origLoadRecord(jsonStr);
+  const h = JSON.parse(jsonStr);
+  setTimeout(()=>{
+    if(h.cost_supplier) document.getElementById('costSupplier').value = h.cost_supplier;
+    if(h.cost_freight) document.getElementById('costFreight').value = h.cost_freight;
+    if(h.cost_other) document.getElementById('costOther').value = h.cost_other;
+    if(h.cost_note) document.getElementById('costNote').value = h.cost_note;
+    if(h.cost_items) window.costPrices = h.cost_items.map(i=>i.costPrice||'');
+    if(h.cost_images) { costImages = h.cost_images; renderImages(); }
+    if(h.client_images) { clientImages = h.client_images; renderClientImages(); }
+  }, 100);
 }
 </script>
 </body>
