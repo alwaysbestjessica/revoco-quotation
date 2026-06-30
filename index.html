@@ -173,6 +173,12 @@ tbody input:focus { outline: none; border-color: var(--mint); background: white;
 /* Status select */
 .status-select { border:1px solid var(--border); border-radius:7px; padding:6px 9px; font-size:13px; font-family:inherit; background:white; cursor:pointer; }
 
+/* Extra fee rows in client quote */
+.extra-fee-row { display:grid; grid-template-columns:1fr 90px 90px 28px; gap:6px; align-items:center; margin-bottom:6px; }
+.extra-fee-row select { border:1px solid var(--border); border-radius:6px; padding:6px 6px; font-size:11px; font-family:inherit; background:#fff; }
+.fee-type-客戶 { background:#fff3cd !important; }
+.fee-type-吸收 { background:#fde8e8 !important; }
+
 /* Print - hide cost section */
 @media print {
   .no-print { display:none !important; }
@@ -304,18 +310,25 @@ tbody input:focus { outline: none; border-color: var(--mint); background: white;
         <tbody id="itemBody"></tbody>
       </table>
     </div>
-    <div class="totals-area">
-      <div class="total-row"><label>小計</label><span class="amt" id="subtotalAmt">0</span></div>
-      <div class="total-row">
+    <div class="totals-area" style="align-items:stretch">
+      <div class="total-row" style="justify-content:flex-end"><label>商品小計</label><span class="amt" id="subtotalAmt">0</span></div>
+      
+      <!-- Extra fees section -->
+      <div style="border-top:1px solid var(--border); margin-top:8px; padding-top:10px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <span style="font-size:11px;font-weight:700;color:var(--mint-dark);text-transform:uppercase;letter-spacing:0.04em">額外費用（運費／包材等）</span>
+        </div>
+        <div id="extraFeeRows"></div>
+        <button class="btn btn-outline btn-sm" onclick="addExtraFee()" style="margin-bottom:8px">＋ 新增費用項目</button>
+      </div>
+
+      <div class="total-row" style="justify-content:flex-end">
         <label>稅率 (%)</label>
         <input class="small" id="taxRate" value="0" style="width:65px" oninput="calcTotals()">
         <span class="amt" id="taxAmt">0</span>
       </div>
-      <div class="total-row">
-        <label>運費</label>
-        <input class="small" id="shipping" value="0" style="width:90px;text-align:right" oninput="calcTotals()">
-      </div>
-      <div class="grand-row"><label>總計</label><span class="amt" id="grandAmt">0</span></div>
+      <div class="grand-row" style="justify-content:flex-end"><label>總計（向客戶收取）</label><span class="amt" id="grandAmt">0</span></div>
+      <div style="font-size:10px;color:#8a9e97;text-align:right">＊「客戶負擔」費用已計入總計；「自行吸收」費用不計入</div>
     </div>
     <div class="add-row-btn">
       <button class="btn btn-outline btn-sm" onclick="addRow()">＋ 新增商品</button>
@@ -778,15 +791,46 @@ function renderTable() {
 function esc(v) { return String(v||'').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
 const fmt = n => Number(n||0).toLocaleString('zh-TW',{minimumFractionDigits:0,maximumFractionDigits:2});
 
+window.extraFees = window.extraFees || [];
+
+function addExtraFee() {
+  window.extraFees.push({label:'', amount:'', type:'客戶'}); // type: 客戶 or 吸收
+  renderExtraFees();
+}
+
+function renderExtraFees() {
+  const container = document.getElementById('extraFeeRows');
+  if(!container) return;
+  if(window.extraFees.length===0){
+    container.innerHTML = '<div style="color:#8a9e97;font-size:11px;padding:2px 0 8px">尚未新增（例：運費、加急費、包材費）</div>';
+    calcTotals();
+    return;
+  }
+  container.innerHTML = window.extraFees.map((ef,i)=>`
+    <div class="extra-fee-row">
+      <input value="${(ef.label||'').replace(/"/g,'&quot;')}" oninput="window.extraFees[${i}].label=this.value" placeholder="費用名稱（運費、包材費...）"
+        style="border:1px solid var(--border);border-radius:6px;padding:6px 9px;font-size:12px;font-family:inherit">
+      <input type="text" inputmode="decimal" value="${ef.amount||''}" oninput="window.extraFees[${i}].amount=this.value;calcTotals()" placeholder="金額"
+        style="border:1px solid var(--border);border-radius:6px;padding:6px 9px;font-size:12px;font-family:inherit;text-align:right">
+      <select onchange="window.extraFees[${i}].type=this.value;renderExtraFees()" class="fee-type-${ef.type||'客戶'}">
+        <option value="客戶" ${(ef.type||'客戶')==='客戶'?'selected':''}>💰客戶付</option>
+        <option value="吸收" ${ef.type==='吸收'?'selected':''}>🫴我吸收</option>
+      </select>
+      <button onclick="window.extraFees.splice(${i},1);renderExtraFees()" style="background:none;border:none;color:#ccc;font-size:15px;cursor:pointer;padding:4px">✕</button>
+    </div>
+  `).join('');
+  calcTotals();
+}
+
 function calcTotals() {
   const sub = items.reduce((s,it) => s+(parseFloat(it.qty)||0)*(parseFloat(it.price)||0), 0);
-  const tax = sub * (parseFloat(document.getElementById('taxRate').value)||0) / 100;
-  const ship = parseFloat(document.getElementById('shipping').value)||0;
-  const grand = sub + tax + ship;
+  // Only "客戶" (customer-paid) fees count toward the total charged to client
+  const customerFees = (window.extraFees||[]).filter(ef=>ef.type!=='吸收').reduce((s,ef)=>s+(parseFloat(ef.amount)||0),0);
+  const tax = (sub+customerFees) * (parseFloat(document.getElementById('taxRate')?.value)||0) / 100;
+  const grand = sub + customerFees + tax;
   document.getElementById('subtotalAmt').textContent = fmt(sub);
   document.getElementById('taxAmt').textContent = fmt(tax);
   document.getElementById('grandAmt').textContent = fmt(grand);
-  // update row totals
   items.forEach((it, i) => {
     const t = (parseFloat(it.qty)||0)*(parseFloat(it.price)||0);
     const cell = document.getElementById('itemBody').rows[i]?.cells[6];
@@ -799,8 +843,10 @@ function v(id) { return document.getElementById(id)?.value || ''; }
 function collectData() {
   const sub = items.reduce((s,it) => s+(parseFloat(it.qty)||0)*(parseFloat(it.price)||0), 0);
   const taxRate = parseFloat(v('taxRate'))||0;
-  const ship = parseFloat(v('shipping'))||0;
-  const tax = sub * taxRate / 100;
+  const customerFees = (window.extraFees||[]).filter(ef=>ef.type!=='吸收').reduce((s,ef)=>s+(parseFloat(ef.amount)||0),0);
+  const absorbedFees = (window.extraFees||[]).filter(ef=>ef.type==='吸收').reduce((s,ef)=>s+(parseFloat(ef.amount)||0),0);
+  const ship = customerFees; // for backward compat with grand total calc
+  const tax = (sub+customerFees) * taxRate / 100;
   return {
     myCompany:v('myCompany'), myTaxId:v('myTaxId'), myContact:v('myContact'),
     myPhone:v('myPhone'), myEmail:v('myEmail'), myAddress:v('myAddress'),
@@ -809,7 +855,7 @@ function collectData() {
     clientPhone:v('clientPhone'), clientEmail:v('clientEmail'), clientAddress:v('clientAddress'),
     currency:v('currency'), taxRate, shipping:ship, remark:v('remark'),
     items: JSON.parse(JSON.stringify(items)),
-    subtotal:sub, tax, grand:sub+tax+ship,
+    subtotal:sub, tax, grand:sub+customerFees+tax, shipping:customerFees, absorbedFees, extraFees: window.extraFees||[],
     clientImages: clientImages,
     savedAt: new Date().toISOString()
   };
@@ -824,8 +870,9 @@ function applyData(data) {
     if (el && data[k] !== undefined) el.value = data[k];
   });
   if (data.taxRate !== undefined) document.getElementById('taxRate').value = data.taxRate;
-  if (data.shipping !== undefined) document.getElementById('shipping').value = data.shipping;
+  window.extraFees = data.extraFees || [];
   if (data.items) { items = data.items; renderTable(); }
+  renderExtraFees();
 }
 
 // ── Settings ──
@@ -878,7 +925,7 @@ async function saveToCloud(data) {
       client_email: data.clientEmail, client_address: data.clientAddress,
       currency: data.currency, tax_rate: data.taxRate, shipping: data.shipping,
       remark: data.remark, subtotal: data.subtotal, tax: data.tax,
-      grand_total: data.grand, items: data.items, saved_at: data.savedAt,
+      grand_total: data.grand, items: data.items, saved_at: data.savedAt, extra_fees: data.extraFees||[],
       deal_status: data.dealStatus,
       invoice_no: data.invoiceNo,
       invoice_date: data.invoiceDate||null,
@@ -1020,6 +1067,7 @@ function loadRecord(recKeyOrJson) {
     if(h.cost_images) { costImages = h.cost_images||[]; if(typeof renderImages==='function') renderImages(); }
     if(h.product_images) { productImages = h.product_images||[]; renderProductImages(); }
     window.extraCosts = h.cost_extra||[];
+    window.extraFees = h.extra_fees||[]; renderExtraFees();
     if(typeof renderExtraCosts==='function') renderExtraCosts();
   }, 150);
   switchTabDirect('editor');
@@ -1766,11 +1814,14 @@ function viewRecordPDF(recKey) {
     invoiceNo: h.invoice_no||'', invoiceDate: h.invoice_date||'',
     invoiceStatus: h.invoice_status||'not_issued',
     paymentStatus: h.payment_status||'unpaid',
-    paymentDate: h.payment_date||'', paymentAmount: h.payment_amount||0
+    paymentDate: h.payment_date||'', paymentAmount: h.payment_amount||0,
+    extraFees: h.extra_fees||[]
   };
   // Load product images from record
   const savedProductImages = productImages;
   productImages = h.product_images||[];
+  const savedExtraFees = window.extraFees;
+  window.extraFees = h.extra_fees||[];
   
   // Show preview
   const titleEl = document.getElementById('previewTitle');
@@ -2208,7 +2259,7 @@ async function saveCostData() {
       client_email: data.clientEmail, client_address: data.clientAddress,
       currency: data.currency, tax_rate: data.taxRate, shipping: data.shipping,
       remark: data.remark, subtotal: data.subtotal, tax: data.tax,
-      grand_total: data.grand, items: data.items,
+      grand_total: data.grand, items: data.items, extra_fees: data.extraFees||[],
       saved_at: new Date().toISOString(),
       deal_status: data.dealStatus,
       invoice_no: data.invoiceNo,
