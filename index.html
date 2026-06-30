@@ -1951,8 +1951,8 @@ function calcFinanceSummary(data) {
       receivableCount++;
     }
     // Cost for profit calc
-    if(h.cost_items) {
-      const exRate = 1; // simplified
+    if(h.deal_status==='won') {
+      const exRate = parseFloat(h.cost_ex_rate)||1;
       const costSum = (h.cost_items||[]).reduce((s,it)=>{
         return s + (parseFloat(it.costPrice)||0)*(parseFloat(it.qty)||0)*exRate;
       },0);
@@ -2210,6 +2210,8 @@ async function saveCostData() {
       payment_amount: data.paymentAmount,
       cost_supplier: document.getElementById('costSupplier')?.value||'',
       cost_note: document.getElementById('costNote')?.value||'',
+      cost_currency: document.getElementById('costCurrency')?.value||'CNY',
+      cost_ex_rate: parseFloat(document.getElementById('costExRate')?.value)||1,
       cost_items: validItems.map((it,i)=>({
         name: it.name,
         costPrice: (window.costPrices||[])[i]||'',
