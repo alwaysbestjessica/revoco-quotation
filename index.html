@@ -641,13 +641,22 @@ async function dbSelect(table, params='') {
 }
 
 async function dbUpsert(table, row) {
-  const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?on_conflict=quote_no`, {
     method: 'POST',
     headers: { ...dbHeaders, 'Prefer': 'resolution=merge-duplicates,return=representation' },
     body: JSON.stringify(row)
   });
-  if (!r.ok) { const e = await r.json(); throw new Error(e.message || r.status); }
-  return await r.json();
+  if (!r.ok) { 
+    let errMsg = r.status + ' ' + r.statusText;
+    try { 
+      const e = await r.json(); 
+      errMsg = e.message || e.hint || e.details || JSON.stringify(e);
+    } catch(parseErr) {
+      try { errMsg = await r.text(); } catch(textErr) {}
+    }
+    throw new Error(errMsg); 
+  }
+  try { return await r.json(); } catch(e) { return null; }
 }
 
 async function dbDelete(table, col, val) {
