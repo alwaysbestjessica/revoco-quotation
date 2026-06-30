@@ -11,645 +11,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js">
 // ── Client Images ──
 let clientImages = [];
-
-function handleClientImgUpload(input) {
-  const files = Array.from(input.files);
-  files.forEach(file => {
-    if(clientImages.length >= 6) { toast('最多上傳6張圖片'); return; }
-    const reader = new FileReader();
-    reader.onload = e => {
-      clientImages.push({name: file.name, dataUrl: e.target.result});
-      renderClientImages();
-    };
-    reader.readAsDataURL(file);
-  });
-  input.value = '';
-}
-
-function renderClientImages() {
-  const grid = document.getElementById('clientImgGrid');
-  grid.innerHTML = '';
-  clientImages.forEach((img,i) => {
-    const div = document.createElement('div');
-    div.className = 'img-thumb';
-    div.innerHTML = `<img src="${img.dataUrl}" alt="${img.name}">
-      <button class="del-img" onclick="delClientImg(${i})">✕</button>`;
-    div.querySelector('img').onclick = () => viewImg(img.dataUrl);
-    grid.appendChild(div);
-  });
-  if(clientImages.length < 6) {
-    const label = document.createElement('label');
-    label.className = 'img-upload-btn';
-    label.innerHTML = '<span style="font-size:22px">+</span><span>上傳產品圖</span><input type="file" accept="image/*" multiple style="display:none" onchange="handleClientImgUpload(this)">';
-    grid.appendChild(label);
-  }
-}
-
-function delClientImg(i) {
-  clientImages.splice(i,1);
-  renderClientImages();
-}
-
-// ── Build Cost HTML for PDF ──
-function buildCostHTML(d) {
-  const fn = n => Number(n||0).toLocaleString('zh-TW',{minimumFractionDigits:0,maximumFractionDigits:2});
-  const exRate = parseFloat(document.getElementById('costExRate')?.value)||1;
-  const costCur = document.getElementById('costCurrency')?.value||'CNY';
-  const supplier = document.getElementById('costSupplier')?.value||'-';
-  const costNote = document.getElementById('costNote')?.value||'';
-  const validItems = d.items.filter(it=>it.name);
-
-  const itemRows = validItems.map((it,i)=>{
-    const q=parseFloat(it.qty)||0;
-    const cp=parseFloat((window.costPrices||[])[i])||0;
-    const sub=q*cp, subTWD=sub*exRate;
-    return `<tr style="background:${i%2===0?'#fff':'#f4f8f6'}">
-      <td style="text-align:center;padding:6px 5px;border-bottom:1px solid #eef4f1;font-size:12px">${i+1}</td>
-      <td style="padding:6px 7px;border-bottom:1px solid #eef4f1;font-size:12px;font-weight:600">${it.name}</td>
-      <td style="text-align:right;padding:6px 7px;border-bottom:1px solid #eef4f1;font-size:12px">${fn(q)} ${it.unit||''}</td>
-      <td style="text-align:right;padding:6px 7px;border-bottom:1px solid #eef4f1;font-size:12px">${costCur} ${cp>0?fn(cp):'-'}</td>
-      <td style="text-align:right;padding:6px 7px;border-bottom:1px solid #eef4f1;font-size:12px">${sub>0?costCur+' '+fn(sub):'-'}</td>
-      <td style="text-align:right;padding:6px 7px;border-bottom:1px solid #eef4f1;font-size:12px;font-weight:700;color:#5C8070">${subTWD>0?'TWD '+fn(subTWD):'-'}</td>
-      <td style="text-align:right;padding:6px 7px;border-bottom:1px solid #eef4f1;font-size:12px;color:#E87722;font-weight:700">${d.items.filter(it=>it.name)[i]?'TWD '+fn((parseFloat(d.items.filter(it=>it.name)[i].qty)||0)*(parseFloat(d.items.filter(it=>it.name)[i].price)||0)):'-'}</td>
-    </tr>`;
-  }).join('');
-
-  const supplierTotal = validItems.reduce((s,it,i)=>{
-    return s+(parseFloat(it.qty)||0)*(parseFloat((window.costPrices||[])[i])||0);
-  },0);
-  const supplierTWD = supplierTotal*exRate;
-  const extraRows = (window.extraCosts||[]).map(ec=>{
-    const amt=parseFloat(ec.amount)||0, rate=parseFloat(ec.exRate)||1;
-    const twd=ec.currency==='TWD'?amt:amt*rate;
-    return `<tr><td style="padding:6px 10px;font-size:12px">${ec.label||'-'}</td>
-      <td style="text-align:right;padding:6px 10px;font-size:12px">${ec.currency} ${fn(amt)}</td>
-      <td style="text-align:right;padding:6px 10px;font-size:12px;color:#5C8070;font-weight:700">TWD ${fn(twd)}</td></tr>`;
-  }).join('');
-  const extraTotal = (window.extraCosts||[]).reduce((s,ec)=>{
-    const amt=parseFloat(ec.amount)||0,rate=parseFloat(ec.exRate)||1;
-    return s+(ec.currency==='TWD'?amt:amt*rate);
-  },0);
-  const totalCost = supplierTWD+extraTotal;
-  const clientGrand = parseFloat(d.grand)||0;
-  const profit = clientGrand-totalCost;
-  const margin = clientGrand>0?(profit/clientGrand*100).toFixed(1):0;
-
-  return `
-    <div style="margin-top:24px;padding-top:20px;border-top:3px dashed #C8DDD5">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
-        <div style="background:#2C3830;color:white;padding:5px 14px;border-radius:16px;font-size:11px;font-weight:700">🔒 內部成本單（僅供內部參考）</div>
-        <div style="font-size:11px;color:#8a9e97">${d.qNo}</div>
-      </div>
-
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;font-size:12px">
-        <div style="background:#EBF2EE;padding:8px 10px;border-radius:6px"><span style="color:#5C8070;font-weight:700">廠商名稱：</span>${supplier}</div>
-        <div style="background:#EBF2EE;padding:8px 10px;border-radius:6px"><span style="color:#5C8070;font-weight:700">報價幣別：</span>${costCur}（匯率 ${exRate}）</div>
-      </div>
-
-      <table style="width:100%;border-collapse:collapse;margin-bottom:12px">
-        <thead><tr style="background:#EBF2EE">
-          <th style="padding:7px 5px;font-size:10px;color:#5C8070;border-bottom:2px solid #C8DDD5;text-align:center;width:26px">No.</th>
-          <th style="padding:7px 7px;font-size:10px;color:#5C8070;border-bottom:2px solid #C8DDD5;text-align:left">品項名稱</th>
-          <th style="padding:7px 7px;font-size:10px;color:#5C8070;border-bottom:2px solid #C8DDD5;text-align:right">數量</th>
-          <th style="padding:7px 7px;font-size:10px;color:#5C8070;border-bottom:2px solid #C8DDD5;text-align:right">廠商單價</th>
-          <th style="padding:7px 7px;font-size:10px;color:#5C8070;border-bottom:2px solid #C8DDD5;text-align:right">廠商小計</th>
-          <th style="padding:7px 7px;font-size:10px;color:#5C8070;border-bottom:2px solid #C8DDD5;text-align:right">換算TWD</th>
-          <th style="padding:7px 7px;font-size:10px;color:#E87722;border-bottom:2px solid #C8DDD5;text-align:right">客戶售價</th>
-        </tr></thead>
-        <tbody>${itemRows||'<tr><td colspan="7" style="text-align:center;padding:12px;color:#8a9e97">無品項</td></tr>'}</tbody>
-      </table>
-
-      ${extraRows?`
-      <table style="width:100%;border-collapse:collapse;margin-bottom:12px">
-        <thead><tr style="background:#EBF2EE">
-          <th style="padding:7px 10px;font-size:10px;color:#5C8070;border-bottom:2px solid #C8DDD5;text-align:left">其他費用</th>
-          <th style="padding:7px 10px;font-size:10px;color:#5C8070;border-bottom:2px solid #C8DDD5;text-align:right">原始金額</th>
-          <th style="padding:7px 10px;font-size:10px;color:#5C8070;border-bottom:2px solid #C8DDD5;text-align:right">換算TWD</th>
-        </tr></thead>
-        <tbody>${extraRows}</tbody>
-      </table>`:''}
-
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
-        <div style="background:#1c2b26;color:white;padding:12px;border-radius:8px">
-          <div style="font-size:10px;color:rgba(255,255,255,0.5);margin-bottom:4px">總成本（TWD）</div>
-          <div style="font-size:16px;font-weight:800">TWD ${fn(totalCost)}</div>
-          <div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:2px">廠商 ${fn(supplierTWD)} + 其他 ${fn(extraTotal)}</div>
-        </div>
-        <div style="background:${profit>=0?'#e8f3ee':'#fde8e8'};padding:12px;border-radius:8px">
-          <div style="font-size:10px;color:#5C8070;margin-bottom:4px">毛利（TWD）</div>
-          <div style="font-size:16px;font-weight:800;color:${profit>=0?'#5C8070':'#c0392b'}">TWD ${fn(profit)}</div>
-          <div style="font-size:10px;color:#8a9e97;margin-top:2px">毛利率 ${margin}%</div>
-        </div>
-      </div>
-
-      ${costNote?`<div style="background:#f7faf8;border-radius:6px;padding:8px 10px;font-size:11px;color:#4a5e57;margin-bottom:10px"><span style="font-weight:700;color:#5C8070">備注：</span>${costNote}</div>`:''}
-      ${costImages.length>0?`
-      <div style="margin-top:10px">
-        <div style="font-size:9px;font-weight:700;color:#5C8070;text-transform:uppercase;margin-bottom:8px">廠商報價圖片</div>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
-          ${costImages.map(img=>`<div style="border-radius:7px;overflow:hidden;border:1px solid #C8DDD5;aspect-ratio:1"><img src="${img.dataUrl}" style="width:100%;height:100%;object-fit:cover"></div>`).join('')}
-        </div>
-      </div>`:''}
-    </div>
-  `;
-}
-
-// ── Quick status update in history ──
-async function quickUpdateStatus(qNo, field, value) {
-  try {
-    const row = {};
-    row[field] = value;
-    await fetch(`${SUPABASE_URL}/rest/v1/quotations?quote_no=eq.${encodeURIComponent(qNo)}`, {
-      method: 'PATCH',
-      headers: {...dbHeaders, 'Prefer': 'return=minimal'},
-      body: JSON.stringify(row)
-    });
-    toast('✅ 狀態已更新');
-    await refreshHistory();
-  } catch(e) {
-    toast('❌ 更新失敗');
-  }
-}
-
-// ── View Record Modal ──
-function viewRecord(hJson) {
-  const h = JSON.parse(hJson);
-  const fn = n => Number(n||0).toLocaleString('zh-TW',{minimumFractionDigits:0,maximumFractionDigits:2});
-  
-  const items = (h.items||[]).filter(it=>it.name);
-  const rows = items.map((it,i)=>{
-    const q=parseFloat(it.qty)||0,p=parseFloat(it.price)||0;
-    return `<tr style="background:${i%2===0?'#fff':'#f4f8f6'}">
-      <td style="padding:6px 8px;text-align:center;font-size:12px">${i+1}</td>
-      <td style="padding:6px 8px;font-size:12px;font-weight:600">${it.name}</td>
-      <td style="padding:6px 8px;font-size:12px">${it.spec||'-'}</td>
-      <td style="padding:6px 8px;font-size:12px;text-align:right">${fn(q)}</td>
-      <td style="padding:6px 8px;font-size:12px">${it.unit||''}</td>
-      <td style="padding:6px 8px;font-size:12px;text-align:right">${fn(p)}</td>
-      <td style="padding:6px 8px;font-size:12px;text-align:right;font-weight:700">${fn(q*p)}</td>
-    </tr>`;
-  }).join('');
-
-  const dealLabel = {pending:'⏳ 報價中',won:'✅ 已成交',lost:'❌ 未成交'}[h.deal_status||'pending'];
-  const payLabel = {unpaid:'❌ 未付款',partial:'⚡ 部分付款',paid:'✅ 已付款'}[h.payment_status||'unpaid'];
-  const invLabel = {not_issued:'📄 未開發票',issued:'✅ 已開發票',void:'🚫 已作廢'}[h.invoice_status||'not_issued'];
-
-  const modal = document.createElement('div');
-  modal.id = 'viewModal';
-  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:3000;overflow:auto;-webkit-overflow-scrolling:touch;display:flex;justify-content:center;padding:20px 12px';
-  modal.innerHTML = `
-    <div style="background:white;border-radius:14px;width:100%;max-width:700px;height:fit-content;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
-      <!-- Modal Header -->
-      <div style="background:var(--ink);color:white;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10">
-        <div>
-          <div style="font-size:15px;font-weight:700">${h.quote_no}</div>
-          <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:1px">${h.quote_date} ｜ ${h.client_name||'-'}</div>
-        </div>
-        <div style="display:flex;gap:8px">
-          <button onclick="loadRecord('${hJson}');document.getElementById('viewModal').remove()" 
-            style="background:var(--mint);color:var(--ink);border:none;border-radius:7px;padding:7px 11px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">✏️ 載入編輯</button>
-          <button onclick="viewRecordPDF('${hJson}')"
-            style="background:var(--orange);color:white;border:none;border-radius:7px;padding:7px 11px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">📄 PDF</button>
-          <button onclick="viewRecordExcel('${hJson}')"
-            style="background:#5C8070;color:white;border:none;border-radius:7px;padding:7px 11px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">📊 Excel</button>
-          <button onclick="document.getElementById('viewModal').remove()" 
-            style="background:rgba(255,255,255,0.15);color:white;border:none;border-radius:7px;padding:7px 10px;font-size:13px;cursor:pointer;font-family:inherit">✕</button>
-        </div>
-      </div>
-      
-      <div style="padding:16px">
-        <!-- Status Row -->
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
-          <span style="background:#e8f3ee;color:#5C8070;padding:4px 10px;border-radius:12px;font-size:12px;font-weight:700">${dealLabel}</span>
-          <span style="background:#e8f3ee;color:#5C8070;padding:4px 10px;border-radius:12px;font-size:12px">${invLabel}</span>
-          <span style="background:#e8f3ee;color:#5C8070;padding:4px 10px;border-radius:12px;font-size:12px">${payLabel}</span>
-          <span style="background:#f0f0f0;color:#4a5e57;padding:4px 10px;border-radius:12px;font-size:12px">${h.currency||'TWD'}</span>
-        </div>
-
-        <!-- Client Info -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:14px;font-size:12px">
-          <div style="background:#EBF2EE;padding:7px 10px;border-radius:6px"><span style="color:#5C8070;font-weight:700">客戶：</span>${h.client_name||'-'}</div>
-          <div style="background:#EBF2EE;padding:7px 10px;border-radius:6px"><span style="color:#5C8070;font-weight:700">統編：</span>${h.client_tax_id||'-'}</div>
-          <div style="background:#EBF2EE;padding:7px 10px;border-radius:6px"><span style="color:#5C8070;font-weight:700">聯絡人：</span>${h.client_contact||'-'}</div>
-          <div style="background:#EBF2EE;padding:7px 10px;border-radius:6px"><span style="color:#5C8070;font-weight:700">電話：</span>${h.client_phone||'-'}</div>
-        </div>
-
-        <!-- Items -->
-        <table style="width:100%;border-collapse:collapse;margin-bottom:12px;font-size:12px">
-          <thead><tr style="background:#EBF2EE">
-            <th style="padding:7px 8px;color:#5C8070;border-bottom:2px solid #C8DDD5;text-align:center;width:30px">No.</th>
-            <th style="padding:7px 8px;color:#5C8070;border-bottom:2px solid #C8DDD5;text-align:left">商品名稱</th>
-            <th style="padding:7px 8px;color:#5C8070;border-bottom:2px solid #C8DDD5;text-align:left">規格</th>
-            <th style="padding:7px 8px;color:#5C8070;border-bottom:2px solid #C8DDD5;text-align:right">數量</th>
-            <th style="padding:7px 8px;color:#5C8070;border-bottom:2px solid #C8DDD5">單位</th>
-            <th style="padding:7px 8px;color:#5C8070;border-bottom:2px solid #C8DDD5;text-align:right">單價</th>
-            <th style="padding:7px 8px;color:#5C8070;border-bottom:2px solid #C8DDD5;text-align:right">小計</th>
-          </tr></thead>
-          <tbody>${rows||'<tr><td colspan="7" style="text-align:center;padding:12px;color:#8a9e97">無品項</td></tr>'}</tbody>
-        </table>
-
-        <!-- Totals -->
-        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;margin-bottom:14px">
-          <div style="display:flex;gap:14px;font-size:12px"><span style="color:#4a5e57;min-width:70px;text-align:right">小計</span><strong style="min-width:90px;text-align:right">${h.currency} ${fn(h.subtotal||0)}</strong></div>
-          <div style="display:flex;gap:14px;font-size:12px"><span style="color:#4a5e57;min-width:70px;text-align:right">稅金</span><strong style="min-width:90px;text-align:right">${h.currency} ${fn(h.tax||0)}</strong></div>
-          <div style="display:flex;gap:14px;font-size:12px"><span style="color:#4a5e57;min-width:70px;text-align:right">運費</span><strong style="min-width:90px;text-align:right">${h.currency} ${fn(h.shipping||0)}</strong></div>
-          <div style="display:flex;gap:14px;font-size:14px;font-weight:800;padding-top:6px;border-top:2px solid #C8DDD5">
-            <span style="color:var(--ink);min-width:70px;text-align:right">總計</span>
-            <strong style="min-width:90px;text-align:right;color:var(--orange)">${h.currency} ${fn(h.grand_total||0)}</strong>
-          </div>
-        </div>
-
-        <!-- Invoice & Payment -->
-        ${h.invoice_no||h.payment_amount?`
-        <div style="background:#f4f8f6;border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:12px">
-          ${h.invoice_no?`<div><span style="color:#5C8070;font-weight:700">發票號碼：</span>${h.invoice_no}${h.invoice_date?' ／ '+h.invoice_date:''}</div>`:''}
-          ${h.payment_amount?`<div style="margin-top:4px"><span style="color:#5C8070;font-weight:700">收款金額：</span>${fn(h.payment_amount)}${h.payment_date?' ／ '+h.payment_date:''}</div>`:''}
-        </div>`:''}
-
-        ${h.remark?`<div style="background:#f4f8f6;border-radius:6px;padding:8px 10px;font-size:12px;color:#4a5e57"><span style="font-weight:700;color:#5C8070">備注：</span>${h.remark}</div>`:''}
-      </div>
-    </div>
-  `;
-  modal.onclick = e => { if(e.target===modal) modal.remove(); };
-  document.body.appendChild(modal);
-}
-
-// ── View Record PDF & Excel ──
-function viewRecordPDF(hJson) {
-  const h = JSON.parse(hJson);
-  // Build a temporary data object from history record
-  const data = {
-    myCompany: h.my_company||'', myTaxId: h.my_tax_id||'',
-    myContact: h.my_contact||'', myPhone: h.my_phone||'',
-    myEmail: h.my_email||'', myAddress: h.my_address||'',
-    qNo: h.quote_no||'', qDate: h.quote_date||'', qExpiry: h.expiry_date||'',
-    clientName: h.client_name||'', clientTaxId: h.client_tax_id||'',
-    clientContact: h.client_contact||'', clientPhone: h.client_phone||'',
-    clientEmail: h.client_email||'', clientAddress: h.client_address||'',
-    currency: h.currency||'TWD', taxRate: h.tax_rate||0,
-    shipping: h.shipping||0, remark: h.remark||'',
-    items: h.items||[], subtotal: h.subtotal||0,
-    tax: h.tax||0, grand: h.grand_total||0,
-    dealStatus: h.deal_status||'pending',
-    invoiceNo: h.invoice_no||'', invoiceDate: h.invoice_date||'',
-    invoiceStatus: h.invoice_status||'not_issued',
-    paymentStatus: h.payment_status||'unpaid',
-    paymentDate: h.payment_date||'', paymentAmount: h.payment_amount||0
-  };
-  // Load product images from record
-  const savedProductImages = productImages;
-  productImages = h.product_images||[];
-  
-  // Show preview
-  const titleEl = document.getElementById('previewTitle');
-  const hintEl = document.getElementById('previewHint');
-  const contentEl = document.getElementById('previewContent');
-  const previewEl = document.getElementById('preview');
-  if(titleEl) titleEl.textContent = `客戶報價單 ${data.qNo}`;
-  if(hintEl) hintEl.textContent = '客戶版 PDF';
-  contentEl.innerHTML = buildClientHTML(data);
-  previewEl.classList.add('open');
-  document.body.style.overflow = 'hidden';
-  
-  // Close view modal
-  const vm = document.getElementById('viewModal');
-  if(vm) vm.remove();
-  
-  // Restore images when preview closes
-  const origClose = closePreview;
-  closePreview = function() {
-    productImages = savedProductImages;
-    origClose();
-    closePreview = origClose;
-  };
-}
-
-async function viewRecordExcel(hJson) {
-  const h = JSON.parse(hJson);
-  const fn = n => Number(n||0).toLocaleString('zh-TW',{minimumFractionDigits:0,maximumFractionDigits:2});
-  
-  const wb = XLSX.utils.book_new();
-  
-  // Sheet 1: Client quote
-  const clientRows = [
-    ['REVOCO 睿握科技有限公司','','','','','','',''],
-    ['統編：'+(h.my_tax_id||''),'','','','','','',''],
-    ['地址：'+(h.my_address||''),'','','','','','',''],
-    ['電話：'+(h.my_phone||''),'','Email：'+(h.my_email||''),'','','','',''],
-    ['','','','','','','',''],
-    ['報價單','','','','','','',''],
-    ['報價編號',h.quote_no||'','','','報價日期',h.quote_date||'','',''],
-    ['有效期限',h.expiry_date||'','','','幣別',h.currency||'TWD','',''],
-    ['','','','','','','',''],
-    ['客戶名稱',h.client_name||'','','','統一編號',h.client_tax_id||'','',''],
-    ['聯絡人',h.client_contact||'','','','聯絡電話',h.client_phone||'','',''],
-    ['地址',h.client_address||'','','','','','',''],
-    ['','','','','','','',''],
-    ['No.','商品名稱','規格/尺寸','數量','單位','單價','小計','備注'],
-    ...(h.items||[]).filter(it=>it.name).map((it,i)=>{
-      const q=parseFloat(it.qty)||0,p=parseFloat(it.price)||0;
-      return [i+1,it.name,it.spec||'',q,it.unit||'',p,q*p,it.note||''];
-    }),
-    ['','','','','','','',''],
-    ['','','','','','小計',h.subtotal||0,''],
-    ['','','','','',`稅金(${h.tax_rate||0}%)`,h.tax||0,''],
-    ['','','','','','運費',h.shipping||0,''],
-    ['','','','','','總計',h.grand_total||0,''],
-    ['','','','','','','',''],
-    ['成交狀態',{pending:'報價中',won:'已成交',lost:'未成交'}[h.deal_status||'pending']||'','','','發票狀態',{not_issued:'未開',issued:'已開',void:'作廢'}[h.invoice_status||'not_issued']||'','',''],
-    ['發票號碼',h.invoice_no||'','','','發票日期',h.invoice_date||'','',''],
-    ['付款狀態',{unpaid:'未付款',partial:'部分付款',paid:'已付款'}[h.payment_status||'unpaid']||'','','','收款金額',h.payment_amount||0,'',''],
-    ...(h.remark?[['備注',h.remark,'','','','','','']]:[]),
-  ];
-  const ws1 = XLSX.utils.aoa_to_sheet(clientRows);
-  ws1['!cols'] = [{wch:12},{wch:24},{wch:16},{wch:8},{wch:8},{wch:12},{wch:14},{wch:20}];
-  XLSX.utils.book_append_sheet(wb, ws1, '客戶報價單');
-
-  // Sheet 2: Cost (if exists)
-  if(h.cost_items && h.cost_items.length > 0) {
-    const costRows = [
-      ['內部成本單（機密）','','','','','','','','','',''],
-      ['報價編號',h.quote_no||'','','','廠商',h.cost_supplier||'','','','','',''],
-      ['','','','','','','','','','',''],
-      ['No.','品項名稱','數量','廠商單價','廠商小計','客戶售價','客戶小計','品項毛利','','',''],
-      ...(h.cost_items||[]).map((ci,i)=>{
-        const q=parseFloat(ci.qty)||0, cp=parseFloat(ci.costPrice)||0;
-        const clientItem=(h.items||[]).filter(it=>it.name)[i];
-        const sell=clientItem?parseFloat(clientItem.price)||0:0;
-        return [i+1,ci.name,q,cp,q*cp,sell,q*sell,(q*sell)-(q*cp),'','',''];
-      }),
-      ['','','','','','','','','','',''],
-      ...(h.cost_extra||[]).map(ec=>[ec.label||'',ec.amount||0,ec.currency||'TWD','匯率',ec.exRate||1,'','','','','','']),
-      ['','','','','總計',h.grand_total||0,'','','','',''],
-    ];
-    const ws2 = XLSX.utils.aoa_to_sheet(costRows);
-    ws2['!cols'] = [{wch:5},{wch:22},{wch:8},{wch:12},{wch:12},{wch:12},{wch:12},{wch:12},{wch:5},{wch:5},{wch:5}];
-    XLSX.utils.book_append_sheet(wb, ws2, '內部成本單');
-  }
-
-  XLSX.writeFile(wb, `報價單_${h.quote_no}_${h.quote_date||''}.xlsx`);
-  toast('✅ Excel 已下載');
-}
-
-// ── 追加單 ──
-async function createAddon(origQNo, jsonStr) {
-  const h = JSON.parse(jsonStr);
-  
-  // Generate addon quote number
-  const addonNo = origQNo + '-A';
-  
-  // Check if addon already exists, increment letter if needed
-  let finalNo = addonNo;
-  try {
-    const existing = await dbSelect('quotations', `select=quote_no&quote_no=like.${origQNo}-A%`);
-    if(existing && existing.length > 0) {
-      const letter = String.fromCharCode(65 + existing.length); // A, B, C...
-      finalNo = origQNo + '-' + letter;
-    }
-  } catch(e) {}
-
-  // Load original data but clear items and reset amounts
-  const data = {
-    myCompany: h.my_company||'', myTaxId: h.my_tax_id||'',
-    myContact: h.my_contact||'', myPhone: h.my_phone||'',
-    myEmail: h.my_email||'', myAddress: h.my_address||'',
-    qNo: finalNo,
-    qDate: new Date().toISOString().split('T')[0],
-    qExpiry: (() => { const d=new Date(); d.setDate(d.getDate()+30); return d.toISOString().split('T')[0]; })(),
-    clientName: h.client_name||'', clientTaxId: h.client_tax_id||'',
-    clientContact: h.client_contact||'', clientPhone: h.client_phone||'',
-    clientEmail: h.client_email||'', clientAddress: h.client_address||'',
-    currency: h.currency||'TWD', taxRate: 0, shipping: 0,
-    remark: `追加單（原始報價單：${origQNo}）`,
-    items: [{name:'', spec:'', qty:'1', unit:'個', price:'', note:''}],
-    dealStatus: 'pending', invoiceStatus: 'not_issued', paymentStatus: 'unpaid'
-  };
-  
-  applyData(data);
-  items = data.items;
-  renderTable();
-  switchTabDirect('editor');
-  
-  // Show addon notice
-  toast(`✅ 已建立追加單 ${finalNo}，請填寫追加費用項目`);
-  
-  // Show info banner
-  const banner = document.createElement('div');
-  banner.id = 'addonBanner';
-  banner.style.cssText = `
-    background:#2C3830; color:white; padding:10px 16px; border-radius:8px;
-    margin-bottom:14px; font-size:13px; display:flex; align-items:center;
-    justify-content:space-between; gap:10px;
-  `;
-  banner.innerHTML = `
-    <div>
-      <span style="background:#E87722;color:white;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;margin-right:8px">追加單</span>
-      <strong>${finalNo}</strong>
-      <span style="color:rgba(255,255,255,0.6);margin-left:8px">原始報價單：${origQNo} ｜ 客戶：${h.client_name||''}</span>
-    </div>
-    <button onclick="document.getElementById('addonBanner').remove()" 
-      style="background:none;border:none;color:rgba(255,255,255,0.5);font-size:16px;cursor:pointer">✕</button>
-  `;
-  
-  // Insert banner at top of editor
-  const editorPanel = document.getElementById('panel-editor');
-  const firstCard = editorPanel.querySelector('.view-toggle') || editorPanel.querySelector('.card');
-  if(firstCard) editorPanel.insertBefore(banner, firstCard);
-}
-
-// ── Status helpers ──
-function updateStatusBadge() {}
-function updatePaymentFields() {
-  const status = document.getElementById('paymentStatus')?.value;
-  const show = status === 'partial' || status === 'paid';
-}
-
-// ── Finance Summary ──
-function calcFinanceSummary(data) {
-  const now = new Date();
-  const thisMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-  
-  let monthlyTotal = 0, monthlyCount = 0;
-  let receivable = 0, receivableCount = 0;
-  let totalAmt = 0, totalCount = 0;
-  let totalCostSum = 0;
-
-  data.forEach(h => {
-    const grand = parseFloat(h.grand_total)||0;
-    totalAmt += grand; totalCount++;
-    
-    // This month won deals
-    if(h.deal_status==='won' && (h.quote_date||'').startsWith(thisMonth)) {
-      monthlyTotal += grand; monthlyCount++;
-    }
-    // Receivable = won but unpaid
-    if(h.deal_status==='won' && h.payment_status!=='paid') {
-      receivable += grand - (parseFloat(h.payment_amount)||0);
-      receivableCount++;
-    }
-    // Cost for profit calc
-    if(h.cost_items) {
-      const exRate = 1; // simplified
-      const costSum = (h.cost_items||[]).reduce((s,it)=>{
-        return s + (parseFloat(it.costPrice)||0)*(parseFloat(it.qty)||0)*exRate;
-      },0);
-      totalCostSum += costSum + (parseFloat(h.cost_freight)||0) + (parseFloat(h.cost_other)||0);
-    }
-  });
-
-  const wonData = data.filter(h=>h.deal_status==='won');
-  const wonTotal = wonData.reduce((s,h)=>s+(parseFloat(h.grand_total)||0),0);
-  const profit = wonTotal - totalCostSum;
-  const margin = wonTotal>0 ? (profit/wonTotal*100).toFixed(1) : 0;
-
-  document.getElementById('fcMonthly').textContent = `TWD ${fmt(monthlyTotal)}`;
-  document.getElementById('fcMonthlyCount').textContent = `${monthlyCount} 筆成交`;
-  document.getElementById('fcReceivable').textContent = `TWD ${fmt(receivable)}`;
-  document.getElementById('fcReceivableCount').textContent = `${receivableCount} 筆待收`;
-  document.getElementById('fcTotal').textContent = `TWD ${fmt(totalAmt)}`;
-  document.getElementById('fcTotalCount').textContent = `共 ${totalCount} 筆報價`;
-  document.getElementById('fcProfit2').textContent = `TWD ${fmt(profit)}`;
-  document.getElementById('fcMargin').textContent = `毛利率 ${margin}%`;
-}
-
-
-
-function calcProfit() {
-  const clientTotal = parseFloat((document.getElementById('grandAmt')?.textContent||'0').replace(/,/g,''))||0;
-  const exRate = parseFloat(document.getElementById('costExRate')?.value)||1;
-  const validItems = items.filter(it=>it.name);
-  const supplierCostTWD = validItems.reduce((s,it,i)=>{
-    const q=parseFloat(it.qty)||0, p=parseFloat((window.costPrices||[])[i])||0;
-    return s + q*p*exRate;
-  },0);
-  const extraTWD = (window.extraCosts||[]).reduce((s,ec)=>{
-    const amt=parseFloat(ec.amount)||0, rate=parseFloat(ec.exRate)||1;
-    return s + (ec.currency==='TWD'?amt:amt*rate);
-  },0);
-  const totalCost = supplierCostTWD + extraTWD;
-  const profit = clientTotal - totalCost;
-  const margin = clientTotal>0 ? (profit/clientTotal*100).toFixed(1) : 0;
-
-  const cur = document.getElementById('currency')?.value||'TWD';
-  const set = (id,v) => { const el=document.getElementById(id); if(el) el.textContent=v; };
-  set('pcClientTotal', `${cur} ${fmt(clientTotal)}`);
-  set('pcSupplierCost', `TWD ${fmt(supplierCostTWD)}`);
-  set('pcFreight', `TWD ${fmt(extraTWD)}`);
-  set('pcOther', '');
-  set('pcTotalCost', `TWD ${fmt(totalCost)}`);
-  const profitEl = document.getElementById('pcProfit');
-  if(profitEl){ profitEl.textContent=`TWD ${fmt(profit)} (${margin}%)`; profitEl.style.color=profit>=0?'#7ecba1':'#f08080'; }
-  updateCostTotals();
-}
-
-// ── Image Upload ──
-function handleImgUpload(input) {
-  const files = Array.from(input.files);
-  files.forEach(file => {
-    const reader = new FileReader();
-    reader.onload = e => {
-      costImages.push({name: file.name, dataUrl: e.target.result});
-      renderImages();
-    };
-    reader.readAsDataURL(file);
-  });
-  input.value = '';
-}
-
-function renderImages() {
-  const grid = document.getElementById('imgGrid');
-  grid.innerHTML = '';
-  costImages.forEach((img,i) => {
-    const div = document.createElement('div');
-    div.className = 'img-thumb';
-    div.innerHTML = `<img src="${img.dataUrl}" alt="${img.name}">
-      <button class="del-img" onclick="delImg(${i})">✕</button>`;
-    div.querySelector('img').onclick = () => viewImg(img.dataUrl);
-    grid.appendChild(div);
-  });
-  // Add upload button
-  const label = document.createElement('label');
-  label.className = 'img-upload-btn';
-  label.innerHTML = '<span style="font-size:22px">+</span><span>上傳圖片</span><input type="file" accept="image/*" multiple style="display:none" onchange="handleImgUpload(this)">';
-  grid.appendChild(label);
-}
-
-function delImg(i) {
-  costImages.splice(i,1);
-  renderImages();
-}
-
-function viewImg(dataUrl) {
-  const overlay = document.createElement('div');
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:pointer';
-  overlay.innerHTML = `<img src="${dataUrl}" style="max-width:95%;max-height:95%;border-radius:8px">`;
-  overlay.onclick = () => document.body.removeChild(overlay);
-  document.body.appendChild(overlay);
-}
-
-// ── Save Cost Data ──
-async function saveCostData() {
-  const data = collectData();
-  const costData = {
-    cost_supplier: document.getElementById('costSupplier')?.value||'',
-    cost_freight: parseFloat(document.getElementById('costFreight')?.value)||0,
-    cost_other: parseFloat(document.getElementById('costOther')?.value)||0,
-    cost_note: document.getElementById('costNote')?.value||'',
-    cost_items: (window.costPrices||[]).map((p,i)=>({
-      name: items.filter(it=>it.name)[i]?.name||'',
-      costPrice: p,
-      qty: items.filter(it=>it.name)[i]?.qty||0
-    })),
-    cost_images: costImages.map(img=>({name:img.name, dataUrl:img.dataUrl}))
-  };
-  try {
-    const row = {
-      quote_no: data.qNo,
-      quote_date: data.qDate,
-      expiry_date: data.qExpiry,
-      my_company: data.myCompany, my_tax_id: data.myTaxId,
-      my_contact: data.myContact, my_phone: data.myPhone,
-      my_email: data.myEmail, my_address: data.myAddress,
-      client_name: data.clientName, client_tax_id: data.clientTaxId,
-      client_contact: data.clientContact, client_phone: data.clientPhone,
-      client_email: data.clientEmail, client_address: data.clientAddress,
-      currency: data.currency, tax_rate: data.taxRate, shipping: data.shipping,
-      remark: data.remark, subtotal: data.subtotal, tax: data.tax,
-      grand_total: data.grand, items: data.items, saved_at: data.savedAt,
-      deal_status: data.dealStatus,
-      invoice_no: data.invoiceNo,
-      invoice_date: data.invoiceDate||null,
-      invoice_status: data.invoiceStatus,
-      payment_status: data.paymentStatus,
-      payment_date: data.paymentDate||null,
-      payment_amount: data.paymentAmount,
-      ...costData
-    };
-    await dbUpsert('quotations', row);
-    toast('✅ 成本資料已儲存到雲端');
-  } catch(e) {
-    toast('❌ 儲存失敗：' + e.message);
-  }
-}
-
-// Load cost data when loading a record
-const _origLoadRecord = loadRecord;
-function loadRecord(jsonStr) {
-  _origLoadRecord(jsonStr);
-  const h = JSON.parse(jsonStr);
-  setTimeout(()=>{
-    if(h.cost_supplier) document.getElementById('costSupplier').value = h.cost_supplier;
-    if(h.cost_freight) document.getElementById('costFreight').value = h.cost_freight;
-    if(h.cost_other) document.getElementById('costOther').value = h.cost_other;
-    if(h.cost_note) document.getElementById('costNote').value = h.cost_note;
-    if(h.cost_items) { window.costPrices = h.cost_items.map(i=>i.costPrice||''); }
-    if(h.cost_images) { costImages = h.cost_images||[]; renderImages(); }
-    if(h.product_images) { productImages = h.product_images||[]; renderProductImages(); }
-    if(h.cost_extra) { window.extraCosts = h.cost_extra; renderExtraCosts(); }
-    else { window.extraCosts = []; renderExtraCosts(); }
-    if(h.client_images) { clientImages = h.client_images; renderClientImages(); }
-  }, 100);
-}
 </script>
 
 <style>
@@ -1539,32 +900,78 @@ async function refreshHistory() {
       const invLabel = {not_issued:'未開',issued:'✅已開',void:'作廢'}[h.invoice_status||'not_issued'];
       const payBadge = {unpaid:'badge-unpaid',partial:'badge-partial',paid:'badge-paid'}[h.payment_status||'unpaid'];
       const payLabel = {unpaid:'未付',partial:'部分',paid:'✅已付'}[h.payment_status||'unpaid'];
-      const hJson = JSON.stringify(JSON.stringify(h)).slice(1,-1);
+      // Store record data in a global map to avoid JSON escaping issues
+      const recKey = 'rec_' + (h.quote_no||'').replace(/[^a-zA-Z0-9]/g,'_');
+      window._histRecords = window._histRecords || {};
+      window._histRecords[recKey] = h;
+
       const tr = document.createElement('tr');
       tr.style.cursor = 'pointer';
-      tr.innerHTML = `
-        <td class="hist-qno" onclick="viewRecord('${hJson}')" style="color:var(--mint-dark);text-decoration:underline;cursor:pointer">${h.quote_no||'-'}</td>
-        <td onclick="viewRecord('${hJson}')">${h.quote_date||'-'}</td>
-        <td onclick="viewRecord('${hJson}')" style="font-weight:600">${h.client_name||'-'}</td>
-        <td onclick="viewRecord('${hJson}')" style="font-weight:700">${h.currency||'TWD'} ${fmt(h.grand_total||0)}</td>
-        <td>
-          <select onchange="quickUpdateStatus('${h.quote_no}','deal_status',this.value)" 
-            style="border:1px solid var(--border);border-radius:6px;padding:3px 5px;font-size:11px;font-family:inherit;background:white;cursor:pointer">
-            <option value="pending" ${(h.deal_status||'pending')==='pending'?'selected':''}>⏳報價中</option>
-            <option value="won" ${h.deal_status==='won'?'selected':''}>✅已成交</option>
-            <option value="lost" ${h.deal_status==='lost'?'selected':''}>❌未成交</option>
-          </select>
-        </td>
-        <td><span class="badge ${invBadge}">${invLabel}</span></td>
-        <td><span class="badge ${payBadge}">${payLabel}</span></td>
-        <td>
-          <div style="display:flex;gap:5px;flex-wrap:wrap">
-            <button class="btn btn-outline btn-sm" onclick="loadRecord('${hJson}')">✏️載入</button>
-            <button class="btn btn-sm" style="background:#EBF2EE;border:1.5px solid #5C8070;color:#5C8070;border-radius:6px;padding:5px 8px;font-size:11px;cursor:pointer;font-family:inherit" onclick="createAddon('${h.quote_no}','${hJson}')">＋追加</button>
-            <button class="btn btn-sm" style="background:white;border:1.5px solid var(--red);color:var(--red);border-radius:6px;padding:5px 8px;font-size:11px;cursor:pointer;font-family:inherit" onclick="confirmDelete('${h.quote_no}')">🗑</button>
-          </div>
-        </td>
-      `;
+      
+      // Create cells manually to avoid escaping issues
+      const tdQno = document.createElement('td');
+      tdQno.className = 'hist-qno';
+      tdQno.style.cssText = 'color:var(--mint-dark);text-decoration:underline;cursor:pointer';
+      tdQno.textContent = h.quote_no||'-';
+      tdQno.onclick = () => viewRecord(recKey);
+
+      const tdDate = document.createElement('td');
+      tdDate.textContent = h.quote_date||'-';
+      tdDate.onclick = () => viewRecord(recKey);
+
+      const tdClient = document.createElement('td');
+      tdClient.style.fontWeight = '600';
+      tdClient.textContent = h.client_name||'-';
+      tdClient.onclick = () => viewRecord(recKey);
+
+      const tdAmt = document.createElement('td');
+      tdAmt.style.fontWeight = '700';
+      tdAmt.textContent = (h.currency||'TWD') + ' ' + fmt(h.grand_total||0);
+      tdAmt.onclick = () => viewRecord(recKey);
+
+      const tdDeal = document.createElement('td');
+      const sel = document.createElement('select');
+      sel.style.cssText = 'border:1px solid var(--border);border-radius:6px;padding:3px 5px;font-size:11px;font-family:inherit;background:white;cursor:pointer';
+      [['pending','⏳報價中'],['won','✅已成交'],['lost','❌未成交']].forEach(([val,label])=>{
+        const opt = document.createElement('option');
+        opt.value = val; opt.textContent = label;
+        if((h.deal_status||'pending')===val) opt.selected = true;
+        sel.appendChild(opt);
+      });
+      sel.onchange = () => quickUpdateStatus(h.quote_no, 'deal_status', sel.value);
+      tdDeal.appendChild(sel);
+
+      const tdInv = document.createElement('td');
+      tdInv.innerHTML = `<span class="badge ${invBadge}">${invLabel}</span>`;
+
+      const tdPay = document.createElement('td');
+      tdPay.innerHTML = `<span class="badge ${payBadge}">${payLabel}</span>`;
+
+      const tdOps = document.createElement('td');
+      const opsDiv = document.createElement('div');
+      opsDiv.style.cssText = 'display:flex;gap:5px;flex-wrap:wrap';
+
+      const btnLoad = document.createElement('button');
+      btnLoad.className = 'btn btn-outline btn-sm';
+      btnLoad.textContent = '✏️載入';
+      btnLoad.onclick = () => loadRecord(recKey);
+
+      const btnAddon = document.createElement('button');
+      btnAddon.style.cssText = 'background:#EBF2EE;border:1.5px solid #5C8070;color:#5C8070;border-radius:6px;padding:5px 8px;font-size:11px;cursor:pointer;font-family:inherit';
+      btnAddon.textContent = '＋追加';
+      btnAddon.onclick = () => createAddon(h.quote_no, recKey);
+
+      const btnDel = document.createElement('button');
+      btnDel.style.cssText = 'background:white;border:1.5px solid var(--red);color:var(--red);border-radius:6px;padding:5px 8px;font-size:11px;cursor:pointer;font-family:inherit';
+      btnDel.textContent = '🗑';
+      btnDel.onclick = () => confirmDelete(h.quote_no);
+
+      opsDiv.appendChild(btnLoad);
+      opsDiv.appendChild(btnAddon);
+      opsDiv.appendChild(btnDel);
+      tdOps.appendChild(opsDiv);
+
+      [tdQno,tdDate,tdClient,tdAmt,tdDeal,tdInv,tdPay,tdOps].forEach(td=>tr.appendChild(td));
       tbody.appendChild(tr);
     });
     calcFinanceSummary(data);
@@ -1573,15 +980,20 @@ async function refreshHistory() {
   }
 }
 
-function loadRecord(jsonStr) {
-  const h = JSON.parse(jsonStr);
+
+
+function loadRecord(recKeyOrJson) {
+  const h = (typeof recKeyOrJson === "string" && window._histRecords && window._histRecords[recKeyOrJson])
+    ? window._histRecords[recKeyOrJson] : (()=>{ try{ return JSON.parse(recKeyOrJson); }catch(e){ return {}; } })();
   const data = {
     myCompany:h.my_company||'', myTaxId:h.my_tax_id||'', myContact:h.my_contact||'',
     myPhone:h.my_phone||'', myEmail:h.my_email||'', myAddress:h.my_address||'',
     qNo:h.quote_no||'', qDate:h.quote_date||'', qExpiry:h.expiry_date||'',
-    clientName:h.client_name||'', clientTaxId:h.client_tax_id||'', clientContact:h.client_contact||'',
-    clientPhone:h.client_phone||'', clientEmail:h.client_email||'', clientAddress:h.client_address||'',
-    currency:h.currency||'TWD', taxRate:h.tax_rate||0, shipping:h.shipping||0, remark:h.remark||'',
+    clientName:h.client_name||'', clientTaxId:h.client_tax_id||'',
+    clientContact:h.client_contact||'', clientPhone:h.client_phone||'',
+    clientEmail:h.client_email||'', clientAddress:h.client_address||'',
+    currency:h.currency||'TWD', taxRate:h.tax_rate||0,
+    shipping:h.shipping||0, remark:h.remark||'',
     items: h.items||[{name:'',spec:'',qty:'1',unit:'個',price:'',note:''}],
     dealStatus: h.deal_status||'pending',
     invoiceNo: h.invoice_no||'', invoiceDate: h.invoice_date||'',
@@ -1590,11 +1002,10 @@ function loadRecord(jsonStr) {
     paymentDate: h.payment_date||'', paymentAmount: h.payment_amount||0
   };
   applyData(data);
-  // Load cost data
   setTimeout(()=>{
-    if(h.cost_supplier && document.getElementById('costSupplier')) 
+    if(h.cost_supplier && document.getElementById('costSupplier'))
       document.getElementById('costSupplier').value = h.cost_supplier;
-    if(h.cost_note && document.getElementById('costNote')) 
+    if(h.cost_note && document.getElementById('costNote'))
       document.getElementById('costNote').value = h.cost_note;
     if(h.cost_items) window.costPrices = h.cost_items.map(i=>i.costPrice||'');
     if(h.cost_images) { costImages = h.cost_images||[]; if(typeof renderImages==='function') renderImages(); }
@@ -1603,7 +1014,6 @@ function loadRecord(jsonStr) {
     if(typeof renderExtraCosts==='function') renderExtraCosts();
   }, 150);
   switchTabDirect('editor');
-  // Close any open modal
   const vm = document.getElementById('viewModal');
   if(vm) vm.remove();
   toast('📂 報價單已載入');
@@ -2143,12 +1553,13 @@ async function quickUpdateStatus(qNo, field, value) {
 }
 
 // ── View Record Modal ──
-function viewRecord(hJson) {
-  const h = JSON.parse(hJson);
+function viewRecord(recKey) {
+  const h = (typeof recKey === "string" && window._histRecords && window._histRecords[recKey]) 
+    ? window._histRecords[recKey] : JSON.parse(recKey);
   const fn = n => Number(n||0).toLocaleString('zh-TW',{minimumFractionDigits:0,maximumFractionDigits:2});
   
-  const items = (h.items||[]).filter(it=>it.name);
-  const rows = items.map((it,i)=>{
+  const validItems = (h.items||[]).filter(it=>it.name);
+  const rows = validItems.map((it,i)=>{
     const q=parseFloat(it.qty)||0,p=parseFloat(it.price)||0;
     return `<tr style="background:${i%2===0?'#fff':'#f4f8f6'}">
       <td style="padding:6px 8px;text-align:center;font-size:12px">${i+1}</td>
@@ -2161,93 +1572,174 @@ function viewRecord(hJson) {
     </tr>`;
   }).join('');
 
+  // Cost items if available
+  const costRows = (h.cost_items||[]).map((ci,i)=>{
+    const q=parseFloat(ci.qty)||0, cp=parseFloat(ci.costPrice)||0;
+    const clientItem=validItems[i];
+    const sell=clientItem?parseFloat(clientItem.price)||0:0;
+    return `<tr style="background:${i%2===0?'#fff':'#f4f8f6'}">
+      <td style="padding:5px 7px;text-align:center;font-size:11px">${i+1}</td>
+      <td style="padding:5px 7px;font-size:11px;font-weight:600">${ci.name||'-'}</td>
+      <td style="padding:5px 7px;font-size:11px;text-align:right">${fn(q)}</td>
+      <td style="padding:5px 7px;font-size:11px;text-align:right;color:#5C8070">${cp>0?fn(cp):'-'}</td>
+      <td style="padding:5px 7px;font-size:11px;text-align:right;color:#E87722;font-weight:700">${sell>0?fn(sell):'-'}</td>
+      <td style="padding:5px 7px;font-size:11px;text-align:right;font-weight:700;color:${(q*sell-q*cp)>=0?'#5C8070':'#c0392b'}">${fn(q*sell-q*cp)}</td>
+    </tr>`;
+  }).join('');
+
   const dealLabel = {pending:'⏳ 報價中',won:'✅ 已成交',lost:'❌ 未成交'}[h.deal_status||'pending'];
   const payLabel = {unpaid:'❌ 未付款',partial:'⚡ 部分付款',paid:'✅ 已付款'}[h.payment_status||'unpaid'];
   const invLabel = {not_issued:'📄 未開發票',issued:'✅ 已開發票',void:'🚫 已作廢'}[h.invoice_status||'not_issued'];
+  const hasCost = h.cost_items && h.cost_items.length > 0;
 
+  // Build modal HTML (no JS variables in onclick - use data attributes)
   const modal = document.createElement('div');
   modal.id = 'viewModal';
-  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:3000;overflow:auto;-webkit-overflow-scrolling:touch;display:flex;justify-content:center;padding:20px 12px';
-  modal.innerHTML = `
-    <div style="background:white;border-radius:14px;width:100%;max-width:700px;height:fit-content;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
-      <!-- Modal Header -->
-      <div style="background:var(--ink);color:white;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10">
-        <div>
-          <div style="font-size:15px;font-weight:700">${h.quote_no}</div>
-          <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:1px">${h.quote_date} ｜ ${h.client_name||'-'}</div>
-        </div>
-        <div style="display:flex;gap:8px">
-          <button onclick="loadRecord('${hJson}');document.getElementById('viewModal').remove()" 
-            style="background:var(--mint);color:var(--ink);border:none;border-radius:7px;padding:7px 11px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">✏️ 載入編輯</button>
-          <button onclick="viewRecordPDF('${hJson}')"
-            style="background:var(--orange);color:white;border:none;border-radius:7px;padding:7px 11px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">📄 PDF</button>
-          <button onclick="viewRecordExcel('${hJson}')"
-            style="background:#5C8070;color:white;border:none;border-radius:7px;padding:7px 11px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">📊 Excel</button>
-          <button onclick="document.getElementById('viewModal').remove()" 
-            style="background:rgba(255,255,255,0.15);color:white;border:none;border-radius:7px;padding:7px 10px;font-size:13px;cursor:pointer;font-family:inherit">✕</button>
-        </div>
-      </div>
-      
-      <div style="padding:16px">
-        <!-- Status Row -->
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
-          <span style="background:#e8f3ee;color:#5C8070;padding:4px 10px;border-radius:12px;font-size:12px;font-weight:700">${dealLabel}</span>
-          <span style="background:#e8f3ee;color:#5C8070;padding:4px 10px;border-radius:12px;font-size:12px">${invLabel}</span>
-          <span style="background:#e8f3ee;color:#5C8070;padding:4px 10px;border-radius:12px;font-size:12px">${payLabel}</span>
-          <span style="background:#f0f0f0;color:#4a5e57;padding:4px 10px;border-radius:12px;font-size:12px">${h.currency||'TWD'}</span>
-        </div>
-
-        <!-- Client Info -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:14px;font-size:12px">
-          <div style="background:#EBF2EE;padding:7px 10px;border-radius:6px"><span style="color:#5C8070;font-weight:700">客戶：</span>${h.client_name||'-'}</div>
-          <div style="background:#EBF2EE;padding:7px 10px;border-radius:6px"><span style="color:#5C8070;font-weight:700">統編：</span>${h.client_tax_id||'-'}</div>
-          <div style="background:#EBF2EE;padding:7px 10px;border-radius:6px"><span style="color:#5C8070;font-weight:700">聯絡人：</span>${h.client_contact||'-'}</div>
-          <div style="background:#EBF2EE;padding:7px 10px;border-radius:6px"><span style="color:#5C8070;font-weight:700">電話：</span>${h.client_phone||'-'}</div>
-        </div>
-
-        <!-- Items -->
-        <table style="width:100%;border-collapse:collapse;margin-bottom:12px;font-size:12px">
-          <thead><tr style="background:#EBF2EE">
-            <th style="padding:7px 8px;color:#5C8070;border-bottom:2px solid #C8DDD5;text-align:center;width:30px">No.</th>
-            <th style="padding:7px 8px;color:#5C8070;border-bottom:2px solid #C8DDD5;text-align:left">商品名稱</th>
-            <th style="padding:7px 8px;color:#5C8070;border-bottom:2px solid #C8DDD5;text-align:left">規格</th>
-            <th style="padding:7px 8px;color:#5C8070;border-bottom:2px solid #C8DDD5;text-align:right">數量</th>
-            <th style="padding:7px 8px;color:#5C8070;border-bottom:2px solid #C8DDD5">單位</th>
-            <th style="padding:7px 8px;color:#5C8070;border-bottom:2px solid #C8DDD5;text-align:right">單價</th>
-            <th style="padding:7px 8px;color:#5C8070;border-bottom:2px solid #C8DDD5;text-align:right">小計</th>
-          </tr></thead>
-          <tbody>${rows||'<tr><td colspan="7" style="text-align:center;padding:12px;color:#8a9e97">無品項</td></tr>'}</tbody>
-        </table>
-
-        <!-- Totals -->
-        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;margin-bottom:14px">
-          <div style="display:flex;gap:14px;font-size:12px"><span style="color:#4a5e57;min-width:70px;text-align:right">小計</span><strong style="min-width:90px;text-align:right">${h.currency} ${fn(h.subtotal||0)}</strong></div>
-          <div style="display:flex;gap:14px;font-size:12px"><span style="color:#4a5e57;min-width:70px;text-align:right">稅金</span><strong style="min-width:90px;text-align:right">${h.currency} ${fn(h.tax||0)}</strong></div>
-          <div style="display:flex;gap:14px;font-size:12px"><span style="color:#4a5e57;min-width:70px;text-align:right">運費</span><strong style="min-width:90px;text-align:right">${h.currency} ${fn(h.shipping||0)}</strong></div>
-          <div style="display:flex;gap:14px;font-size:14px;font-weight:800;padding-top:6px;border-top:2px solid #C8DDD5">
-            <span style="color:var(--ink);min-width:70px;text-align:right">總計</span>
-            <strong style="min-width:90px;text-align:right;color:var(--orange)">${h.currency} ${fn(h.grand_total||0)}</strong>
-          </div>
-        </div>
-
-        <!-- Invoice & Payment -->
-        ${h.invoice_no||h.payment_amount?`
-        <div style="background:#f4f8f6;border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:12px">
-          ${h.invoice_no?`<div><span style="color:#5C8070;font-weight:700">發票號碼：</span>${h.invoice_no}${h.invoice_date?' ／ '+h.invoice_date:''}</div>`:''}
-          ${h.payment_amount?`<div style="margin-top:4px"><span style="color:#5C8070;font-weight:700">收款金額：</span>${fn(h.payment_amount)}${h.payment_date?' ／ '+h.payment_date:''}</div>`:''}
-        </div>`:''}
-
-        ${h.remark?`<div style="background:#f4f8f6;border-radius:6px;padding:8px 10px;font-size:12px;color:#4a5e57"><span style="font-weight:700;color:#5C8070">備注：</span>${h.remark}</div>`:''}
-      </div>
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:3000;overflow:auto;-webkit-overflow-scrolling:touch;display:flex;justify-content:center;padding:16px 10px';
+  
+  const box = document.createElement('div');
+  box.style.cssText = 'background:white;border-radius:14px;width:100%;max-width:720px;height:fit-content;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.3)';
+  
+  // Header
+  const header = document.createElement('div');
+  header.style.cssText = 'background:var(--ink);color:white;padding:13px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;flex-wrap:wrap;gap:8px';
+  header.innerHTML = `
+    <div>
+      <div style="font-size:15px;font-weight:700">${h.quote_no||'-'}</div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:1px">${h.quote_date||''} ｜ ${h.client_name||'-'}</div>
     </div>
   `;
+  
+  // Header buttons
+  const btnGroup = document.createElement('div');
+  btnGroup.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap';
+  
+  const mkBtn = (label, bg, color, fn) => {
+    const b = document.createElement('button');
+    b.innerHTML = label;
+    b.style.cssText = `background:${bg};color:${color};border:none;border-radius:7px;padding:7px 11px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit`;
+    b.onclick = fn;
+    return b;
+  };
+  
+  btnGroup.appendChild(mkBtn('✏️ 修改', 'var(--mint)', 'var(--ink)', () => {
+    loadRecord(recKey);
+    modal.remove();
+  }));
+  btnGroup.appendChild(mkBtn('💰 填成本', '#2C3830', 'white', () => {
+    loadRecord(recKey);
+    modal.remove();
+    setTimeout(() => switchView('cost'), 300);
+  }));
+  btnGroup.appendChild(mkBtn('📄 PDF', 'var(--orange)', 'white', () => viewRecordPDF(recKey)));
+  btnGroup.appendChild(mkBtn('📊 Excel', '#5C8070', 'white', () => viewRecordExcel(recKey)));
+  btnGroup.appendChild(mkBtn('✕', 'rgba(255,255,255,0.15)', 'white', () => modal.remove()));
+  
+  header.appendChild(btnGroup);
+  box.appendChild(header);
+  
+  // Body
+  const body = document.createElement('div');
+  body.style.cssText = 'padding:14px';
+  body.innerHTML = `
+    <!-- Status badges -->
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
+      <span style="background:#e8f3ee;color:#5C8070;padding:4px 10px;border-radius:12px;font-size:12px;font-weight:700">${dealLabel}</span>
+      <span style="background:#fff3cd;color:#856404;padding:4px 10px;border-radius:12px;font-size:12px">${invLabel}</span>
+      <span style="background:#fde8e8;color:#c0392b;padding:4px 10px;border-radius:12px;font-size:12px">${payLabel}</span>
+      <span style="background:#f0f0f0;color:#4a5e57;padding:4px 10px;border-radius:12px;font-size:12px">${h.currency||'TWD'}</span>
+    </div>
+
+    <!-- Client info -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:12px;font-size:12px">
+      <div style="background:#EBF2EE;padding:6px 9px;border-radius:6px"><span style="color:#5C8070;font-weight:700">客戶：</span>${h.client_name||'-'}</div>
+      <div style="background:#EBF2EE;padding:6px 9px;border-radius:6px"><span style="color:#5C8070;font-weight:700">統編：</span>${h.client_tax_id||'-'}</div>
+      <div style="background:#EBF2EE;padding:6px 9px;border-radius:6px"><span style="color:#5C8070;font-weight:700">聯絡人：</span>${h.client_contact||'-'}</div>
+      <div style="background:#EBF2EE;padding:6px 9px;border-radius:6px"><span style="color:#5C8070;font-weight:700">電話：</span>${h.client_phone||'-'}</div>
+    </div>
+
+    <!-- Items table -->
+    <div style="font-size:11px;font-weight:700;color:#5C8070;text-transform:uppercase;margin-bottom:6px;letter-spacing:.05em">客戶報價明細</div>
+    <div style="overflow-x:auto;margin-bottom:12px">
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead><tr style="background:#EBF2EE">
+          <th style="padding:6px 8px;color:#5C8070;border-bottom:2px solid #C8DDD5;text-align:center;width:28px">No.</th>
+          <th style="padding:6px 8px;color:#5C8070;border-bottom:2px solid #C8DDD5;text-align:left">商品名稱</th>
+          <th style="padding:6px 8px;color:#5C8070;border-bottom:2px solid #C8DDD5;text-align:left">規格</th>
+          <th style="padding:6px 8px;color:#5C8070;border-bottom:2px solid #C8DDD5;text-align:right">數量</th>
+          <th style="padding:6px 8px;color:#5C8070;border-bottom:2px solid #C8DDD5">單位</th>
+          <th style="padding:6px 8px;color:#5C8070;border-bottom:2px solid #C8DDD5;text-align:right">單價</th>
+          <th style="padding:6px 8px;color:#5C8070;border-bottom:2px solid #C8DDD5;text-align:right">小計</th>
+        </tr></thead>
+        <tbody>${rows||'<tr><td colspan="7" style="text-align:center;padding:12px;color:#8a9e97">無品項</td></tr>'}</tbody>
+      </table>
+    </div>
+
+    <!-- Totals -->
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;margin-bottom:12px">
+      <div style="display:flex;gap:14px;font-size:12px"><span style="color:#4a5e57;min-width:70px;text-align:right">小計</span><strong style="min-width:90px;text-align:right">${h.currency||'TWD'} ${fn(h.subtotal||0)}</strong></div>
+      <div style="display:flex;gap:14px;font-size:12px"><span style="color:#4a5e57;min-width:70px;text-align:right">稅金</span><strong style="min-width:90px;text-align:right">${h.currency||'TWD'} ${fn(h.tax||0)}</strong></div>
+      <div style="display:flex;gap:14px;font-size:12px"><span style="color:#4a5e57;min-width:70px;text-align:right">運費</span><strong style="min-width:90px;text-align:right">${h.currency||'TWD'} ${fn(h.shipping||0)}</strong></div>
+      <div style="display:flex;gap:14px;font-size:14px;font-weight:800;padding-top:5px;border-top:2px solid #C8DDD5">
+        <span style="color:var(--ink);min-width:70px;text-align:right">總計</span>
+        <strong style="min-width:90px;text-align:right;color:var(--orange)">${h.currency||'TWD'} ${fn(h.grand_total||0)}</strong>
+      </div>
+    </div>
+
+    <!-- Cost section if available -->
+    ${hasCost ? `
+    <div style="border-top:2px dashed #C8DDD5;padding-top:12px;margin-bottom:12px">
+      <div style="font-size:11px;font-weight:700;color:#2C3830;text-transform:uppercase;margin-bottom:6px;display:flex;align-items:center;gap:6px">
+        <span style="background:#2C3830;color:white;padding:2px 8px;border-radius:10px;font-size:10px">🔒 內部成本</span>
+        <span style="color:#8a9e97;font-size:10px">廠商：${h.cost_supplier||'-'}</span>
+      </div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:11px">
+          <thead><tr style="background:#EBF2EE">
+            <th style="padding:5px 7px;color:#5C8070;border-bottom:2px solid #C8DDD5;text-align:center">No.</th>
+            <th style="padding:5px 7px;color:#5C8070;border-bottom:2px solid #C8DDD5;text-align:left">品項</th>
+            <th style="padding:5px 7px;color:#5C8070;border-bottom:2px solid #C8DDD5;text-align:right">數量</th>
+            <th style="padding:5px 7px;color:#5C8070;border-bottom:2px solid #C8DDD5;text-align:right">廠商單價</th>
+            <th style="padding:5px 7px;color:#E87722;border-bottom:2px solid #C8DDD5;text-align:right">客戶售價</th>
+            <th style="padding:5px 7px;color:#5C8070;border-bottom:2px solid #C8DDD5;text-align:right">品項毛利</th>
+          </tr></thead>
+          <tbody>${costRows}</tbody>
+        </table>
+      </div>
+    </div>` : `
+    <div style="border-top:2px dashed #C8DDD5;padding-top:12px;margin-bottom:12px">
+      <div style="background:#f4f8f6;border-radius:8px;padding:12px;text-align:center;color:#8a9e97;font-size:12px">
+        🔒 尚未填寫內部成本
+        <div style="margin-top:6px">
+          <button onclick="loadRecord('${recKey}');document.getElementById('viewModal')?.remove();setTimeout(()=>switchView('cost'),300)" 
+            style="background:#2C3830;color:white;border:none;border-radius:7px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">
+            💰 立即填寫成本
+          </button>
+        </div>
+      </div>
+    </div>`}
+
+    <!-- Invoice & Payment -->
+    ${(h.invoice_no||h.payment_amount)?`
+    <div style="background:#f4f8f6;border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:12px">
+      ${h.invoice_no?`<div><span style="color:#5C8070;font-weight:700">發票：</span>${h.invoice_no}${h.invoice_date?' ／ '+h.invoice_date:''}</div>`:''}
+      ${h.payment_amount?`<div style="margin-top:3px"><span style="color:#5C8070;font-weight:700">收款：</span>TWD ${fn(h.payment_amount)}${h.payment_date?' ／ '+h.payment_date:''}</div>`:''}
+    </div>`:''}
+
+    ${h.remark?`<div style="background:#f4f8f6;border-radius:6px;padding:8px 10px;font-size:12px;color:#4a5e57"><span style="font-weight:700;color:#5C8070">備注：</span>${h.remark}</div>`:''}
+    <div style="height:16px"></div>
+  `;
+  
+  box.appendChild(body);
+  modal.appendChild(box);
   modal.onclick = e => { if(e.target===modal) modal.remove(); };
   document.body.appendChild(modal);
 }
 
+
 // ── View Record PDF & Excel ──
-function viewRecordPDF(hJson) {
-  const h = JSON.parse(hJson);
+function viewRecordPDF(recKey) {
+  const h = (typeof recKey === "string" && window._histRecords && window._histRecords[recKey]) ? window._histRecords[recKey] : JSON.parse(recKey);
   // Build a temporary data object from history record
   const data = {
     myCompany: h.my_company||'', myTaxId: h.my_tax_id||'',
@@ -2295,8 +1787,8 @@ function viewRecordPDF(hJson) {
   };
 }
 
-async function viewRecordExcel(hJson) {
-  const h = JSON.parse(hJson);
+async function viewRecordExcel(recKey) {
+  const h = (typeof recKey === "string" && window._histRecords && window._histRecords[recKey]) ? window._histRecords[recKey] : JSON.parse(recKey);
   const fn = n => Number(n||0).toLocaleString('zh-TW',{minimumFractionDigits:0,maximumFractionDigits:2});
   
   const wb = XLSX.utils.book_new();
@@ -2363,8 +1855,8 @@ async function viewRecordExcel(hJson) {
 }
 
 // ── 追加單 ──
-async function createAddon(origQNo, jsonStr) {
-  const h = JSON.parse(jsonStr);
+async function createAddon(origQNo, recKeyOrJson) {
+  const h = (typeof recKeyOrJson === "string" && window._histRecords && window._histRecords[recKeyOrJson]) ? window._histRecords[recKeyOrJson] : JSON.parse(recKeyOrJson);
   
   // Generate addon quote number
   const addonNo = origQNo + '-A';
@@ -2464,7 +1956,11 @@ function calcFinanceSummary(data) {
       const costSum = (h.cost_items||[]).reduce((s,it)=>{
         return s + (parseFloat(it.costPrice)||0)*(parseFloat(it.qty)||0)*exRate;
       },0);
-      totalCostSum += costSum + (parseFloat(h.cost_freight)||0) + (parseFloat(h.cost_other)||0);
+      const extraSum = (h.cost_extra||[]).reduce((s,ec)=>{
+        const amt=parseFloat(ec.amount)||0, rate=parseFloat(ec.exRate)||1;
+        return s+(ec.currency==='TWD'?amt:amt*rate);
+      },0);
+      totalCostSum += costSum + extraSum;
     }
   });
 
@@ -2689,18 +2185,7 @@ function viewImg(dataUrl) {
 // ── Save Cost Data ──
 async function saveCostData() {
   const data = collectData();
-  const costData = {
-    cost_supplier: document.getElementById('costSupplier')?.value||'',
-    cost_freight: parseFloat(document.getElementById('costFreight')?.value)||0,
-    cost_other: parseFloat(document.getElementById('costOther')?.value)||0,
-    cost_note: document.getElementById('costNote')?.value||'',
-    cost_items: (window.costPrices||[]).map((p,i)=>({
-      name: items.filter(it=>it.name)[i]?.name||'',
-      costPrice: p,
-      qty: items.filter(it=>it.name)[i]?.qty||0
-    })),
-    cost_images: costImages.map(img=>({name:img.name, dataUrl:img.dataUrl}))
-  };
+  const validItems = items.filter(it=>it.name);
   try {
     const row = {
       quote_no: data.qNo,
@@ -2714,7 +2199,8 @@ async function saveCostData() {
       client_email: data.clientEmail, client_address: data.clientAddress,
       currency: data.currency, tax_rate: data.taxRate, shipping: data.shipping,
       remark: data.remark, subtotal: data.subtotal, tax: data.tax,
-      grand_total: data.grand, items: data.items, saved_at: data.savedAt,
+      grand_total: data.grand, items: data.items,
+      saved_at: new Date().toISOString(),
       deal_status: data.dealStatus,
       invoice_no: data.invoiceNo,
       invoice_date: data.invoiceDate||null,
@@ -2722,33 +2208,25 @@ async function saveCostData() {
       payment_status: data.paymentStatus,
       payment_date: data.paymentDate||null,
       payment_amount: data.paymentAmount,
-      ...costData
+      cost_supplier: document.getElementById('costSupplier')?.value||'',
+      cost_note: document.getElementById('costNote')?.value||'',
+      cost_items: validItems.map((it,i)=>({
+        name: it.name,
+        costPrice: (window.costPrices||[])[i]||'',
+        qty: it.qty||0
+      })),
+      cost_extra: window.extraCosts||[],
+      cost_images: (costImages||[]).map(img=>({name:img.name, dataUrl:img.dataUrl})),
+      product_images: (productImages||[]).map(img=>({name:img.name, dataUrl:img.dataUrl}))
     };
     await dbUpsert('quotations', row);
-    toast('✅ 成本資料已儲存到雲端');
+    toast('✅ 成本資料已儲存！');
+    await refreshHistory();
   } catch(e) {
     toast('❌ 儲存失敗：' + e.message);
   }
 }
 
-// Load cost data when loading a record
-const _origLoadRecord = loadRecord;
-function loadRecord(jsonStr) {
-  _origLoadRecord(jsonStr);
-  const h = JSON.parse(jsonStr);
-  setTimeout(()=>{
-    if(h.cost_supplier) document.getElementById('costSupplier').value = h.cost_supplier;
-    if(h.cost_freight) document.getElementById('costFreight').value = h.cost_freight;
-    if(h.cost_other) document.getElementById('costOther').value = h.cost_other;
-    if(h.cost_note) document.getElementById('costNote').value = h.cost_note;
-    if(h.cost_items) { window.costPrices = h.cost_items.map(i=>i.costPrice||''); }
-    if(h.cost_images) { costImages = h.cost_images||[]; renderImages(); }
-    if(h.product_images) { productImages = h.product_images||[]; renderProductImages(); }
-    if(h.cost_extra) { window.extraCosts = h.cost_extra; renderExtraCosts(); }
-    else { window.extraCosts = []; renderExtraCosts(); }
-    if(h.client_images) { clientImages = h.client_images; renderClientImages(); }
-  }, 100);
-}
 </script>
 </body>
 </html>
