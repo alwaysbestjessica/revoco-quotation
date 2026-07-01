@@ -894,9 +894,9 @@ function loadSettings() {
 
 // ── Draft ──
 function saveDraft() {
+  // Keep local backup
   const d = collectData(); saveSettings(d);
   localStorage.setItem('rvc_draft', JSON.stringify(d));
-  toast('✅ 草稿已儲存');
 }
 function loadDraft() {
   const raw = localStorage.getItem('rvc_draft');
@@ -908,8 +908,13 @@ function clearForm() {
     const el = document.getElementById(k); if (el) el.value = '';
   });
   document.getElementById('taxRate').value = '0';
-  document.getElementById('shipping').value = '0';
+  window.extraFees = [];
+  renderExtraFees();
   items = [{name:'',spec:'',qty:'1',unit:'個',price:'',note:''}];
+  window.costPrices = [];
+  window.extraCosts = [];
+  costImages = [];
+  productImages = [];
   genQNo(); setDefaults(); renderTable();
 }
 
@@ -1073,7 +1078,7 @@ function loadRecord(recKeyOrJson) {
   switchTabDirect('editor');
   const vm = document.getElementById('viewModal');
   if(vm) vm.remove();
-  toast('📂 報價單已載入');
+  toast('📂 報價單已載入，修改後按「☁️ 儲存到雲端」更新');
 }
 
 function switchTabDirect(tab) {
@@ -1102,6 +1107,7 @@ async function exportExcel() {
   const data = collectData();
   saveSettings(data);
   const ok = await saveToCloud(data);
+  if(ok) await refreshHistory();
   const wb = XLSX.utils.book_new();
 
   // ── 工作表1：客戶報價單 ──
@@ -1982,6 +1988,55 @@ async function createAddon(origQNo, recKeyOrJson) {
   const editorPanel = document.getElementById('panel-editor');
   const firstCard = editorPanel.querySelector('.view-toggle') || editorPanel.querySelector('.card');
   if(firstCard) editorPanel.insertBefore(banner, firstCard);
+}
+
+// ── 統一雲端儲存（新單/舊單都用這個）──
+async function saveToCloud_full() {
+  const btn = document.getElementById('cloudSaveBtn');
+  if(btn) { btn.textContent = '⏳ 儲存中...'; btn.disabled = true; }
+  const data = collectData();
+  saveSettings(data);
+  try {
+    const row = {
+      quote_no: data.qNo,
+      quote_date: data.qDate,
+      expiry_date: data.qExpiry,
+      my_company: data.myCompany, my_tax_id: data.myTaxId,
+      my_contact: data.myContact, my_phone: data.myPhone,
+      my_email: data.myEmail, my_address: data.myAddress,
+      client_name: data.clientName, client_tax_id: data.clientTaxId,
+      client_contact: data.clientContact, client_phone: data.clientPhone,
+      client_email: data.clientEmail, client_address: data.clientAddress,
+      currency: data.currency, tax_rate: data.taxRate,
+      shipping: data.shipping, remark: data.remark,
+      subtotal: data.subtotal, tax: data.tax, grand_total: data.grand,
+      items: data.items, extra_fees: data.extraFees||[],
+      saved_at: new Date().toISOString(),
+      deal_status: data.dealStatus||'pending',
+      invoice_no: data.invoiceNo||'', invoice_date: data.invoiceDate||null,
+      invoice_status: data.invoiceStatus||'not_issued',
+      payment_status: data.paymentStatus||'unpaid',
+      payment_date: data.paymentDate||null,
+      payment_amount: data.paymentAmount||0,
+      cost_supplier: document.getElementById('costSupplier')?.value||'',
+      cost_note: document.getElementById('costNote')?.value||'',
+      cost_currency: document.getElementById('costCurrency')?.value||'',
+      cost_ex_rate: parseFloat(document.getElementById('costExRate')?.value)||1,
+      cost_items: (items.filter(it=>it.name)).map((it,i)=>({
+        name:it.name, costPrice:(window.costPrices||[])[i]||'', qty:it.qty||0
+      })),
+      cost_extra: window.extraCosts||[],
+      cost_images: (costImages||[]).map(img=>({name:img.name,dataUrl:img.dataUrl})),
+      product_images: (productImages||[]).map(img=>({name:img.name,dataUrl:img.dataUrl}))
+    };
+    await dbUpsert('quotations', row);
+    toast('✅ 已儲存到雲端！歷史留檔已更新');
+    await refreshHistory();
+  } catch(e) {
+    toast('❌ 儲存失敗：' + e.message);
+  } finally {
+    if(btn) { btn.textContent = '☁️ 儲存到雲端'; btn.disabled = false; }
+  }
 }
 
 // ── Status helpers ──
