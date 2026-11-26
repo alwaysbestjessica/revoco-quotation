@@ -485,7 +485,7 @@ table.fees input[type=checkbox]{width:20px;height:20px;min-height:0}
 <div class="modal-bg hidden" id="bulkModal">
   <div class="modal">
     <h3>批次貼上名單</h3>
-    <p class="small muted" style="margin-top:0">一行一家公司。可以只寫公司名稱，也可以用「公司名稱｜產業｜網站」的格式（用 | 或 Tab 分隔）。已經在名單裡的公司會自動跳過。</p>
+    <p class="small muted" style="margin-top:0">一行一家公司，欄位用「｜」分隔，順序是：<br><b>公司名稱｜產業｜網站｜窗口｜職稱／單位｜電話｜Email｜備註</b><br>後面的欄位沒有可以不寫。已經在名單裡的公司不會重複新增，只會補上缺少的窗口和資料。</p>
     <textarea id="bulkText" style="min-height:180px" placeholder="統一企業｜食品｜https://www.uni-president.com.tw&#10;台灣大哥大｜電信"></textarea>
     <div class="grid g2" style="margin-top:10px">
       <div><label>來源</label><input id="bulkSource" list="sourceOptions" value="Claude 研究"></div>
@@ -1252,17 +1252,41 @@ ${$('p_notes').value || '（尚無，請先上網了解這家公司）'}
 $('pBulkBtn').onclick = () => { $('bulkText').value = ''; $('bulkModal').classList.remove('hidden'); $('bulkText').focus(); };
 $('bulkSaveBtn').onclick = async () => {
   const lines = $('bulkText').value.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-  const seen = new Set(customers.map(c => c.name));
-  const rows = [];
-  for (const l of lines) {
-    const [name, industry, website] = l.split(/\s*[|｜\t]\s*/).map(x => (x || '').trim());
-    if (!name || seen.has(name)) continue; seen.add(name);
-    rows.push({ name, industry:industry || null, website:website || null, source:$('bulkSource').value.trim() || null,
-      company_entity:$('bulkCompany').value, status:'潛在', prospect_stage:'待研究', pipeline:'D' });
-  }
-  if (!rows.length) { toast('沒有新的公司可以加入（可能都已經在名單裡）'); return; }
-  try { await run(sb.from('customers').insert(rows)); await loadMasters(); $('bulkModal').classList.add('hidden'); pFilter = '待研究'; renderProspects(); toast(`✅ 加入 ${rows.length} 家公司`); }
-  catch (e) { toast('⚠️ 加入失敗：' + e.message); }
+  const clean = v => { v = (v || '').trim(); return (!v || v === '待確認' || v === '未公開' || v === '-') ? null : v; };
+  let added = 0, updated = 0, ctAdded = 0;
+  const done = new Set();
+  try {
+    for (const l of lines) {
+      const f = l.split(/\s*[|｜\t]\s*/);
+      const name = (f[0] || '').trim(); if (!name || done.has(name)) continue; done.add(name);
+      const [industry, website, ctName, ctTitle, phone, email, note] = [f[1], f[2], f[3], f[4], f[5], f[6], f[7]].map(clean);
+      let c = custByName(name);
+      if (!c) {
+        c = await run(sb.from('customers').insert({ name, industry, website, research_notes:note, source:$('bulkSource').value.trim() || null,
+          company_entity:$('bulkCompany').value, status:'潛在', prospect_stage:'待研究', pipeline:'D' }).select().single());
+        added++;
+      } else {
+        const patch = {};
+        if (!c.industry && industry) patch.industry = industry;
+        if (!c.website && website) patch.website = website;
+        if (note && !(c.research_notes || '').includes(note)) patch.research_notes = [c.research_notes, note].filter(Boolean).join('\n');
+        if (!c.prospect_stage && !c.pipeline) { patch.prospect_stage = '待研究'; patch.pipeline = 'D'; }
+        if (Object.keys(patch).length) { await run(sb.from('customers').update(patch).eq('id', c.id)); }
+        updated++;
+      }
+      if (ctName || phone || email) {
+        const label = ctName || ctTitle || '總機';
+        const exists = contacts.some(x => x.customer_id === c.id && (x.name === label || (phone && x.phone === phone) || (email && x.email === email)));
+        if (!exists) {
+          const hasPrimary = contacts.some(x => x.customer_id === c.id && x.is_primary);
+          await run(sb.from('contacts').insert({ customer_id:c.id, name:label, title:ctName ? ctTitle : null, phone, email, is_primary:!hasPrimary }));
+          ctAdded++;
+        }
+      }
+    }
+    await loadMasters(); $('bulkModal').classList.add('hidden'); pFilter = '進行中'; renderProspects();
+    toast(`✅ 新增 ${added} 家、更新 ${updated} 家、補上 ${ctAdded} 個窗口`);
+  } catch (e) { await loadMasters(); renderProspects(); toast('⚠️ 加入失敗：' + e.message); }
 };
 
 // ================= 帳本 =================
