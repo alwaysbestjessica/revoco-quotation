@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>報價系統｜REVOCO・JULI</title>
+<style>
+:root{
+  --mint:#5C8070; --mint-dark:#3F5E51; --mint-light:#EBF2EE; --line:#D6E4DD;
+  --ink:#2C3830; --quiet:#7A8E86; --bg:#F7FAF8; --white:#fff;
+  --orange:#E87722; --red:#C24A3A; --green:#2F8A5B; --yellow:#B7861F;
+  --radius:12px;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif;background:var(--bg);color:var(--ink);font-size:15px}
+button,input,select,textarea{font:inherit;color:inherit}
+input,select,textarea{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;min-height:40px}
+textarea{min-height:70px;resize:vertical}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--mint);outline-offset:-1px;border-color:var(--mint)}
+label{display:block;font-size:12px;color:var(--quiet);font-weight:600;margin-bottom:4px}
+.btn{border:1px solid var(--line);background:#fff;border-radius:8px;padding:9px 14px;cursor:pointer;font-weight:600;white-space:nowrap;min-height:40px}
+.btn:hover{border-color:var(--mint)}
+.btn-primary{background:var(--mint);border-color:var(--mint);color:#fff}
+.btn-primary:hover{background:var(--mint-dark)}
+.btn-orange{background:var(--orange);border-color:var(--orange);color:#fff}
+.btn-danger{color:var(--red)}
+.btn-sm{padding:5px 10px;min-height:32px;font-size:13px}
+.hidden{display:none!important}
+.muted{color:var(--quiet)}
+.small{font-size:12px}
+.right{text-align:right}
+
+/* layout */
+header{position:sticky;top:0;z-index:20;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;padding:10px 16px;padding-top:max(10px,env(safe-area-inset-top))}
+header .brand{font-weight:800;color:var(--mint-dark);margin-right:auto}
+.tabs{display:flex;gap:4px}
+.tab{border:none;background:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:600;color:var(--quiet)}
+.tab.active{background:var(--mint-light);color:var(--mint-dark)}
+main{max-width:1100px;margin:0 auto;padding:16px}
+.card{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:14px}
+.card h3{margin:0 0 12px;font-size:15px;color:var(--mint-dark)}
+.grid{display:grid;gap:12px}
+.g2{grid-template-columns:repeat(2,1fr)}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g4{grid-template-columns:repeat(4,1fr)}
+@media (max-width:720px){.g3,.g4{grid-template-columns:repeat(2,1fr)}.tabs .tab{padding:8px}}
+@media (max-width:420px){.g2{grid-template-columns:1fr}}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px}
+.toolbar .grow{flex:1;min-width:160px}
+
+/* login */
+#loginView{max-width:360px;margin:12vh auto;padding:0 16px}
+#loginView h1{font-size:22px;color:var(--mint-dark);margin:0 0 4px}
+
+/* list */
+.list{display:flex;flex-direction:column;gap:8px}
+.row{background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:grid;grid-template-columns:1.3fr 1.6fr .9fr 1fr .8fr 110px;gap:10px;align-items:center;cursor:pointer}
+.row:hover{border-color:var(--mint)}
+.row .qno{font-weight:700;color:var(--mint-dark)}
+.row .cust{font-weight:600}
+@media (max-width:720px){
+  .row{grid-template-columns:1fr auto;row-gap:4px}
+  .row .c-date,.row .c-margin{font-size:12px;color:var(--quiet)}
+}
+.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700;background:var(--mint-light);color:var(--mint-dark)}
+.b-REVOCO{background:#FDEBDD;color:#B65A12}.b-JULI{background:#E5ECF8;color:#3B5B95}
+.status-select{min-height:32px;padding:4px 6px;font-size:13px;font-weight:700}
+.st-草稿{color:var(--quiet)}.st-已送出{color:var(--yellow)}.st-接受{color:var(--green)}.st-拒絕{color:var(--red)}
+.empty{text-align:center;color:var(--quiet);padding:40px 10px}
+
+/* editor */
+.edit-bar{position:sticky;top:57px;z-index:15;background:var(--bg);padding:8px 0 10px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.save-state{font-size:12px;color:var(--quiet);margin-right:auto}
+.save-state.dirty{color:var(--yellow)}.save-state.err{color:var(--red);font-weight:700}
+.items-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table.items{width:100%;border-collapse:collapse;min-width:980px}
+table.items th{font-size:12px;color:var(--quiet);text-align:left;padding:6px 4px;border-bottom:2px solid var(--line);white-space:nowrap}
+table.items td{padding:4px;border-bottom:1px solid var(--line);vertical-align:top}
+table.items input,table.items select{min-height:36px;padding:6px 7px;font-size:14px}
+table.items .num{text-align:right}
+table.items .calc{padding-top:12px;text-align:right;white-space:nowrap;font-size:13px}
+.cost-col{background:#FBF7F1}
+.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.summary div{background:var(--mint-light);border-radius:10px;padding:10px 12px}
+.summary .k{font-size:12px;color:var(--quiet);font-weight:600}
+.summary .v{font-size:18px;font-weight:800;margin-top:2px}
+.summary .internal{background:#FBF7F1}
+@media (max-width:560px){.summary{grid-template-columns:repeat(2,1fr)}}
+.cust-info{font-size:13px;color:var(--quiet);margin-top:8px;line-height:1.6}
+
+/* modal */
+.modal-bg{position:fixed;inset:0;background:rgba(30,40,35,.45);z-index:50;display:flex;align-items:flex-start;justify-content:center;padding:6vh 12px;overflow:auto}
+.modal{background:#fff;border-radius:14px;padding:18px;width:100%;max-width:520px}
+.modal h3{margin:0 0 14px;color:var(--mint-dark)}
+.modal .actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:10px;font-size:14px;z-index:99;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90vw}
+#toast.show{opacity:1}
+
+/* print */
+#printArea{display:none}
+@media print{
+  body>*:not(#printArea){display:none!important}
+  #printArea{display:block!important;color:#222}
+  @page{size:A4;margin:12mm}
+}
+.p-head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid var(--orange);padding-bottom:12px;margin-bottom:14px}
+.p-co{background:var(--mint-light);border-radius:6px;padding:8px 10px;font-size:11px;line-height:1.8}
+.p-co b{color:var(--mint)}
+.p-title{font-size:22px;font-weight:900;color:var(--orange);letter-spacing:.08em;text-align:right}
+.p-info{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);border-radius:7px;overflow:hidden;margin-bottom:14px;font-size:12px}
+.p-info div{padding:7px 10px;border-bottom:1px solid var(--line)}
+.p-info div:nth-child(even){border-left:1px solid var(--line)}
+.p-info span{display:block;color:var(--mint);font-size:9px;font-weight:700}
+.p-table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:12px}
+.p-table th{background:var(--mint-light);color:var(--mint);font-size:10px;padding:7px 6px;border-bottom:2px solid var(--line);text-align:left}
+.p-table td{padding:6px;border-bottom:1px solid #eef4f1}
+.p-table .r{text-align:right}
+.p-total{margin-left:auto;width:260px;font-size:12px}
+.p-total div{display:flex;justify-content:space-between;padding:4px 0}
+.p-total .grand{border-top:2px solid var(--ink);margin-top:4px;padding-top:8px;font-size:15px;font-weight:800}
+.p-remark{margin-top:14px;font-size:12px;background:var(--mint-light);border-radius:6px;padding:8px 10px;white-space:pre-wrap}
+.p-foot{margin-top:18px;font-size:11px;color:var(--quiet)}
+</style>
+</head>
+<body>
+
+<!-- ===== 登入 ===== -->
+<div id="loginView" class="hidden">
+  <h1>報價系統</h1>
+  <p class="muted small" style="margin:0 0 18px">REVOCO・JULI</p>
+  <div class="card">
+    <div style="margin-bottom:10px"><label>Email</label><input id="loginEmail" type="email" autocomplete="username"></div>
+    <div style="margin-bottom:14px"><label>密碼</label><input id="loginPw" type="password" autocomplete="current-password"></div>
+    <button class="btn btn-primary" style="width:100%" id="loginBtn">登入</button>
+    <p id="loginErr" class="small" style="color:var(--red);margin:10px 0 0"></p>
+  </div>
+</div>
+
+<!-- ===== 主畫面 ===== -->
+<div id="appView" class="hidden">
+  <header>
+    <div class="brand">報價系統</div>
+    <nav class="tabs">
+      <button class="tab active" data-view="list">報價</button>
+      <button class="tab" data-view="customers">客戶</button>
+      <button class="tab" data-view="suppliers">工廠</button>
+    </nav>
+    <button class="btn btn-sm" id="logoutBtn">登出</button>
+  </header>
+
+  <main>
+    <!-- 報價列表 -->
+    <section id="listView">
+      <div class="toolbar">
+        <input class="grow" id="qSearch" placeholder="搜尋客戶、報價單號、品名…">
+        <select id="qStatus" style="width:auto">
+          <option value="">全部狀態</option><option>草稿</option><option>已送出</option><option>接受</option><option>拒絕</option>
+        </select>
+        <select id="qCompany" style="width:auto">
+          <option value="">兩家公司</option><option>REVOCO</option><option>JULI</option>
+        </select>
+        <button class="btn btn-primary" id="newQuoteBtn">＋ 新報價</button>
+      </div>
+      <div class="list" id="quoteList"></div>
+    </section>
+
+    <!-- 報價編輯 -->
+    <section id="editView" class="hidden">
+      <div class="edit-bar">
+        <button class="btn btn-sm" id="backBtn">← 列表</button>
+        <span class="save-state" id="saveState"></span>
+        <button class="btn btn-sm" id="copyBtn">複製成新版本</button>
+        <button class="btn btn-sm btn-danger" id="delBtn">刪除</button>
+        <button class="btn btn-sm" id="internalPdfBtn">內部版（含成本）</button>
+        <button class="btn btn-sm btn-orange" id="pdfBtn">客戶報價單 PDF</button>
+        <button class="btn btn-sm btn-primary" id="saveBtn">儲存</button>
+      </div>
+
+      <div class="card">
+        <h3>基本資料</h3>
+        <div class="grid g4">
+          <div><label>負責公司</label><select id="f_company"><option>REVOCO</option><option>JULI</option></select></div>
+          <div><label>報價單號</label><input id="f_qno"></div>
+          <div><label>報價日</label><input id="f_issued" type="date"></div>
+          <div><label>有效期限</label><input id="f_valid" type="date"></div>
+          <div><label>狀態</label><select id="f_status"><option>草稿</option><option>已送出</option><option>接受</option><option>拒絕</option></select></div>
+          <div><label>類型</label><select id="f_mode"><option>正式報價</option><option>快速估價</option></select></div>
+          <div><label>版本</label><input id="f_version" type="number" min="1" readonly></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>客戶</h3>
+        <div class="grid g2">
+          <div>
+            <label>客戶（打字搜尋）</label>
+            <div style="display:flex;gap:6px">
+              <input id="f_customer" list="customerOptions" placeholder="輸入客戶名稱">
+              <button class="btn btn-sm" id="newCustInlineBtn" title="新增客戶">＋</button>
+            </div>
+            <datalist id="customerOptions"></datalist>
+          </div>
+          <div><label>窗口</label><select id="f_contact"><option value="">—</option></select></div>
+        </div>
+        <div class="cust-info" id="custInfo"></div>
+      </div>
+
+      <div class="card">
+        <h3>品項</h3>
+        <div class="items-wrap">
+          <table class="items">
+            <thead><tr>
+              <th style="width:22%">品名</th><th style="width:13%">規格</th>
+              <th style="width:7%" class="num">數量</th><th style="width:6%">單位</th>
+              <th style="width:9%" class="num">報價單價 NT$</th><th style="width:8%" class="num">小計</th>
+              <th style="width:11%" class="cost-col">工廠</th>
+              <th style="width:7%" class="num cost-col">成本 ¥/個</th>
+              <th style="width:7%" class="num cost-col">客製費 ¥/整批</th>
+              <th style="width:6%" class="num cost-col">毛利</th>
+              <th style="width:10%">備註</th><th></th>
+            </tr></thead>
+            <tbody id="itemsBody"></tbody>
+          </table>
+        </div>
+        <button class="btn btn-sm" id="addItemBtn" style="margin-top:10px">＋ 加一列</button>
+        <p class="small muted" style="margin:8px 0 0">淺橘色欄位只在內部看得到，不會印在客戶報價單上。運費等要跟客戶收的費用，直接加一列寫進去。</p>
+      </div>
+
+      <div class="card">
+        <h3>成本設定（內部）</h3>
+        <div class="grid g4">
+          <div><label>匯率（1 人民幣 = ? 台幣）</label><input id="f_rate" type="number" step="0.0001"></div>
+          <div><label>工廠開票稅點 %</label><input id="f_taxpoint" type="number" step="0.1"></div>
+          <div><label>運輸方式</label><select id="f_ship"><option value="">—</option><option>海運</option><option>空運</option><option>快遞</option></select></div>
+          <div><label>營業稅 %</label><input id="f_salestax" type="number" step="0.1"></div>
+          <div><label>運費 NT$</label><input id="f_freight" type="number"></div>
+          <div><label>關稅 NT$</label><input id="f_duty" type="number"></div>
+          <div><label>其他成本 NT$</label><input id="f_other" type="number"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>條件與備註（會印在報價單上）</h3>
+        <div class="grid g2">
+          <div><label>付款條件</label><textarea id="f_terms"></textarea></div>
+          <div><label>備註</label><textarea id="f_remark"></textarea></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>金額</h3>
+        <div class="summary">
+          <div><div class="k">商品小計</div><div class="v" id="s_sub">0</div></div>
+          <div><div class="k">營業稅</div><div class="v" id="s_tax">0</div></div>
+          <div><div class="k">總計（含稅）</div><div class="v" id="s_grand">0</div></div>
+          <div class="internal"><div class="k">總成本（內部）</div><div class="v" id="s_cost">0</div></div>
+          <div class="internal"><div class="k">毛利（內部）</div><div class="v" id="s_profit">0</div></div>
+          <div class="internal"><div class="k">毛利率（內部）</div><div class="v" id="s_margin">—</div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 客戶 -->
+    <section id="customersView" class="hidden">
+      <div class="toolbar">
+        <input class="grow" id="cSearch" placeholder="搜尋客戶…">
+        <button class="btn btn-primary" id="newCustBtn">＋ 新客戶</button>
+      </div>
+      <div class="list" id="customerList"></div>
+    </section>
+
+    <!-- 工廠 -->
+    <section id="suppliersView" class="hidden">
+      <div class="toolbar">
+        <input class="grow" id="sSearch" placeholder="搜尋工廠…">
+        <button class="btn btn-primary" id="newSupBtn">＋ 新工廠</button>
+      </div>
+      <div class="list" id="supplierList"></div>
+    </section>
+  </main>
+</div>
+
+<!-- 客戶表單 -->
+<div class="modal-bg hidden" id="custModal">
+  <div class="modal">
+    <h3 id="custModalTitle">新客戶</h3>
+    <div class="grid g2">
+      <div style="grid-column:1/-1"><label>公司名稱 *</label><input id="c_name"></div>
+      <div><label>統一編號</label><input id="c_tax"></div>
+      <div><label>負責公司</label><select id="c_company"><option>REVOCO</option><option>JULI</option></select></div>
+      <div><label>產業</label><input id="c_industry"></div>
+      <div><label>狀態</label><select id="c_status"><option>潛在</option><option>開發中</option><option>往來中</option><option>沉睡</option></select></div>
+      <div style="grid-column:1/-1"><label>地址</label><input id="c_address"></div>
+    </div>
+    <h3 style="margin:16px 0 10px;font-size:14px">主要窗口</h3>
+    <div class="grid g2">
+      <div><label>姓名</label><input id="ct_name"></div>
+      <div><label>職稱</label><input id="ct_title"></div>
+      <div><label>電話</label><input id="ct_phone"></div>
+      <div><label>Email</label><input id="ct_email"></div>
+      <div><label>Line ID</label><input id="ct_line"></div>
+    </div>
+    <div class="actions">
+      <button class="btn" data-close>取消</button>
+      <button class="btn btn-primary" id="custSaveBtn">儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 工廠表單 -->
+<div class="modal-bg hidden" id="supModal">
+  <div class="modal">
+    <h3 id="supModalTitle">新工廠</h3>
+    <div class="grid g2">
+      <div style="grid-column:1/-1"><label>工廠名稱 *</label><input id="s_name"></div>
+      <div><label>類型</label><select id="s_type"><option value="">—</option><option>工廠</option><option>貿易商</option></select></div>
+      <div><label>所在地</label><input id="s_location" placeholder="例：浙江義烏"></div>
+      <div><label>聯絡人</label><input id="s_contact"></div>
+      <div><label>微信</label><input id="s_wechat"></div>
+      <div><label>開票稅點 %</label><input id="s_taxpoint" type="number" step="0.1"></div>
+      <div><label>付款條件</label><input id="s_terms" placeholder="例：30% 訂金、70% 出貨前"></div>
+      <div style="grid-column:1/-1"><label>備註</label><textarea id="s_notes"></textarea></div>
+    </div>
+    <div class="actions">
+      <button class="btn" data-close>取消</button>
+      <button class="btn btn-primary" id="supSaveBtn">儲存</button>
+    </div>
+  </div>
+</div>
+
+<div id="printArea"></div>
+<div id="toast"></div>
+
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+// ================= 設定 =================
+const SUPABASE_URL = 'https://rlnamaqqqajixoebekdw.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJsbmFtYXFxcWFqaXhvZWJla2R3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2OTY2NjEsImV4cCI6MjA5ODI3MjY2MX0.Vbw-hqRgzqTb-gAAq7sZPrRESL9Qf3sj3SAjnuS197g';
+
+// 報價單抬頭（JULI 的資料請補上）
+const COMPANIES = {
+  REVOCO: { prefix:'REV', name:'睿握科技有限公司', logo:'logo2.png', taxId:'60341689',
+            phone:'0921-386911', email:'revocotw@gmail.com', address:'台北市大安區忠孝東路四段300號5樓' },
+  JULI:   { prefix:'JULI', name:'鉅立貿易有限公司', logo:'', taxId:'',
+            phone:'', email:'', address:'' }
+};
+const DEFAULTS = { rate:4.5, taxPoint:10, salesTax:5, validDays:30 };
+
+const sb = window.__SB__ || createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ================= 小工具 =================
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const num = v => { const n = parseFloat(v); return isNaN(n) ? 0 : n; };
+const numOrNull = v => (v === '' || v == null || isNaN(parseFloat(v))) ? null : parseFloat(v);
+const fmt = (n, d=0) => Number(n||0).toLocaleString('zh-TW', {minimumFractionDigits:0, maximumFractionDigits:d});
+const today = () => new Date(Date.now() - new Date().getTimezoneOffset()*60000).toISOString().slice(0,10);
+const addDays = (iso, n) => { const d = new Date(iso + 'T00:00:00'); d.setDate(d.getDate()+n); return new Date(d - d.getTimezoneOffset()*60000).toISOString().slice(0,10); };
+function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('show'),2800); }
+async function run(q){ const { data, error } = await q; if (error) throw error; return data; }
+
+// ================= 狀態 =================
+let customers = [], contacts = [], suppliers = [];
+let current = null;        // 編輯中的報價
+let items = [];            // 編輯中的品項
+let dirty = false, saving = false, autosaveTimer = null;
+
+// ================= 登入 =================
+async function boot(){
+  const { data:{ session } } = await sb.auth.getSession();
+  session ? showApp() : showLogin();
+  sb.auth.onAuthStateChange((_e, s) => { if (!s) showLogin(); });
+}
+function showLogin(){ $('appView').classList.add('hidden'); $('loginView').classList.remove('hidden'); }
+async function showApp(){
+  $('loginView').classList.add('hidden'); $('appView').classList.remove('hidden');
+  await loadMasters();
+  switchView('list');
+}
+$('loginBtn').onclick = async () => {
+  $('loginErr').textContent = '';
+  const { error } = await sb.auth.signInWithPassword({ email:$('loginEmail').value.trim(), password:$('loginPw').value });
+  if (error) { $('loginErr').textContent = '登入失敗：' + (error.message.includes('Invalid') ? 'Email 或密碼不對' : error.message); return; }
+  showApp();
+};
+$('loginPw').addEventListener('keydown', e => { if (e.key === 'Enter') $('loginBtn').click(); });
+$('logoutBtn').onclick = async () => { if (dirty) await saveQuote(true); await sb.auth.signOut(); };
+
+// ================= 主檔 =================
+async function loadMasters(){
+  [customers, contacts, suppliers] = await Promise.all([
+    run(sb.from('customers').select('*').order('name')),
+    run(sb.from('contacts').select('*').order('is_primary', { ascending:false })),
+    run(sb.from('suppliers').select('*').order('name')),
+  ]);
+  $('customerOptions').innerHTML = customers.map(c => `<option value="${esc(c.name)}">`).join('');
+}
+const custById = id => customers.find(c => c.id === id);
+const custByName = name => customers.find(c => c.name === name.trim());
+
+// ================= 切換畫面 =================
+async function switchView(v){
+  if (v !== 'edit' && !$('editView').classList.contains('hidden') && dirty) await saveQuote(true);
+  ['list','edit','customers','suppliers'].forEach(x => $(x + 'View').classList.toggle('hidden', x !== v));
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === v || (v === 'edit' && t.dataset.view === 'list')));
+  if (v === 'list') renderQuoteList();
+  if (v === 'customers') renderCustomers();
+  if (v === 'suppliers') renderSuppliers();
+  window.scrollTo(0,0);
+}
+document.querySelectorAll('.tab').forEach(t => t.onclick = () => switchView(t.dataset.view));
+
+// ================= 報價列表 =================
+let listTimer;
+['qSearch','qStatus','qCompany'].forEach(id => $(id).addEventListener('input', () => { clearTimeout(listTimer); listTimer = setTimeout(renderQuoteList, 250); }));
+
+async function renderQuoteList(){
+  const box = $('quoteList');
+  box.innerHTML = '<div class="empty">載入中…</div>';
+  try {
+    let q = sb.from('quote_margin').select('*').order('issued_at', { ascending:false }).order('quote_no', { ascending:false }).limit(300);
+    if ($('qStatus').value) q = q.eq('status', $('qStatus').value);
+    if ($('qCompany').value) q = q.eq('company_entity', $('qCompany').value);
+    let rows = await run(q);
+    const kw = $('qSearch').value.trim().toLowerCase();
+    if (kw) {
+      const hit = await run(sb.from('quote_items').select('quote_id').ilike('description', `%${kw}%`));
+      const ids = new Set(hit.map(h => h.quote_id));
+      rows = rows.filter(r => ids.has(r.id) || r.quote_no.toLowerCase().includes(kw) || (custById(r.customer_id)?.name || '').toLowerCase().includes(kw));
+    }
+    if (!rows.length) { box.innerHTML = '<div class="empty">還沒有報價。按右上角「＋ 新報價」開始。</div>'; return; }
+    box.innerHTML = rows.map(r => {
+      const grand = num(r.subtotal_twd) + num(r.sales_tax_twd);
+      return `<div class="row" data-id="${r.id}">
+        <div><div class="qno">${esc(r.quote_no)}</div><span class="badge b-${r.company_entity}">${r.company_entity}</span></div>
+        <div class="cust">${esc(custById(r.customer_id)?.name || '（未選客戶）')}</div>
+        <div class="c-date muted">${esc(r.issued_at || '')}</div>
+        <div class="right"><b>NT$ ${fmt(grand)}</b></div>
+        <div class="c-margin right muted">${r.margin_pct == null ? '—' : '毛利 ' + r.margin_pct + '%'}</div>
+        <div><select class="status-select st-${r.status}" data-status="${r.id}">
+          ${['草稿','已送出','接受','拒絕'].map(s => `<option ${s===r.status?'selected':''}>${s}</option>`).join('')}
+        </select></div>
+      </div>`;
+    }).join('');
+    box.querySelectorAll('.row').forEach(el => el.onclick = e => { if (e.target.tagName !== 'SELECT') openQuote(el.dataset.id); });
+    box.querySelectorAll('[data-status]').forEach(sel => sel.onchange = async () => {
+      await updateStatus(sel.dataset.status, sel.value); sel.className = 'status-select st-' + sel.value;
+    });
+  } catch (e) { box.innerHTML = `<div class="empty" style="color:var(--red)">讀取失敗：${esc(e.message)}</div>`; }
+}
+
+async function updateStatus(id, status){
+  try {
+    await run(sb.from('quotes').update({ status }).eq('id', id));
+    toast(status === '接受' ? '✅ 已改成「接受」，並自動建立專案' : '狀態已更新');
+  } catch (e) { toast('⚠️ 更新失敗：' + e.message); }
+}
+
+// ================= 報價編輯 =================
+async function nextQuoteNo(company){
+  const prefix = `${COMPANIES[company].prefix}-${today().replace(/-/g,'')}-`;
+  const rows = await run(sb.from('quotes').select('quote_no').like('quote_no', prefix + '%'));
+  const max = rows.reduce((m, r) => Math.max(m, parseInt(r.quote_no.slice(prefix.length)) || 0), 0);
+  return prefix + String(max + 1).padStart(2, '0');
+}
+
+$('newQuoteBtn').onclick = async () => {
+  current = { id:null, company_entity:'REVOCO', version:1, mode:'正式報價', status:'草稿',
+    issued_at:today(), valid_until:addDays(today(), DEFAULTS.validDays),
+    exchange_rate:DEFAULTS.rate, tax_point_pct:DEFAULTS.taxPoint, sales_tax_pct:DEFAULTS.salesTax,
+    freight:0, duty:0, other_costs:0, quote_no: await nextQuoteNo('REVOCO') };
+  items = [blankItem(), blankItem(), blankItem()];
+  fillEditor(); setDirty(false, '新報價，選好客戶後會自動儲存');
+  switchView('edit');
+};
+
+async function openQuote(id){
+  try {
+    current = await run(sb.from('quotes').select('*').eq('id', id).single());
+    items = await run(sb.from('quote_items').select('*').eq('quote_id', id).order('sort_order'));
+    if (!items.length) items = [blankItem()];
+    fillEditor(); setDirty(false, '已儲存');
+    switchView('edit');
+  } catch (e) { toast('⚠️ 打不開：' + e.message); }
+}
+
+function blankItem(){ return { description:'', spec:'', quantity:'', unit:'個', unit_price_twd:'', supplier_id:'', unit_cost_cny:'', custom_fee_cny:'', note:'' }; }
+
+const F = { company_entity:'f_company', quote_no:'f_qno', issued_at:'f_issued', valid_until:'f_valid', status:'f_status',
+  mode:'f_mode', version:'f_version', exchange_rate:'f_rate', tax_point_pct:'f_taxpoint', shipping_method:'f_ship',
+  sales_tax_pct:'f_salestax', freight:'f_freight', duty:'f_duty', other_costs:'f_other', payment_terms:'f_terms', remark:'f_remark' };
+
+function fillEditor(){
+  for (const [k, id] of Object.entries(F)) $(id).value = current[k] ?? '';
+  $('f_customer').value = custById(current.customer_id)?.name || '';
+  fillContacts();
+  renderItems(); recalc();
+}
+
+function fillContacts(){
+  const c = custByName($('f_customer').value);
+  const list = c ? contacts.filter(x => x.customer_id === c.id) : [];
+  $('f_contact').innerHTML = '<option value="">—</option>' + list.map(x => `<option value="${x.id}">${esc(x.name)}${x.title ? '（' + esc(x.title) + '）' : ''}</option>`).join('');
+  if (current.contact_id && list.some(x => x.id === current.contact_id)) $('f_contact').value = current.contact_id;
+  else if (list.length && !current.id) $('f_contact').value = list[0].id;
+  $('custInfo').innerHTML = c ? [c.tax_id && '統編 ' + esc(c.tax_id), c.address && esc(c.address)].filter(Boolean).join('　·　') : ($('f_customer').value ? '找不到這個客戶，按「＋」新增' : '');
+}
+
+function readEditor(){
+  for (const [k, id] of Object.entries(F)) current[k] = $(id).value;
+  const c = custByName($('f_customer').value);
+  current.customer_id = c?.id || null;
+  current.contact_id = $('f_contact').value || null;
+}
+
+function supplierOptions(sel){
+  return '<option value="">—</option>' + suppliers.map(s => `<option value="${s.id}" ${s.id===sel?'selected':''}>${esc(s.short_name || s.name)}</option>`).join('') + '<option value="__new">＋ 新增工廠…</option>';
+}
+
+function renderItems(){
+  $('itemsBody').innerHTML = items.map((it, i) => `<tr data-i="${i}">
+    <td><input data-k="description" value="${esc(it.description)}" placeholder="品名"></td>
+    <td><input data-k="spec" value="${esc(it.spec)}"></td>
+    <td><input data-k="quantity" class="num" type="number" value="${esc(it.quantity)}"></td>
+    <td><input data-k="unit" value="${esc(it.unit)}"></td>
+    <td><input data-k="unit_price_twd" class="num" type="number" step="0.01" value="${esc(it.unit_price_twd)}"></td>
+    <td class="calc" data-sub></td>
+    <td class="cost-col"><select data-k="supplier_id">${supplierOptions(it.supplier_id)}</select></td>
+    <td class="cost-col"><input data-k="unit_cost_cny" class="num" type="number" step="0.01" value="${esc(it.unit_cost_cny)}"></td>
+    <td class="cost-col"><input data-k="custom_fee_cny" class="num" type="number" step="0.01" value="${esc(it.custom_fee_cny)}"></td>
+    <td class="calc cost-col" data-margin></td>
+    <td><input data-k="note" value="${esc(it.note)}"></td>
+    <td><button class="btn btn-sm btn-danger" data-del title="刪除這列">✕</button></td>
+  </tr>`).join('');
+}
+
+$('itemsBody').addEventListener('input', e => {
+  const tr = e.target.closest('tr'); const k = e.target.dataset.k; if (!tr || !k || k === 'supplier_id') return;
+  items[tr.dataset.i][k] = e.target.value; recalc(); markDirty();
+});
+$('itemsBody').addEventListener('change', async e => {
+  if (e.target.dataset.k !== 'supplier_id') return;
+  const i = e.target.closest('tr').dataset.i;
+  if (e.target.value === '__new') { e.target.value = items[i].supplier_id || ''; openSupplier(null, s => { items[i].supplier_id = s.id; renderItems(); recalc(); markDirty(); }); return; }
+  items[i].supplier_id = e.target.value; markDirty();
+});
+$('itemsBody').addEventListener('click', e => {
+  if (!e.target.hasAttribute('data-del')) return;
+  items.splice(e.target.closest('tr').dataset.i, 1); if (!items.length) items.push(blankItem());
+  renderItems(); recalc(); markDirty();
+});
+$('addItemBtn').onclick = () => { items.push(blankItem()); renderItems(); recalc(); $('itemsBody').lastElementChild.querySelector('input').focus(); };
+
+// 計算（與資料庫 quote_margin 相同的算法）
+function calc(){
+  const rate = num($('f_rate').value), tp = num($('f_taxpoint').value);
+  let sub = 0, goodsCny = 0;
+  const rows = items.map(it => {
+    const q = num(it.quantity), revenue = q * num(it.unit_price_twd);
+    const costCny = q * num(it.unit_cost_cny) + num(it.custom_fee_cny);
+    const costTwd = costCny * (1 + tp/100) * rate;
+    sub += revenue; goodsCny += costCny;
+    return { revenue, costTwd, hasCost: costCny > 0 };
+  });
+  const tax = Math.round(sub * num($('f_salestax').value) / 100);
+  const cost = Math.round(goodsCny * (1 + tp/100) * rate) + num($('f_freight').value) + num($('f_duty').value) + num($('f_other').value);
+  return { rows, sub, tax, grand: sub + tax, cost, profit: sub - cost, margin: sub > 0 ? (sub - cost) / sub * 100 : null };
+}
+function recalc(){
+  const r = calc();
+  $('itemsBody').querySelectorAll('tr').forEach((tr, i) => {
+    const x = r.rows[i]; if (!x) return;
+    tr.querySelector('[data-sub]').textContent = x.revenue ? fmt(x.revenue) : '';
+    tr.querySelector('[data-margin]').textContent = (x.revenue && x.hasCost) ? Math.round((x.revenue - x.costTwd) / x.revenue * 100) + '%' : '';
+  });
+  $('s_sub').textContent = 'NT$ ' + fmt(r.sub);
+  $('s_tax').textContent = 'NT$ ' + fmt(r.tax);
+  $('s_grand').textContent = 'NT$ ' + fmt(r.grand);
+  $('s_cost').textContent = 'NT$ ' + fmt(r.cost);
+  $('s_profit').textContent = 'NT$ ' + fmt(r.profit);
+  $('s_margin').textContent = r.margin == null ? '—' : r.margin.toFixed(1) + '%';
+  $('s_margin').style.color = r.margin == null ? '' : r.margin < 15 ? 'var(--red)' : r.margin < 25 ? 'var(--yellow)' : 'var(--green)';
+}
+
+// 欄位變動 → 標記未儲存、重算、自動儲存
+Object.values(F).forEach(id => $(id).addEventListener('input', () => { recalc(); markDirty(); }));
+$('f_customer').addEventListener('input', () => { fillContacts(); markDirty(); });
+$('f_contact').addEventListener('change', markDirty);
+$('f_company').addEventListener('change', async () => {
+  if (!current.id) { $('f_qno').value = await nextQuoteNo($('f_company').value); }
+});
+
+function markDirty(){
+  dirty = true; setDirty(true);
+  clearTimeout(autosaveTimer);
+  autosaveTimer = setTimeout(() => { if (custByName($('f_customer').value)) saveQuote(true); }, 2500);
+}
+function setDirty(isDirty, text){
+  const el = $('saveState');
+  el.className = 'save-state' + (isDirty ? ' dirty' : '');
+  el.textContent = text || (isDirty ? '● 尚未儲存' : '✓ 已儲存');
+}
+window.addEventListener('beforeunload', e => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
+
+async function saveQuote(silent=false){
+  if (saving) return !!current.id;
+  readEditor();
+  if (!current.customer_id) { if (!silent) toast('請先選擇客戶（找不到可以按「＋」新增）'); setDirty(true, '● 選好客戶才能儲存'); return false; }
+  if (!current.quote_no) current.quote_no = await nextQuoteNo(current.company_entity);
+  saving = true; clearTimeout(autosaveTimer); setDirty(true, '儲存中…');
+  try {
+    const row = {
+      quote_no: current.quote_no, customer_id: current.customer_id, contact_id: current.contact_id,
+      deal_id: current.deal_id || null, company_entity: current.company_entity, version: parseInt(current.version) || 1,
+      mode: current.mode, issued_at: current.issued_at || null, valid_until: current.valid_until || null,
+      exchange_rate: numOrNull(current.exchange_rate), tax_point_pct: numOrNull(current.tax_point_pct),
+      shipping_method: current.shipping_method || null, freight: num(current.freight), duty: num(current.duty),
+      other_costs: num(current.other_costs), sales_tax_pct: numOrNull(current.sales_tax_pct),
+      payment_terms: current.payment_terms || null, remark: current.remark || null, status: current.status
+    };
+    const saved = current.id
+      ? await run(sb.from('quotes').update(row).eq('id', current.id).select().single())
+      : await run(sb.from('quotes').insert(row).select().single());
+    current = { ...current, ...saved };
+    await run(sb.from('quote_items').delete().eq('quote_id', current.id));
+    const rows = items.filter(it => it.description.trim()).map((it, i) => ({
+      quote_id: current.id, sort_order: i, description: it.description.trim(), spec: it.spec || null,
+      quantity: parseInt(it.quantity) || 0, unit: it.unit || null, unit_price_twd: num(it.unit_price_twd),
+      supplier_id: it.supplier_id || null, unit_cost_cny: num(it.unit_cost_cny), custom_fee_cny: num(it.custom_fee_cny),
+      note: it.note || null, product_id: it.product_id || null
+    }));
+    if (rows.length) await run(sb.from('quote_items').insert(rows));
+    dirty = false;
+    const t = new Date(); setDirty(false, `✓ 已儲存 ${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}`);
+    if (!silent) toast('✅ 已儲存');
+    return true;
+  } catch (e) {
+    $('saveState').className = 'save-state err';
+    $('saveState').textContent = '⚠️ 儲存失敗：' + (e.message.includes('duplicate') ? '報價單號重複' : e.message);
+    toast('⚠️ 儲存失敗：' + e.message);
+    return false;
+  } finally { saving = false; }
+}
+
+$('saveBtn').onclick = () => saveQuote(false);
+$('backBtn').onclick = () => switchView('list');
+$('f_status').addEventListener('change', async () => {
+  if ($('f_status').value === '接受' && await saveQuote(true)) toast('✅ 已改成「接受」，並自動建立專案');
+});
+
+$('copyBtn').onclick = async () => {
+  if (!await saveQuote(true)) return;
+  const base = current.quote_no.replace(/-V\d+$/, '');
+  const v = (parseInt(current.version) || 1) + 1;
+  current = { ...current, id:null, version:v, status:'草稿', quote_no:`${base}-V${v}`, issued_at:today(), valid_until:addDays(today(), DEFAULTS.validDays) };
+  items = items.map(it => ({ ...it, id:undefined, quote_id:undefined }));
+  fillEditor(); dirty = true;
+  if (await saveQuote(true)) toast(`✅ 已複製成第 ${v} 版，可以直接改`);
+};
+
+$('delBtn').onclick = async () => {
+  if (!current.id) { switchView('list'); return; }
+  if (!confirm(`確定要刪除 ${current.quote_no}？刪了就找不回來。`)) return;
+  try { await run(sb.from('quotes').delete().eq('id', current.id)); dirty = false; toast('已刪除'); switchView('list'); }
+  catch (e) { toast('⚠️ 刪除失敗：' + e.message); }
+};
+
+// ================= 報價單 PDF（先存檔再列印） =================
+async function printQuote(internal){
+  if (dirty || !current.id) { if (!await saveQuote(true)) { toast('請先選客戶，存檔後才能輸出'); return; } }
+  readEditor();
+  const co = COMPANIES[current.company_entity];
+  const cust = custById(current.customer_id) || {};
+  const ct = contacts.find(x => x.id === current.contact_id) || {};
+  const r = calc();
+  const sup = id => suppliers.find(s => s.id === id);
+  const lines = items.filter(it => it.description.trim());
+  $('printArea').innerHTML = `
+    <div class="p-head">
+      <div>
+        ${co.logo ? `<img src="${co.logo}" style="height:36px;margin-bottom:6px" onerror="this.remove()">` : `<div style="font-size:18px;font-weight:800;margin-bottom:6px">${esc(co.name)}</div>`}
+        <div class="p-co">
+          <div><b>公司：</b>${esc(co.name)}</div>
+          ${co.taxId ? `<div><b>統編：</b>${esc(co.taxId)}</div>` : ''}
+          ${co.address ? `<div><b>地址：</b>${esc(co.address)}</div>` : ''}
+          ${co.phone ? `<div><b>電話：</b>${esc(co.phone)}</div>` : ''}
+          ${co.email ? `<div><b>Email：</b>${esc(co.email)}</div>` : ''}
+        </div>
+      </div>
+      <div><div class="p-title">${internal ? '內部成本單' : 'QUOTATION'}</div><div class="right small muted">${esc(current.quote_no)}</div></div>
+    </div>
+    <div class="p-info">
+      <div><span>報價日期</span>${esc(current.issued_at)}</div><div><span>有效期限</span>${esc(current.valid_until)}</div>
+      <div><span>客戶名稱</span>${esc(cust.name)}</div><div><span>統一編號</span>${esc(cust.tax_id || '-')}</div>
+      <div><span>聯絡人</span>${esc(ct.name || '-')}</div><div><span>聯絡電話</span>${esc(ct.phone || '-')}</div>
+      <div style="border-bottom:none"><span>地址</span>${esc(cust.address || '-')}</div><div style="border-bottom:none"><span>幣別</span>TWD</div>
+    </div>
+    <table class="p-table">
+      <thead><tr><th>No.</th><th>商品名稱</th><th>規格/尺寸</th><th class="r">數量</th><th>單位</th><th class="r">單價</th><th class="r">小計</th>
+        ${internal ? '<th>工廠</th><th class="r">成本¥</th><th class="r">客製費¥</th><th class="r">毛利</th>' : ''}<th>備註</th></tr></thead>
+      <tbody>${lines.map((it, i) => {
+        const x = r.rows[items.indexOf(it)];
+        return `<tr><td>${i+1}</td><td><b>${esc(it.description)}</b></td><td>${esc(it.spec || '-')}</td>
+          <td class="r">${fmt(it.quantity)}</td><td>${esc(it.unit)}</td><td class="r">${fmt(it.unit_price_twd, 2)}</td><td class="r"><b>${fmt(x.revenue)}</b></td>
+          ${internal ? `<td>${esc(sup(it.supplier_id)?.name || '')}</td><td class="r">${fmt(it.unit_cost_cny, 2)}</td><td class="r">${fmt(it.custom_fee_cny, 2)}</td><td class="r">${x.revenue && x.hasCost ? Math.round((x.revenue - x.costTwd)/x.revenue*100) + '%' : ''}</td>` : ''}
+          <td>${esc(it.note)}</td></tr>`;
+      }).join('')}</tbody>
+    </table>
+    <div class="p-total">
+      <div><span>商品小計</span><b>NT$ ${fmt(r.sub)}</b></div>
+      <div><span>營業稅（${esc(current.sales_tax_pct)}%）</span><b>NT$ ${fmt(r.tax)}</b></div>
+      <div class="grand"><span>總計</span><span>NT$ ${fmt(r.grand)}</span></div>
+      ${internal ? `<div style="margin-top:8px"><span>總成本</span><b>NT$ ${fmt(r.cost)}</b></div><div><span>毛利</span><b>NT$ ${fmt(r.profit)}（${r.margin == null ? '—' : r.margin.toFixed(1) + '%'}）</b></div>
+        <div class="small muted"><span>匯率 ${esc(current.exchange_rate)}・稅點 ${esc(current.tax_point_pct)}%・運費 ${fmt(current.freight)}・關稅 ${fmt(current.duty)}・其他 ${fmt(current.other_costs)}</span></div>` : ''}
+    </div>
+    ${current.payment_terms ? `<div class="p-remark"><b>付款條件</b>\n${esc(current.payment_terms)}</div>` : ''}
+    ${current.remark ? `<div class="p-remark"><b>備註</b>\n${esc(current.remark)}</div>` : ''}
+    <div class="p-foot">此報價單有效期至 ${esc(current.valid_until)}。如有任何疑問請聯繫 ${esc(co.phone)} ${esc(co.email)}。</div>`;
+  if (current.status === '草稿' && !internal) {
+    if (confirm('要把這張報價的狀態改成「已送出」嗎？')) { $('f_status').value = '已送出'; current.status = '已送出'; await saveQuote(true); }
+  }
+  setTimeout(() => window.print(), 200);
+}
+$('pdfBtn').onclick = () => printQuote(false);
+$('internalPdfBtn').onclick = () => printQuote(true);
+
+// ================= 客戶 =================
+$('cSearch').addEventListener('input', renderCustomers);
+function renderCustomers(){
+  const kw = $('cSearch').value.trim().toLowerCase();
+  const list = customers.filter(c => !kw || c.name.toLowerCase().includes(kw) || (c.tax_id || '').includes(kw));
+  $('customerList').innerHTML = list.length ? list.map(c => {
+    const ct = contacts.find(x => x.customer_id === c.id);
+    return `<div class="row" data-id="${c.id}" style="grid-template-columns:2fr 1.4fr 1fr auto">
+      <div class="cust">${esc(c.name)}</div>
+      <div class="muted small">${esc(ct ? ct.name + (ct.phone ? '・' + ct.phone : '') : '')}</div>
+      <div class="muted small">${esc(c.status)}</div>
+      <span class="badge b-${c.company_entity}">${c.company_entity}</span></div>`;
+  }).join('') : '<div class="empty">還沒有客戶。</div>';
+  $('customerList').querySelectorAll('.row').forEach(el => el.onclick = () => openCustomer(el.dataset.id));
+}
+
+let custEditing = null, custCallback = null;
+function openCustomer(id, cb){
+  custEditing = id ? custById(id) : null; custCallback = cb || null;
+  const c = custEditing || {}; const ct = id ? (contacts.find(x => x.customer_id === id && x.is_primary) || contacts.find(x => x.customer_id === id) || {}) : {};
+  $('custModalTitle').textContent = id ? '編輯客戶' : '新客戶';
+  $('c_name').value = c.name || (cb ? $('f_customer').value : ''); $('c_tax').value = c.tax_id || '';
+  $('c_company').value = c.company_entity || (cb ? $('f_company').value : 'REVOCO'); $('c_industry').value = c.industry || '';
+  $('c_status').value = c.status || '潛在'; $('c_address').value = c.address || '';
+  $('ct_name').value = ct.name || ''; $('ct_title').value = ct.title || ''; $('ct_phone').value = ct.phone || '';
+  $('ct_email').value = ct.email || ''; $('ct_line').value = ct.line_id || '';
+  $('custModal').dataset.contactId = ct.id || '';
+  $('custModal').classList.remove('hidden'); $('c_name').focus();
+}
+$('newCustBtn').onclick = () => openCustomer(null);
+$('newCustInlineBtn').onclick = () => openCustomer(null, c => { $('f_customer').value = c.name; fillContacts(); markDirty(); });
+$('custSaveBtn').onclick = async () => {
+  const name = $('c_name').value.trim(); if (!name) { toast('請填公司名稱'); return; }
+  const row = { name, tax_id:$('c_tax').value.trim() || null, company_entity:$('c_company').value, industry:$('c_industry').value.trim() || null,
+    status:$('c_status').value, address:$('c_address').value.trim() || null };
+  try {
+    const c = custEditing ? await run(sb.from('customers').update(row).eq('id', custEditing.id).select().single())
+                          : await run(sb.from('customers').insert(row).select().single());
+    const ctRow = { customer_id:c.id, name:$('ct_name').value.trim(), title:$('ct_title').value.trim() || null, phone:$('ct_phone').value.trim() || null,
+      email:$('ct_email').value.trim() || null, line_id:$('ct_line').value.trim() || null, is_primary:true };
+    const ctId = $('custModal').dataset.contactId;
+    if (ctRow.name) ctId ? await run(sb.from('contacts').update(ctRow).eq('id', ctId)) : await run(sb.from('contacts').insert(ctRow));
+    await loadMasters(); $('custModal').classList.add('hidden'); toast('✅ 客戶已儲存');
+    if (custCallback) custCallback(c); else renderCustomers();
+  } catch (e) { toast('⚠️ 儲存失敗：' + e.message); }
+};
+
+// ================= 工廠 =================
+$('sSearch').addEventListener('input', renderSuppliers);
+function renderSuppliers(){
+  const kw = $('sSearch').value.trim().toLowerCase();
+  const list = suppliers.filter(s => !kw || s.name.toLowerCase().includes(kw) || (s.location || '').toLowerCase().includes(kw));
+  $('supplierList').innerHTML = list.length ? list.map(s => `<div class="row" data-id="${s.id}" style="grid-template-columns:2fr 1fr 1fr 1fr">
+      <div class="cust">${esc(s.name)}</div><div class="muted small">${esc(s.location || '')}</div>
+      <div class="muted small">${esc(s.wechat ? '微信 ' + s.wechat : '')}</div><div class="muted small">${s.tax_point_pct != null ? '稅點 ' + s.tax_point_pct + '%' : ''}</div></div>`).join('')
+    : '<div class="empty">還沒有工廠。</div>';
+  $('supplierList').querySelectorAll('.row').forEach(el => el.onclick = () => openSupplier(el.dataset.id));
+}
+let supEditing = null, supCallback = null;
+function openSupplier(id, cb){
+  supEditing = id ? suppliers.find(s => s.id === id) : null; supCallback = cb || null;
+  const s = supEditing || {};
+  $('supModalTitle').textContent = id ? '編輯工廠' : '新工廠';
+  $('s_name').value = s.name || ''; $('s_type').value = s.type || ''; $('s_location').value = s.location || '';
+  $('s_contact').value = s.contact_name || ''; $('s_wechat').value = s.wechat || '';
+  $('s_taxpoint').value = s.tax_point_pct ?? ''; $('s_terms').value = s.payment_terms || ''; $('s_notes').value = s.notes || '';
+  $('supModal').classList.remove('hidden'); $('s_name').focus();
+}
+$('newSupBtn').onclick = () => openSupplier(null);
+$('supSaveBtn').onclick = async () => {
+  const name = $('s_name').value.trim(); if (!name) { toast('請填工廠名稱'); return; }
+  const row = { name, type:$('s_type').value || null, location:$('s_location').value.trim() || null, contact_name:$('s_contact').value.trim() || null,
+    wechat:$('s_wechat').value.trim() || null, tax_point_pct:numOrNull($('s_taxpoint').value), payment_terms:$('s_terms').value.trim() || null,
+    notes:$('s_notes').value.trim() || null };
+  try {
+    const s = supEditing ? await run(sb.from('suppliers').update(row).eq('id', supEditing.id).select().single())
+                         : await run(sb.from('suppliers').insert(row).select().single());
+    await loadMasters(); $('supModal').classList.add('hidden'); toast('✅ 工廠已儲存');
+    if (supCallback) supCallback(s); else renderSuppliers();
+  } catch (e) { toast('⚠️ 儲存失敗：' + e.message); }
+};
+
+// 關閉表單
+document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => b.closest('.modal-bg').classList.add('hidden'));
+document.querySelectorAll('.modal-bg').forEach(m => m.addEventListener('click', e => { if (e.target === m) m.classList.add('hidden'); }));
+
+boot();
+</script>
+</body>
+</html>
