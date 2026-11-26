@@ -222,6 +222,65 @@ table.tasks input[type=checkbox]{width:22px;height:22px;min-height:0;margin-top:
 .hist .hl.nc{cursor:default}
 .hist .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
 .hist .stats div{background:var(--mint-light);border-radius:8px;padding:8px 10px}
+/* 上方選單分組顏色 */
+.tab[data-g]{position:relative;padding-left:20px}
+.tab[data-g]::before{content:'';position:absolute;left:8px;top:50%;width:7px;height:7px;border-radius:50%;transform:translateY(-50%);background:var(--g)}
+.tab[data-g="home"]{--g:#2C3830;--gl:#E7EAE8}
+.tab[data-g="sales"]{--g:#F37021;--gl:#FDE9DC}
+.tab[data-g="deal"]{--g:#8A9A86;--gl:#E8EDE7}
+.tab[data-g="data"]{--g:#7FA7CF;--gl:#E6EFF8}
+.tab[data-g="money"]{--g:#C2A86A;--gl:#F5EFDF}
+.tab[data-g="brain"]{--g:#8E84A8;--gl:#EEEBF4}
+.tab[data-g].active{background:var(--gl);color:var(--ink);box-shadow:inset 0 -2px 0 var(--g)}
+.tab[data-g="money"]+.tab,.tab[data-g="home"]+.tab,.tab[data-g="sales"]+.tab[data-g="deal"],.tab[data-g="deal"]+.tab[data-g="data"],.tab[data-g="data"]+.tab[data-g="money"]{margin-left:10px}
+/* Playbook */
+.pbcard{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:8px;cursor:pointer}
+.pbcard:hover{border-color:#8E84A8}.pbcard.arch{opacity:.55}
+.pbcard .t{font-weight:700;font-size:15px;margin-top:4px}
+.pbcard .meta{font-size:12px;color:var(--quiet);margin-top:3px}
+.pbcard .pv{font-size:13px;color:#555;margin-top:6px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.pst{font-size:11px;font-weight:700;padding:1px 7px;border-radius:5px;margin-right:4px}
+.pst-已核准{background:#E8EDE7;color:#4F5F4C}.pst-草稿{background:#FDE9DC;color:#9A4A12}.pst-有新草稿{background:#F5EFDF;color:#7A6328}.pst-已封存{background:#EEE;color:#777}.pst-歷史版本{background:#EEF0F4;color:#555}
+.pbtag{font-size:11px;font-weight:700;padding:1px 7px;border-radius:5px;background:#EEEBF4;color:#5E5478;margin-right:4px}
+.md{font-size:15px;line-height:1.75;overflow-wrap:anywhere}
+.md h1{font-size:22px;margin:.6em 0 .4em}.md h2{font-size:18px;margin:1em 0 .4em;color:var(--mint-dark)}.md h3{font-size:16px;margin:1em 0 .3em}
+.md table{border-collapse:collapse;width:100%;font-size:14px;display:block;overflow-x:auto}
+.md th,.md td{border:1px solid var(--line);padding:6px 8px;text-align:left}.md th{background:var(--mint-light)}
+.md code{background:#F2F2EF;padding:1px 5px;border-radius:4px;font-size:13px}
+.md pre{background:#F2F2EF;padding:10px;border-radius:8px;overflow:auto}.md pre code{background:none;padding:0}
+.md blockquote{border-left:3px solid #8E84A8;margin:8px 0;padding:2px 12px;color:#555}
+.vlist .v{display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px dashed var(--line);font-size:13px;cursor:pointer}
+.vlist .v.cur{font-weight:700}
+.lchip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:3px 6px 3px 10px;font-size:13px;margin:0 6px 6px 0;background:#fff}
+.lchip button{border:none;background:none;cursor:pointer;color:var(--quiet);font-size:14px;padding:0 4px}
+.lchip span.k{font-size:11px;color:var(--quiet)}
+.mods{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+@media (max-width:720px){.mods{grid-template-columns:repeat(2,1fr)}}
+.mod{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px;cursor:pointer;text-align:left}
+.mod:hover{border-color:var(--mint)}
+.mod.active{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+.mod .n{font-weight:700;font-size:14px}.mod .c{font-size:12px;color:var(--quiet);margin-top:2px}
+.mod-intro{background:var(--mint-light);border-radius:12px;padding:12px 14px;margin-bottom:12px;font-size:14px}
+.icard{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:8px;cursor:pointer}
+.icard:hover{border-color:var(--mint)}.icard.arch{opacity:.55}
+.icard .t{font-weight:700;font-size:15px}
+.icard .meta{font-size:12px;color:var(--quiet);margin-top:3px}
+.icard .na{font-size:13px;margin-top:6px}
+.mtag{font-size:11px;font-weight:700;padding:1px 7px;border-radius:5px;background:#EEF0F4;color:#3B4252;margin-right:6px}
+.ist{font-size:11px;font-weight:700;padding:1px 7px;border-radius:5px}
+.ist-待執行{background:#FAEEDA;color:#854F0B}.ist-進行中{background:#E5ECF8;color:#3B5B95}.ist-已完成{background:#E1F5EE;color:#085041}.ist-取消{background:#EEE;color:#777}
+.fact-box{border-radius:10px;padding:10px 12px;margin-top:8px;font-size:14px}
+.fact-box label{margin-bottom:6px}
+.fb-fact{background:#EEF4EF}.fb-ai{background:#F3F0F8}.fb-q{background:#FBF5E8}.fb-real{background:#EAF1F8;border:1px dashed #A7C7E7}
+.kv{display:grid;grid-template-columns:150px 1fr;gap:4px 10px;font-size:13px;margin-top:6px}
+.kv b{color:var(--quiet);font-weight:600}
+table.prev{width:100%;border-collapse:collapse;font-size:13px;min-width:640px}
+table.prev th{text-align:left;color:var(--quiet);font-size:12px;padding:6px 4px;border-bottom:2px solid var(--line)}
+table.prev td{padding:6px 4px;border-bottom:1px solid var(--line);vertical-align:top}
+table.prev select{min-height:32px;padding:4px 6px;font-size:13px}
+.pick{max-height:220px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:6px 8px;margin-top:6px}
+.pick label{display:flex;gap:8px;align-items:center;font-size:14px;color:var(--ink);font-weight:400;padding:4px 0;margin:0}
+.pick input{width:18px;height:18px;min-height:0}
 .hist .stats .k{font-size:11px;color:var(--quiet);font-weight:600}.hist .stats .v{font-size:16px;font-weight:800}
 @media (max-width:560px){.hist .stats{grid-template-columns:repeat(2,1fr)}}
 </style>
@@ -245,15 +304,17 @@ table.tasks input[type=checkbox]{width:22px;height:22px;min-height:0;margin-top:
   <header>
     <div class="brand">REVOCO</div>
     <nav class="tabs">
-      <button class="tab" data-view="dash">總覽</button>
-      <button class="tab" data-view="plan">本週計畫</button>
-      <button class="tab" data-view="prospects">人脈開發</button>
-      <button class="tab" data-view="deals">商機</button>
-      <button class="tab active" data-view="list">報價</button>
-      <button class="tab" data-view="projects">專案</button>
-      <button class="tab" data-view="customers">客戶</button>
-      <button class="tab" data-view="suppliers">工廠</button>
-      <button class="tab" data-view="ledger">帳本</button>
+      <button class="tab" data-view="dash" data-g="home">總覽</button>
+      <button class="tab" data-view="plan" data-g="sales">本週計畫</button>
+      <button class="tab" data-view="prospects" data-g="sales">人脈開發</button>
+      <button class="tab" data-view="deals" data-g="sales">商機</button>
+      <button class="tab active" data-view="list" data-g="deal">報價</button>
+      <button class="tab" data-view="projects" data-g="deal">專案</button>
+      <button class="tab" data-view="customers" data-g="data">客戶</button>
+      <button class="tab" data-view="suppliers" data-g="data">工廠</button>
+      <button class="tab" data-view="ledger" data-g="money">帳本</button>
+      <button class="tab" data-view="ai" data-g="brain">AI 策略</button>
+      <button class="tab" data-view="playbook" data-g="brain">Playbook</button>
     </nav>
     <button class="btn btn-sm" id="backupBtn">備份</button>
     <button class="btn btn-sm" id="logoutBtn">登出</button>
@@ -270,6 +331,72 @@ table.tasks input[type=checkbox]{width:22px;height:22px;min-height:0;margin-top:
       </div>
       <div class="card"><h3>送出超過 7 天還沒回覆的報價</h3><div id="dQuotes"></div></div>
       <p class="small muted" id="dBackup"></p>
+    </section>
+
+    <!-- AI 策略 -->
+    <section id="aiView" class="hidden">
+      <div class="toolbar">
+        <b style="font-size:16px;color:var(--mint-dark)">AI 業務策略與決策中心</b>
+        <span class="grow"></span>
+        <button class="btn" id="aiExportBtn">匯出資料給 GPT</button>
+        <button class="btn btn-primary" id="aiImportBtn">匯入 GPT 分析結果</button>
+      </div>
+      <div class="mods" id="aiMods"></div>
+      <div class="mod-intro" id="aiIntro"></div>
+      <div id="aiDue"></div>
+      <div class="toolbar">
+        <input class="grow" id="aiSearch" placeholder="搜尋標題、客戶、策略、內容…">
+        <select id="aiCust" style="width:auto;max-width:180px"><option value="">所有客戶</option></select>
+        <select id="aiStatus" style="width:auto"><option value="">所有狀態</option><option>待執行</option><option>進行中</option><option>已完成</option><option>取消</option></select>
+        <label class="check-row" style="margin:0"><input type="checkbox" id="aiArch"> 含已歸檔</label>
+        <button class="btn btn-sm" id="aiNewBtn">＋ 手動新增</button>
+      </div>
+      <div id="aiList"></div>
+      <p class="small muted">流程：按「匯出資料給 GPT」→ 貼到 ChatGPT → 把 GPT 回覆的 JSON 貼回「匯入 GPT 分析結果」→ 預覽確認後存入。AI 分析只存在這裡，<b>不會改動客戶、商機、報價的原始資料</b>。</p>
+    </section>
+
+    <!-- Playbook 列表 -->
+    <section id="playbookView" class="hidden">
+      <div class="toolbar">
+        <b style="font-size:16px;color:#5E5478">AI Sales Playbook</b>
+        <span class="grow"></span>
+        <button class="btn" id="pbImportBtn">匯入 ChatGPT 內容</button>
+        <button class="btn" id="pbExportBtn">匯出</button>
+        <button class="btn btn-primary" id="pbNewBtn">＋ 新文件</button>
+      </div>
+      <div class="chips" id="pbCats"></div>
+      <div class="toolbar">
+        <input class="grow" id="pbSearch" placeholder="搜尋標題與內容…">
+        <select id="pbStatus" style="width:auto"><option value="">全部狀態</option><option>已核准</option><option>有新草稿</option><option>草稿</option><option>已封存</option></select>
+      </div>
+      <div id="pbList"></div>
+      <p class="small muted">保存 ChatGPT 協助制定的策略、SOP、規則與方法。每次編輯都另存成新版本，舊版本永遠保留、不能修改或刪除；文件只能封存，不能刪除。</p>
+    </section>
+
+    <!-- Playbook 文件內容 -->
+    <section id="pbDocView" class="hidden">
+      <div class="edit-bar">
+        <button class="btn btn-sm" id="pbBack">← 文件列表</button>
+        <span class="save-state" id="pbState"></span>
+        <button class="btn btn-sm" id="pbEditBtn">編輯（另存新版本）</button>
+        <button class="btn btn-sm btn-primary" id="pbApproveBtn">核准此版本</button>
+        <button class="btn btn-sm" id="pbMdBtn">匯出 .md</button>
+        <button class="btn btn-sm" id="pbArchBtn">封存</button>
+      </div>
+      <div class="card">
+        <div id="pbHead"></div>
+        <div class="md" id="pbContent" style="margin-top:12px"></div>
+      </div>
+      <div class="grid g2">
+        <div class="card"><h3>版本紀錄</h3><div class="vlist" id="pbVersions"></div></div>
+        <div class="card"><h3>相關客戶、商機、任務</h3><div id="pbLinks"></div>
+          <div class="grid g2" style="margin-top:8px">
+            <select id="pbLinkType"><option value="customer">客戶</option><option value="deal">商機</option><option value="project">專案</option><option value="task">專案細項（任務）</option></select>
+            <select id="pbLinkTarget"></select>
+          </div>
+          <button class="btn btn-sm" id="pbLinkAdd" style="margin-top:8px">＋ 加入連結</button>
+        </div>
+      </div>
     </section>
 
     <!-- 商機 -->
@@ -346,6 +473,7 @@ table.tasks input[type=checkbox]{width:22px;height:22px;min-height:0;margin-top:
         <button class="btn btn-sm btn-primary" id="jlAddBtn" style="margin-top:8px">＋ 記一筆</button>
         <div class="timeline" id="jTimeline"></div>
       </div>
+      <div class="card"><h3>相關 Playbook</h3><div id="jPlaybook" class="hist"></div><p class="small muted" style="margin:6px 0 0">在 Playbook 文件裡可以把文件連結到這個專案或它的細項。</p></div>
     </section>
 
     <!-- 本週計畫 -->
@@ -728,6 +856,152 @@ table.tasks input[type=checkbox]{width:22px;height:22px;min-height:0;margin-top:
 </div>
 <datalist id="lostOptions"><option value="輸給對手"><option value="預算不足"><option value="時程來不及"><option value="客戶取消活動"><option value="一直沒有回應"></datalist>
 
+<!-- AI：匯出給 GPT -->
+<div class="modal-bg hidden" id="aiExportModal">
+  <div class="modal wide">
+    <h3>匯出資料給 GPT</h3>
+    <div class="grid g2">
+      <div><label>要 GPT 做哪一種分析</label><select id="ax_module"></select></div>
+      <div><label>資料範圍</label><select id="ax_scope">
+        <option value="week_deals">本週商機（進行中的所有商機）</option>
+        <option value="customers">選擇客戶（一位或多位）</option>
+        <option value="week_plan">本週計畫名單</option>
+        <option value="none">不含客戶資料（研究型）</option>
+      </select></div>
+    </div>
+    <div id="ax_pickWrap" class="hidden" style="margin-top:10px">
+      <div class="toolbar" style="margin:0">
+        <input class="grow" id="ax_pickSearch" placeholder="搜尋客戶…">
+        <select id="ax_pickCat" style="width:auto"><option value="">所有分類</option></select>
+        <button class="btn btn-sm" id="ax_pickAll">全選目前列出的</button>
+      </div>
+      <div class="pick" id="ax_pick"></div>
+      <div class="small muted" id="ax_pickN"></div>
+    </div>
+    <div style="margin-top:10px"><label>想問 GPT 的問題（可空白）</label><textarea id="ax_ask" placeholder="例：芝初這週要怎麼推進？我擔心預算被砍。"></textarea></div>
+    <label class="check-row"><input type="checkbox" id="ax_pii"> 包含窗口的電話與 Email（預設不含，保護個資）</label>
+    <p class="small muted" id="ax_size"></p>
+    <div class="actions">
+      <button class="btn" data-close>關閉</button>
+      <button class="btn" id="ax_download">下載 .json</button>
+      <button class="btn btn-primary" id="ax_copy">複製，貼給 GPT</button>
+    </div>
+  </div>
+</div>
+
+<!-- AI：匯入 GPT 結果 -->
+<div class="modal-bg hidden" id="aiImportModal">
+  <div class="modal wide">
+    <h3>匯入 GPT 分析結果</h3>
+    <p class="small muted" style="margin-top:0">把 GPT 回覆裡的 JSON 整段貼進來（前後有說明文字或 ``` 也沒關係），按「檢查」。存入前會先讓你確認，不會改動任何客戶資料。</p>
+    <textarea id="ai_paste" style="min-height:160px;font-family:ui-monospace,Menlo,monospace;font-size:13px" placeholder='{ "schema": "revoco.insights.v1", "insights": [ … ] }'></textarea>
+    <div style="margin-top:8px"><button class="btn" id="ai_check">檢查</button></div>
+    <div id="ai_preview" style="margin-top:12px"></div>
+    <div class="actions">
+      <button class="btn" data-close>關閉</button>
+      <button class="btn btn-primary hidden" id="ai_confirm">確認存入</button>
+    </div>
+  </div>
+</div>
+
+<!-- AI：分析內容 -->
+<div class="modal-bg hidden" id="aiModal">
+  <div class="modal wide">
+    <h3 id="aiTitleH">AI 分析</h3>
+    <div class="grid g3">
+      <div style="grid-column:1/-1"><label>標題 *</label><input id="ai_title"></div>
+      <div><label>功能區</label><select id="ai_module"></select></div>
+      <div><label>關聯客戶</label><input id="ai_customer" list="customerOptions" placeholder="可空白"></div>
+      <div><label>分析日期</label><input id="ai_date" type="date"></div>
+      <div><label>分析來源</label><input id="ai_source" list="aiSources"></div>
+      <div><label>執行狀態</label><select id="ai_status"><option>待執行</option><option>進行中</option><option>已完成</option><option>取消</option></select></div>
+      <div><label>預計執行日期</label><input id="ai_due" type="date"></div>
+    </div>
+    <div class="fact-box fb-fact"><label>✅ 已確認事實（有資料根據，一行一條）</label><textarea id="ai_facts"></textarea></div>
+    <div class="fact-box fb-ai"><label>🤖 AI 推論（還沒證實，一行一條）</label><textarea id="ai_infer"></textarea></div>
+    <div class="fact-box fb-q"><label>❓ 待確認事項（下次要問清楚的，一行一條）</label><textarea id="ai_questions"></textarea></div>
+    <div class="grid g2" style="margin-top:8px">
+      <div><label>建議策略</label><textarea id="ai_strategy" style="min-height:90px"></textarea></div>
+      <div><label>下一步行動</label><textarea id="ai_next" style="min-height:90px"></textarea></div>
+    </div>
+    <div id="ai_details"></div>
+    <div class="fact-box fb-real">
+      <label>📝 實際發生（你自己填，不是 AI）</label>
+      <div class="grid g2">
+        <div><label>客戶實際回覆</label><textarea id="ai_reply" placeholder="例：Bonnie 說預算要等 12 月中才會確定"></textarea></div>
+        <div><label>實際執行結果</label><textarea id="ai_result" placeholder="例：12/2 已寄出樣品照片，對方已讀"></textarea></div>
+      </div>
+    </div>
+    <details style="margin-top:10px"><summary class="small muted" style="cursor:pointer">修改紀錄與原始匯入資料</summary><div id="ai_trace" class="small" style="margin-top:6px"></div></details>
+    <div class="actions">
+      <button class="btn btn-danger" id="ai_del" style="margin-right:auto">刪除</button>
+      <button class="btn" id="ai_arch">歸檔</button>
+      <button class="btn" data-close>關閉</button>
+      <button class="btn btn-primary" id="ai_save">儲存</button>
+    </div>
+  </div>
+</div>
+<datalist id="aiSources"><option value="GPT"><option value="Claude"><option value="手動"></datalist>
+
+<!-- Playbook：編輯 -->
+<div class="modal-bg hidden" id="pbEditModal">
+  <div class="modal wide">
+    <h3 id="pbEditTitle">新文件</h3>
+    <div class="grid g3">
+      <div style="grid-column:span 2"><label>標題 *</label><input id="pe_title"></div>
+      <div><label>分類</label><select id="pe_cat"></select></div>
+    </div>
+    <div style="margin-top:10px;display:flex;gap:6px">
+      <button class="chip active" id="pe_tabEdit">編輯</button><button class="chip" id="pe_tabPrev">預覽</button>
+      <span class="small muted" style="margin-left:auto;align-self:center">支援 Markdown：# 標題、- 清單、**粗體**、表格</span>
+    </div>
+    <textarea id="pe_md" style="min-height:320px;margin-top:8px;font-family:ui-monospace,Menlo,monospace;font-size:14px"></textarea>
+    <div class="md card hidden" id="pe_preview" style="margin-top:8px;min-height:320px"></div>
+    <div style="margin-top:10px"><label>這次改了什麼（版本說明）</label><input id="pe_note" placeholder="例：加入 ESG 話術、修正報價追蹤天數"></div>
+    <label class="check-row"><input type="checkbox" id="pe_approve"> 存檔後直接核准這個版本</label>
+    <div class="actions">
+      <button class="btn" data-close>取消</button>
+      <button class="btn btn-primary" id="pe_save">儲存成新版本</button>
+    </div>
+  </div>
+</div>
+
+<!-- Playbook：匯入 -->
+<div class="modal-bg hidden" id="pbImportModal">
+  <div class="modal wide">
+    <h3>匯入 ChatGPT 內容</h3>
+    <p class="small muted" style="margin-top:0">貼上 ChatGPT 產生的 Markdown 文件，或多份文件的 JSON（格式 revoco.playbook.v1）。存入前會先預覽；同分類已有同名文件時，會新增成新版本，不會覆蓋。</p>
+    <textarea id="pi_text" style="min-height:180px;font-family:ui-monospace,Menlo,monospace;font-size:13px" placeholder="# 客戶開發 SOP&#10;&#10;## 第一步 ……"></textarea>
+    <div class="grid g3" style="margin-top:8px">
+      <div><label>預設分類（Markdown 用）</label><select id="pi_cat"></select></div>
+      <div><label>來源</label><input id="pi_source" value="ChatGPT" list="aiSources"></div>
+      <div style="align-self:end"><button class="btn" id="pi_check">檢查</button></div>
+    </div>
+    <div id="pi_preview" style="margin-top:12px"></div>
+    <div class="actions">
+      <button class="btn" data-close>關閉</button>
+      <button class="btn btn-primary hidden" id="pi_confirm">確認存入</button>
+    </div>
+  </div>
+</div>
+
+<!-- Playbook：匯出 -->
+<div class="modal-bg hidden" id="pbExportModal">
+  <div class="modal">
+    <h3>匯出 Playbook</h3>
+    <div class="grid g2">
+      <div><label>範圍</label><select id="px_scope"><option value="filtered">目前列表上的文件</option><option value="all">全部文件（不含封存）</option><option value="all_arch">全部文件（含封存）</option></select></div>
+      <div><label>版本</label><select id="px_ver"><option value="best">核准版（沒有就用最新版）</option><option value="latest">最新版（含草稿）</option><option value="all">所有版本（完整紀錄）</option></select></div>
+    </div>
+    <p class="small muted" id="px_info"></p>
+    <div class="actions">
+      <button class="btn" data-close>關閉</button>
+      <button class="btn" id="px_json">下載 .json</button>
+      <button class="btn btn-primary" id="px_md">下載 .md</button>
+    </div>
+  </div>
+</div>
+
 <!-- 備份 -->
 <div class="modal-bg hidden" id="backupModal">
   <div class="modal">
@@ -836,9 +1110,11 @@ const custByName = name => customers.find(c => c.name === name.trim());
 // ================= 切換畫面 =================
 async function switchView(v){
   if (v !== 'edit' && !$('editView').classList.contains('hidden') && dirty) await saveQuote(true);
-  ['dash','plan','prospects','deals','list','edit','projects','proj','customers','suppliers','ledger'].forEach(x => $(x + 'View').classList.toggle('hidden', x !== v));
-  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === v || (v === 'edit' && t.dataset.view === 'list') || (v === 'proj' && t.dataset.view === 'projects')));
+  ['dash','ai','playbook','pbDoc','plan','prospects','deals','list','edit','projects','proj','customers','suppliers','ledger'].forEach(x => $(x + 'View').classList.toggle('hidden', x !== v));
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === v || (v === 'edit' && t.dataset.view === 'list') || (v === 'proj' && t.dataset.view === 'projects') || (v === 'pbDoc' && t.dataset.view === 'playbook')));
   if (v === 'dash') renderDash();
+  if (v === 'ai') renderAI();
+  if (v === 'playbook') renderPlaybook();
   if (v === 'deals') renderDeals();
   if (v === 'projects') renderProjects();
   if (v === 'list') renderQuoteList();
@@ -1329,6 +1605,9 @@ async function loadCustHistory(c){
       run(sb.from('projects').select('*').eq('customer_id', c.id)),
       run(sb.from('activities').select('*').eq('customer_id', c.id).order('happened_at', { ascending:false })),
     ]);
+    let ins = []; try { ins = (await run(sb.from('ai_insights').select('*').eq('customer_id', c.id))).filter(r => !r.archived); } catch {}
+    let pbl = []; try { const ls = (await run(sb.from('playbook_links').select('*').eq('target_id', c.id))).filter(l => l.target_type === 'customer');
+      if (ls.length) { const ds = await run(sb.from('playbook_docs').select('*')); pbl = ds.filter(x => ls.some(l => l.doc_id === x.id) && !x.archived); } } catch {}
     const won = qs.filter(q => q.status === '接受');
     const rev = won.reduce((a, q) => a + num(q.subtotal_twd) + num(q.client_fees_twd), 0), profit = won.reduce((a, q) => a + num(q.gross_profit_twd), 0);
     const last = won.map(q => quoteDate(q, projs)).sort().pop();
@@ -1349,12 +1628,18 @@ async function loadCustHistory(c){
       ${cds.map(d => `<div class="hl" data-d="${d.id}"><span><b>${esc(d.title)}</b>　${esc(d.stage)}</span><span class="muted">${d.est_value ? 'NT$ ' + fmt(d.est_value) : ''}</span></div>`).join('') || '<div class="muted small">沒有商機</div>'}
       <h4>專案（${projs.length}）</h4>
       ${projs.map(p => `<div class="hl" data-p="${p.id}"><span><b>${esc(p.name)}</b>　${esc(p.stage)}</span><span class="muted">${p.client_due ? '交期 ' + p.client_due : ''}</span></div>`).join('') || '<div class="muted small">沒有專案</div>'}
+      <h4>AI 分析（${ins.length}）</h4>
+      ${ins.map(r => `<div class="hl" data-ai="${r.id}"><span><span class="mtag">${AI_MODULES[r.module]?.name || r.module}</span><b>${esc(r.title)}</b></span><span class="muted">${esc(r.analysis_date || '')}・${esc(r.status)}</span></div>`).join('') || '<div class="muted small">沒有 AI 分析</div>'}
+      <h4>相關 Playbook（${pbl.length}）</h4>
+      ${pbl.map(x => `<div class="hl" data-pb="${x.id}"><span><span class="pbtag">${PB_CATS[x.category] || ''}</span><b>${esc(x.title)}</b></span><span class="muted">v${x.latest_version_no}</span></div>`).join('') || '<div class="muted small">沒有相關文件</div>'}
       <h4>聯絡紀錄（${acts.length}）</h4>
       <div class="timeline">${acts.slice(0, 30).map(e => `<div class="ev"><div class="when">${esc(String(e.happened_at || '').slice(0, 10))}・${esc([e.party, e.channel].filter(Boolean).join('・'))}${e.project_id ? '・專案' : e.deal_id ? '・商機' : ''}</div><div>${esc(e.summary || '')}</div></div>`).join('') || '<div class="muted small">沒有聯絡紀錄</div>'}</div>`;
     const close = () => $('custModal').classList.add('hidden');
     box.querySelectorAll('[data-q]').forEach(el => el.onclick = () => { close(); openQuote(el.dataset.q); });
     box.querySelectorAll('[data-d]').forEach(el => el.onclick = () => { close(); openDeal(el.dataset.d); });
     box.querySelectorAll('[data-p]').forEach(el => el.onclick = () => { close(); openProject(el.dataset.p); });
+    box.querySelectorAll('[data-ai]').forEach(el => el.onclick = async () => { close(); await switchView('ai'); openAIInsight(el.dataset.ai); });
+    box.querySelectorAll('[data-pb]').forEach(el => el.onclick = () => { close(); openPBDoc(el.dataset.pb); });
   } catch (e) { box.innerHTML = `<div class="small" style="color:var(--red);margin-top:12px">讀取往來紀錄失敗：${esc(e.message)}</div>`; }
 }
 
@@ -1982,6 +2267,10 @@ async function renderDash(){
     const p = projs.find(x => x.id === t.project_id);
     todo.push({ tag:'專案', text:`${p?.name || ''}：${t.title}（${t.owner}）`, due:t.due_date, go:() => openProject(t.project_id) });
   });
+  try {
+    (await run(sb.from('ai_insights').select('*'))).filter(r => !r.archived && ['待執行','進行中'].includes(r.status) && r.due_date && r.due_date <= today())
+      .forEach(r => todo.push({ tag:'AI', text:(custById(r.customer_id)?.name ? custById(r.customer_id).name + '：' : '') + (r.next_action || r.title), due:r.due_date, go:async () => { await switchView('ai'); openAIInsight(r.id); } }));
+  } catch {}
   todo.sort((a, b) => a.due.localeCompare(b.due));
   const dueTxt = d => { const n = daysFromToday(d); return n < 0 ? `<span class="overdue">過期 ${-n} 天</span>` : n === 0 ? '<span class="muted">今天</span>' : `<span class="muted">${n} 天後</span>`; };
   const planLine = plan && plan.total ? `<div class="item" data-plan><span><span class="tag">計畫</span>本週計畫：已完成 ${plan.done_count} / ${plan.total}</span><span class="muted">${Math.round(plan.done_count / plan.total * 100)}%</span></div>` : '';
@@ -2229,8 +2518,20 @@ async function openProject(id){
   $('jOpenQuote').classList.toggle('hidden', !p.quote_id); $('jOpenDeal').classList.toggle('hidden', !p.deal_id);
   $('jl_date').value = today(); $('jl_summary').value = ''; $('jl_next').value = ''; $('jl_nextdate').value = '';
   $('jState').className = 'save-state'; $('jState').textContent = '改了就自動存';
-  renderTasks(); loadProjTimeline();
+  renderTasks(); loadProjTimeline(); loadProjPlaybook();
   await switchView('proj');
+}
+async function loadProjPlaybook(){
+  const box = $('jPlaybook'); box.innerHTML = '';
+  try {
+    const ids = new Set([projEditing.id, ...curTasks.map(t => t.id)]);
+    const ls = (await run(sb.from('playbook_links').select('*'))).filter(l => ids.has(l.target_id) && ['project','task'].includes(l.target_type));
+    if (!ls.length) { box.innerHTML = '<div class="muted small">沒有相關文件</div>'; return; }
+    const ds = (await run(sb.from('playbook_docs').select('*'))).filter(x => ls.some(l => l.doc_id === x.id) && !x.archived);
+    box.innerHTML = ds.map(x => { const tl = ls.filter(l => l.doc_id === x.id && l.target_type === 'task').map(l => curTasks.find(t => t.id === l.target_id)?.title).filter(Boolean);
+      return `<div class="hl" data-pb="${x.id}"><span><span class="pbtag">${PB_CATS[x.category] || ''}</span><b>${esc(x.title)}</b>${tl.length ? `<span class="muted">（細項：${esc(tl.join('、'))}）</span>` : ''}</span><span class="muted">v${x.latest_version_no}</span></div>`; }).join('');
+    box.querySelectorAll('[data-pb]').forEach(el => el.onclick = () => openPBDoc(el.dataset.pb));
+  } catch { box.innerHTML = '<div class="muted small">（需要先執行 12 SQL）</div>'; }
 }
 async function saveProjField(patch){
   try { await run(sb.from('projects').update(patch).eq('id', projEditing.id)); Object.assign(projEditing, patch);
@@ -2321,7 +2622,7 @@ $('jlAddBtn').onclick = async () => {
 // ================= 備份與還原 =================
 const BACKUP_TABLES = [['customers','客戶'],['suppliers','工廠'],['contacts','窗口'],['products','產品'],['deals','商機'],['quotes','報價'],
   ['quote_items','報價品項'],['quote_fees','報價費用'],['projects','專案'],['project_tasks','專案細項'],['activities','聯絡紀錄'],
-  ['samples','樣品'],['payments','收付款'],['files','檔案'],['weekly_plans','每週計畫'],['app_settings','設定']];
+  ['samples','樣品'],['payments','收付款'],['files','檔案'],['weekly_plans','每週計畫'],['app_settings','設定'],['ai_insights','AI分析'],['playbook_docs','Playbook文件'],['playbook_versions','Playbook版本'],['playbook_links','Playbook連結']];
 const PKEY = { weekly_plans:'week_start', app_settings:'key' };
 let pendingBackup = null;
 async function fetchAll(t){
@@ -2389,22 +2690,26 @@ $('bkRestore').onclick = async () => {
   const mode = document.querySelector('input[name=bkMode]:checked').value;
   if (!confirm(mode === 'merge' ? '確定要把備份裡「現在沒有」的資料補回來？' : '確定要把資料改回備份當時的內容？同一筆資料會以備份為準。')) return;
   $('bkRestore').disabled = true; $('bkRestore').textContent = '還原中…';
-  const result = [], errors = [], accepted = [];
+  const result = [], errors = [], accepted = [], pbApprove = [];
   try {
     for (const [t, zh] of BACKUP_TABLES) {
       let rows = pendingBackup.tables[t] || []; if (!rows.length) continue;
       const pk = PKEY[t] || 'id';
+      if (t === 'playbook_docs') rows = rows.map(r => ({ ...r, approved_version_id:null }));   // 版本還原後再補上核准版
       if (t === 'quotes') rows = rows.map(r => r.status === '接受' ? { ...r, status:'已送出' } : r);   // 先不觸發自動開專案，專案還原後再改回
       let written = 0;
       try {
         for (let i = 0; i < rows.length; i += 500) {
-          const back = await run(sb.from(t).upsert(rows.slice(i, i + 500), { onConflict:pk, ignoreDuplicates: mode === 'merge' }).select(pk));
+          const keepOld = mode === 'merge' || t === 'playbook_versions' || t === 'playbook_links';   // 版本永遠不覆蓋
+          const back = await run(sb.from(t).upsert(rows.slice(i, i + 500), { onConflict:pk, ignoreDuplicates: keepOld }).select(pk));
+          if (t === 'playbook_docs') { const ids = new Set(back.map(b => b.id)); pendingBackup.tables.playbook_docs.forEach(dd => { if (dd.approved_version_id && ids.has(dd.id)) pbApprove.push(dd); }); }
           written += back.length;
           if (t === 'quotes') { const ids = new Set(back.map(b => b.id)); pendingBackup.tables.quotes.forEach(q => { if (q.status === '接受' && ids.has(q.id)) accepted.push(q.id); }); }
         }
         result.push(`${zh} ${written}`);
       } catch (e) { errors.push(`${zh}：${e.message}`); }
     }
+    for (const dd of pbApprove) { try { await run(sb.from('playbook_docs').update({ approved_version_id:dd.approved_version_id }).eq('id', dd.id)); } catch (e) { errors.push('Playbook 核准版：' + e.message); } }
     for (const id of accepted) { try { await run(sb.from('quotes').update({ status:'接受' }).eq('id', id)); } catch (e) { errors.push('報價狀態：' + e.message); } }
     await loadMasters();
     $('bkPreview').innerHTML = `<b style="color:var(--green)">還原完成</b>（${mode === 'merge' ? '補回' : '寫回'}：${esc(result.join('、') || '沒有需要補的資料')}）` +
@@ -2412,6 +2717,678 @@ $('bkRestore').onclick = async () => {
     $('bkActions').classList.add('hidden');
     toast(errors.length ? '⚠️ 還原完成，但有部分資料沒寫進去' : '✅ 還原完成');
   } finally { $('bkRestore').disabled = false; $('bkRestore').textContent = '開始還原'; }
+};
+
+// ================= AI 業務策略與決策中心 =================
+const AI_MODULES = {
+  coach:     { name:'今日業務教練', desc:'每天先聯絡誰、怎麼跟進、建議話術與下一步行動。', scope:'week_plan',
+               ask:'請排出今天最該聯絡的客戶（最多 5 位）。每位給：為什麼是今天、跟進策略、可以直接傳的話術（Line 80 字內）、下一步行動與日期。',
+               fields:[['priority','優先順序'],['channel','建議管道'],['script','建議話術']] },
+  sandbox:   { name:'每週商機沙盤推演', desc:'商機排序、成交障礙、資源配置與本週行動計畫。', scope:'week_deals',
+               ask:'請對每個商機做沙盤推演：排序、成交機率判斷、主要成交障礙、需要投入的資源、本週要完成的行動。每個商機一筆分析。',
+               fields:[['rank','排序'],['win_probability','成交機率判斷'],['obstacles','成交障礙'],['resources','資源配置'],['weekly_plan','本週行動計畫']] },
+  war_room:  { name:'客戶戰情室', desc:'客戶背景、採購需求、決策角色、心理誘因、競爭狀況與 MEDDICC 分析。', scope:'customers',
+               ask:'請針對每位客戶做戰情分析：背景、採購需求、決策角色、心理誘因、競爭狀況，以及 MEDDICC 八項。資料不足的項目放進 open_questions。',
+               fields:[['background','客戶背景'],['needs','採購需求'],['decision_roles','決策角色'],['motivations','心理誘因'],['competition','競爭狀況'],
+                       ['meddicc.metrics','M 量化效益'],['meddicc.economic_buyer','E 經濟決策者'],['meddicc.decision_criteria','D 決策標準'],['meddicc.decision_process','D 決策流程'],
+                       ['meddicc.paper_process','P 採購／用印流程'],['meddicc.identify_pain','I 痛點'],['meddicc.champion','C 內部支持者'],['meddicc.competition','C 競爭者']] },
+  training:  { name:'顧問式銷售訓練', desc:'每日訓練題目與情境演練；你在「實際執行結果」記錄做了什麼、在待確認裡寫要改善的地方。', scope:'none',
+               ask:'請出今天的顧問式銷售訓練：1 個技巧重點、1 個貼近我客戶的情境演練（含客戶可能說的話）、參考回答、今天在真實客戶身上可以練習的小任務。',
+               fields:[['skill','訓練技巧'],['question','訓練題目'],['scenario','情境演練'],['model_answer','參考回答'],['practice_task','今日實戰任務'],['improvement','改善紀錄']] },
+  network:   { name:'人脈與轉介紹策略', desc:'合作夥伴、關係經營、轉介紹機會與聯繫計畫。', scope:'customers',
+               ask:'請針對這些人脈：判斷關係深度、我能提供給對方的價值、可能的轉介紹機會（介紹誰、怎麼開口），以及未來 3 個月的聯繫計畫。不要推銷感太重。',
+               fields:[['relationship','關係現況'],['value_to_them','我能給對方的價值'],['referral_opportunity','轉介紹機會'],['contact_plan','聯繫計畫']] },
+  esg:       { name:'ESG 商業情報', desc:'永續材料、認證、企業採購趨勢與潛在商機。', scope:'none',
+               ask:'請整理最近對台灣企業禮贈品採購有影響的 ESG 情報：永續材料、認證、法規或採購趨勢，以及我可以切入的商機。請附資料來源網址，查不到的不要寫。',
+               fields:[['topic','主題'],['materials','永續材料'],['certifications','認證'],['trend','採購趨勢'],['opportunity','潛在商機'],['sources','資料來源']] },
+  market:    { name:'市場與競爭情報', desc:'股東會紀念品市場、競爭對手、價格策略與品牌 SEO／GEO 能見度。', scope:'none',
+               ask:'請整理股東會紀念品與企業禮贈品市場情報：主要競爭對手、價格帶與策略、我的品牌在搜尋引擎與 AI 搜尋（SEO／GEO）的能見度建議。請附資料來源網址。',
+               fields:[['topic','主題'],['competitors','競爭對手'],['pricing','價格策略'],['seo_geo','SEO／GEO 能見度'],['opportunity','機會'],['sources','資料來源']] },
+  knowledge: { name:'業務策略知識庫', desc:'成功案例、失敗復盤、有效話術、銷售方法與可重複使用的 SOP。', scope:'customers',
+               ask:'請從這些客戶的往來紀錄整理可重複使用的經驗：成功案例、失敗復盤、有效話術、銷售方法或 SOP。每一條經驗一筆，details.type 寫類型。',
+               fields:[['type','類型（成功案例／失敗復盤／有效話術／銷售方法／SOP）'],['situation','適用情境'],['content','內容'],['steps','步驟'],['when_to_use','什麼時候用']] }
+};
+const AI_KEYS = Object.keys(AI_MODULES);
+const AI_ALIAS = {};
+for (const [k, m] of Object.entries(AI_MODULES)) { AI_ALIAS[k] = k; AI_ALIAS[m.name] = k; }
+Object.assign(AI_ALIAS, { 今日教練:'coach', 業務教練:'coach', daily_coach:'coach', 沙盤推演:'sandbox', 商機沙盤:'sandbox', deal_sandbox:'sandbox', 戰情室:'war_room', warroom:'war_room', meddicc:'war_room',
+  銷售訓練:'training', 顧問式銷售:'training', 人脈:'network', 轉介紹:'network', referral:'network', esg:'esg', ESG:'esg', 市場:'market', 競爭:'market', competition:'market', 知識庫:'knowledge', kb:'knowledge' });
+const AI_STATUS = ['待執行','進行中','已完成','取消'];
+let aiRows = [], aiMod = '', aiEditing = null, aiPending = [];
+
+const toLines = v => Array.isArray(v) ? v.map(x => typeof x === 'string' ? x : JSON.stringify(x)).join('\n') : (v == null ? '' : String(v));
+const fromLines = t => String(t || '').split(/\r?\n/).map(x => x.replace(/^\s*(?:[-•・*]\s*|\d{1,2}[.、)]\s*)/, '').trim()).filter(Boolean);
+const getPath = (o, p) => p.split('.').reduce((a, k) => a == null ? undefined : a[k], o);
+const setPath = (o, p, v) => { const ks = p.split('.'); let a = o; ks.slice(0, -1).forEach(k => { if (typeof a[k] !== 'object' || a[k] === null) a[k] = {}; a = a[k]; }); a[ks.at(-1)] = v; };
+const isoDate = v => /^\d{4}-\d{2}-\d{2}$/.test(String(v || '').slice(0, 10)) ? String(v).slice(0, 10) : null;
+
+async function renderAI(){
+  $('aiList').innerHTML = '<div class="empty">載入中…</div>';
+  try { aiRows = await run(sb.from('ai_insights').select('*').order('created_at', { ascending:false })); }
+  catch (e) { $('aiList').innerHTML = `<div class="empty" style="color:var(--red)">讀取失敗：${esc(e.message)}<br>如果剛更新系統，請先到 Supabase 執行 11 那份 SQL。</div>`; $('aiMods').innerHTML = ''; return; }
+  const cur = $('aiCust').value;
+  const ids = [...new Set(aiRows.map(r => r.customer_id).filter(Boolean))];
+  $('aiCust').innerHTML = '<option value="">所有客戶</option>' + ids.map(id => custById(id)).filter(Boolean).sort((a, b) => a.name.localeCompare(b.name, 'zh-Hant'))
+    .map(c => `<option value="${c.id}" ${c.id === cur ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
+  renderAIList();
+}
+function renderAIList(){
+  const live = aiRows.filter(r => !r.archived);
+  $('aiMods').innerHTML = `<button class="mod ${aiMod === '' ? 'active' : ''}" data-m=""><div class="n">全部</div><div class="c">${live.length} 筆</div></button>` +
+    AI_KEYS.map(k => { const n = live.filter(r => r.module === k).length; const open = live.filter(r => r.module === k && ['待執行','進行中'].includes(r.status)).length;
+      return `<button class="mod ${aiMod === k ? 'active' : ''}" data-m="${k}"><div class="n">${AI_MODULES[k].name}</div><div class="c">${n} 筆${open ? `・${open} 待執行` : ''}</div></button>`; }).join('');
+  $('aiMods').querySelectorAll('.mod').forEach(b => b.onclick = () => { aiMod = b.dataset.m; renderAIList(); });
+  const m = AI_MODULES[aiMod];
+  $('aiIntro').innerHTML = m ? `<b>${m.name}</b>：${esc(m.desc)}　<button class="btn btn-sm" id="aiIntroExport" style="margin-left:6px">匯出這一區要的資料給 GPT</button>`
+    : '八大功能區：點上面任一區只看那一區的分析。每筆分析都分開記錄「已確認事實」「AI 推論」「待確認事項」，以及你自己填的「客戶實際回覆」「實際執行結果」。';
+  $('aiIntroExport')?.addEventListener('click', () => openAIExport(aiMod));
+  // 今天要執行
+  const due = live.filter(r => ['待執行','進行中'].includes(r.status) && r.due_date && r.due_date <= today() && (!aiMod || r.module === aiMod))
+    .sort((a, b) => a.due_date.localeCompare(b.due_date));
+  $('aiDue').innerHTML = due.length ? `<div class="today"><h3>今天要執行的 AI 建議（${due.length}）</h3>${due.map(r => `<div class="item" data-id="${r.id}"><span><span class="mtag">${AI_MODULES[r.module]?.name || r.module}</span>${esc(custById(r.customer_id)?.name ? custById(r.customer_id).name + '：' : '')}${esc(r.next_action || r.title)}</span><span class="${r.due_date < today() ? 'overdue' : 'muted'}" style="white-space:nowrap">${r.due_date < today() ? '過期 ' + (-daysFromToday(r.due_date)) + ' 天' : '今天'}</span></div>`).join('')}</div>` : '';
+  $('aiDue').querySelectorAll('[data-id]').forEach(el => el.onclick = () => openAIInsight(el.dataset.id));
+  // 清單
+  const kw = $('aiSearch').value.trim().toLowerCase(), cu = $('aiCust').value, st = $('aiStatus').value, arch = $('aiArch').checked;
+  const list = aiRows.filter(r => (arch || !r.archived) && (!aiMod || r.module === aiMod) && (!cu || r.customer_id === cu) && (!st || r.status === st))
+    .filter(r => !kw || [r.title, r.strategy, r.next_action, r.client_reply, r.actual_result, r.customer_name, custById(r.customer_id)?.name, JSON.stringify(r.confirmed_facts), JSON.stringify(r.ai_inferences), JSON.stringify(r.open_questions), JSON.stringify(r.details)]
+      .some(v => (v || '').toLowerCase().includes(kw)))
+    .sort((a, b) => (a.archived - b.archived) || (['已完成','取消'].includes(a.status) - ['已完成','取消'].includes(b.status)) || (a.due_date || '9999').localeCompare(b.due_date || '9999') || String(b.created_at).localeCompare(String(a.created_at)));
+  $('aiList').innerHTML = list.length ? list.map(r => {
+    const c = custById(r.customer_id); const od = r.due_date && r.due_date < today() && ['待執行','進行中'].includes(r.status);
+    const n = k => (r[k] || []).length;
+    return `<div class="icard ${r.archived ? 'arch' : ''}" data-id="${r.id}">
+      <div>${!aiMod ? `<span class="mtag">${AI_MODULES[r.module]?.name || r.module}</span>` : ''}<span class="ist ist-${r.status}">${r.status}</span>${r.archived ? ' <span class="mtag">已歸檔</span>' : ''}</div>
+      <div class="t" style="margin-top:4px">${esc(r.title)}</div>
+      <div class="meta">${esc([c?.name || (r.customer_name ? r.customer_name + '（未關聯）' : ''), r.analysis_date, r.source].filter(Boolean).join('・'))}　事實 ${n('confirmed_facts')}・推論 ${n('ai_inferences')}・待確認 ${n('open_questions')}</div>
+      ${r.next_action ? `<div class="na">下一步：${esc(r.next_action.slice(0, 80))}${r.due_date ? `　<span class="${od ? 'overdue' : 'muted'}">${r.due_date}</span>` : ''}</div>` : ''}
+      ${r.client_reply || r.actual_result ? `<div class="na" style="color:#3B5B95">📝 ${esc((r.client_reply || r.actual_result).slice(0, 80))}</div>` : ''}
+    </div>`;
+  }).join('') : `<div class="empty">${aiRows.length ? '沒有符合條件的分析' : '還沒有任何 AI 分析。按右上角「匯出資料給 GPT」開始，或「＋ 手動新增」。'}</div>`;
+  $('aiList').querySelectorAll('.icard').forEach(el => el.onclick = () => openAIInsight(el.dataset.id));
+}
+['aiSearch','aiCust','aiStatus'].forEach(id => $(id).addEventListener('input', () => renderAIList()));
+$('aiArch').addEventListener('change', () => renderAIList());
+
+// ---------- 匯出給 GPT ----------
+let axCache = null, axPicked = new Set();
+async function openAIExport(mod){
+  $('ax_module').innerHTML = AI_KEYS.map(k => `<option value="${k}">${AI_MODULES[k].name}</option>`).join('');
+  const m = mod || aiMod || 'sandbox';
+  $('ax_module').value = m; $('ax_scope').value = AI_MODULES[m].scope; $('ax_ask').value = ''; $('ax_pii').checked = false;
+  $('ax_pickCat').innerHTML = '<option value="">所有分類</option>' + CATS.map(k => `<option>${k}</option>`).join('');
+  $('aiExportModal').classList.remove('hidden');
+  $('ax_size').textContent = '準備資料中…';
+  try {
+    await loadCustWins();
+    const [acts, qm, projs, ins] = await Promise.all([
+      run(sb.from('activities').select('*').order('happened_at', { ascending:false })),
+      run(sb.from('quote_margin').select('*')), run(sb.from('projects').select('*')),
+      run(sb.from('ai_insights').select('*')).catch(() => []),
+    ]);
+    let plan = null; try { plan = (await run(sb.from('weekly_plans').select('*').eq('week_start', weekRange()[0])))[0]; } catch {}
+    axCache = { acts, qm, projs, ins, plan };
+  } catch (e) { $('ax_size').textContent = '⚠️ 讀取資料失敗：' + e.message; return; }
+  axScopeChanged();
+}
+$('aiExportBtn').onclick = () => openAIExport();
+$('ax_module').addEventListener('change', () => { $('ax_scope').value = AI_MODULES[$('ax_module').value].scope; axScopeChanged(); });
+$('ax_scope').addEventListener('change', axScopeChanged);
+['ax_ask'].forEach(id => $(id).addEventListener('input', axUpdateSize));
+$('ax_pii').addEventListener('change', axUpdateSize);
+function axScopeChanged(){
+  const pick = $('ax_scope').value === 'customers';
+  $('ax_pickWrap').classList.toggle('hidden', !pick);
+  if (pick) { if ($('ax_module').value === 'network' && !axPicked.size) $('ax_pickCat').value = '人脈'; renderAxPick(); }
+  axUpdateSize();
+}
+function renderAxPick(){
+  const kw = $('ax_pickSearch').value.trim().toLowerCase(), cat = $('ax_pickCat').value;
+  const list = customers.filter(c => (!cat || custCat(c) === cat) && (!kw || c.name.toLowerCase().includes(kw)));
+  $('ax_pick').innerHTML = list.map(c => `<label><input type="checkbox" value="${c.id}" ${axPicked.has(c.id) ? 'checked' : ''}>${catBadge(custCat(c))} ${esc(c.name)}</label>`).join('') || '<div class="muted small">沒有符合的客戶</div>';
+  $('ax_pick').querySelectorAll('input').forEach(i => i.onchange = () => { i.checked ? axPicked.add(i.value) : axPicked.delete(i.value); axUpdateSize(); });
+  $('ax_pickAll').dataset.ids = list.map(c => c.id).join(',');
+}
+$('ax_pickSearch').addEventListener('input', renderAxPick);
+$('ax_pickCat').addEventListener('change', renderAxPick);
+$('ax_pickAll').onclick = () => { ($('ax_pickAll').dataset.ids || '').split(',').filter(Boolean).forEach(id => axPicked.add(id)); renderAxPick(); axUpdateSize(); };
+
+function axCustomerIds(scope){
+  if (scope === 'customers') return [...axPicked];
+  if (scope === 'week_deals') return [...new Set(deals.filter(d => OPEN_STAGES.includes(d.stage)).map(d => d.customer_id))];
+  if (scope === 'week_plan') return [...new Set((axCache?.plan?.items || []).map(x => x.id))];
+  return [];
+}
+function packCustomer(c, pii, onlyOpenDeals){
+  const X = axCache;
+  return {
+    customer_id: c.id, name: c.name, company_entity: c.company_entity, category: custCat(c),
+    industry: c.industry || null, website: c.website || null, pipeline: c.pipeline || null, prospect_stage: c.prospect_stage || null, tier: c.tier || null,
+    fit_reason: c.fit_reason || null, research_notes: c.research_notes || null,
+    last_contact_date: c.last_contact_date || null, next_contact_date: c.next_contact_date || null, contact_count: c.contact_count || 0,
+    won_summary: custWins[c.id] ? { deals_won: custWins[c.id].n, revenue_twd: Math.round(custWins[c.id].rev), last_won_date: custWins[c.id].last } : null,
+    contacts: contacts.filter(k => k.customer_id === c.id).map(k => ({ name: k.name, title: k.title || null, is_primary: !!k.is_primary, ...(pii ? { phone: k.phone || null, email: k.email || null } : {}) })),
+    deals: deals.filter(d => d.customer_id === c.id && (!onlyOpenDeals || OPEN_STAGES.includes(d.stage))).map(d => ({
+      deal_id: d.id, title: d.title, stage: d.stage, est_value_twd: d.est_value != null ? Number(d.est_value) : null, probability: d.probability, occasion: d.occasion || null,
+      quantity: d.quantity, needed_by: d.needed_by || null, requirement: d.requirement || null, next_step: d.next_step || null, next_follow_up: d.next_follow_up || null, lost_reason: d.lost_reason || null })),
+    quotes: X.qm.filter(q => q.customer_id === c.id).map(q => ({ quote_no: q.quote_no, status: q.status, issued_at: q.issued_at, total_twd: Math.round(num(q.grand_total_twd)), deal_id: q.deal_id || null })),
+    projects: X.projs.filter(p => p.customer_id === c.id).map(p => ({ name: p.name, stage: p.stage, client_due: p.client_due || null })),
+    activities: X.acts.filter(a => a.customer_id === c.id).slice(0, 20).map(a => ({ date: String(a.happened_at || '').slice(0, 10), channel: a.channel || null, with: a.party || null, summary: a.summary || null, next_step: a.next_step || null })),
+    previous_ai_analysis: X.ins.filter(r => r.customer_id === c.id && !r.archived).slice(0, 5).map(r => ({ date: r.analysis_date, module: r.module, title: r.title, next_action: r.next_action, status: r.status, client_reply: r.client_reply || null, actual_result: r.actual_result || null }))
+  };
+}
+function buildAIExport(){
+  const mod = $('ax_module').value, scope = $('ax_scope').value, m = AI_MODULES[mod];
+  const ids = axCustomerIds(scope);
+  const detailTpl = {}; m.fields.forEach(([k, label]) => setPath(detailTpl, k, `（${label}）`));
+  return {
+    schema: 'revoco.export.v1',
+    exported_at: new Date().toISOString(),
+    today: today(),
+    company: { name: 'REVOCO 睿握科技／JULI 鉅立貿易', positioning: [POSITIONING.REVOCO, POSITIONING.JULI], contact_person: MY_NAME },
+    request: { module: mod, module_name: m.name, task: m.ask, my_question: $('ax_ask').value.trim() || null },
+    scope: { type: scope, customer_count: ids.length, week_start: weekRange()[0] },
+    customers: ids.map(id => custById(id)).filter(Boolean).map(c => packCustomer(c, $('ax_pii').checked, scope === 'week_deals')),
+    instructions_for_gpt: [
+      '你是 REVOCO 的業務策略顧問與銷售教練。請只根據 customers 裡的資料分析，研究型問題可以上網查並附來源。',
+      '有資料根據的內容寫進 confirmed_facts；你的判斷與推測寫進 ai_inferences；資料不足、需要我去問客戶或查證的寫進 open_questions。',
+      '絕對不要編造客戶回覆、成交案例、數字、人名或聯絡方式；不確定就寫進 open_questions。',
+      '針對特定客戶的分析，customer_id 必須原樣抄自資料裡的 customer_id，customer_name 一併填上；不是針對特定客戶就填 null。',
+      `module 一律填 "${mod}"。next_action 要具體可執行；due_date 用 YYYY-MM-DD，從今天 ${today()} 起算。`,
+      '每一筆分析給一個 ref（例如 "' + mod + '-' + today().replace(/-/g, '') + '-01"），方便系統避免重複匯入。',
+      '用繁體中文。最後只回覆一個 JSON，放在 ```json 區塊裡，格式完全依照 response_format，不要加其他欄位以外的說明。'
+    ],
+    response_format: {
+      schema: 'revoco.insights.v1', analysis_date: today(), source: 'GPT', module: mod,
+      insights: [{ ref: `${mod}-${today().replace(/-/g, '')}-01`, module: mod, title: '一句話說明這筆分析', customer_id: '抄自資料，沒有就 null', customer_name: '客戶名稱或 null', deal_id: '抄自資料，沒有就 null',
+        confirmed_facts: ['有資料根據的事實'], ai_inferences: ['你的推論'], open_questions: ['需要確認的事'], strategy: '建議策略', next_action: '下一步行動', due_date: today(), details: detailTpl, tags: [] }]
+    }
+  };
+}
+function axUpdateSize(){
+  if (!axCache) return;
+  const scope = $('ax_scope').value, n = axCustomerIds(scope).length;
+  const len = JSON.stringify(buildAIExport()).length;
+  $('ax_size').innerHTML = `包含 ${n} 位客戶的資料，共約 ${fmt(len)} 字。` + (scope !== 'none' && !n ? ' <b style="color:var(--red)">目前沒有選到任何客戶。</b>' : '') + (len > 60000 ? ' <b style="color:var(--yellow)">資料量很大，建議分幾次匯出。</b>' : '');
+}
+async function axText(){ return '請依照下面 JSON 裡的 request 和 instructions_for_gpt 分析，並依 response_format 回覆 JSON：\n\n```json\n' + JSON.stringify(buildAIExport(), null, 2) + '\n```'; }
+$('ax_copy').onclick = async () => {
+  if (!axCache) return;
+  const t = await axText();
+  try { await navigator.clipboard.writeText(t); toast('✅ 已複製，到 ChatGPT 貼上送出'); }
+  catch { showPrompt(t); }
+};
+$('ax_download').onclick = () => { if (!axCache) return; downloadBlob(new Blob([JSON.stringify(buildAIExport(), null, 2)], { type:'application/json' }), `REVOCO給GPT_${$('ax_module').value}_${today()}.json`); };
+
+// ---------- 匯入 GPT 結果 ----------
+$('aiImportBtn').onclick = () => { $('ai_paste').value = ''; $('ai_preview').innerHTML = ''; $('ai_confirm').classList.add('hidden'); aiPending = []; $('aiImportModal').classList.remove('hidden'); $('ai_paste').focus(); };
+function extractJSON(t){
+  t = String(t || '').trim();
+  const fence = t.match(/```(?:json)?\s*([\s\S]*?)```/i); if (fence) t = fence[1].trim();
+  try { return JSON.parse(t); } catch {}
+  const a = Math.min(...['{','['].map(ch => { const i = t.indexOf(ch); return i < 0 ? Infinity : i; }));
+  const b = Math.max(t.lastIndexOf('}'), t.lastIndexOf(']'));
+  if (a === Infinity || b <= a) throw new Error('找不到 JSON 內容');
+  return JSON.parse(t.slice(a, b + 1));
+}
+function matchCustomer(id, name){
+  if (id && custById(id)) return { c: custById(id), how: '編號' };
+  const n = String(name || '').trim(); if (!n) return { c: null, how: '' };
+  const ex = customers.find(c => c.name === n); if (ex) return { c: ex, how: '名稱' };
+  const part = customers.filter(c => c.name.includes(n) || n.includes(c.name));
+  return part.length === 1 ? { c: part[0], how: '相似名稱' } : { c: null, how: part.length > 1 ? '多個可能' : '' };
+}
+const KNOWN_KEYS = ['ref','id','module','title','customer_id','customer_name','deal_id','analysis_date','source','confirmed_facts','ai_inferences','open_questions','strategy','next_action','due_date','details','tags','status'];
+function normalizeInsight(it, top, existingRefs){
+  const warn = [];
+  const modRaw = it.module ?? top.module;
+  const module = AI_ALIAS[modRaw] || AI_ALIAS[String(modRaw || '').trim()] || null;
+  if (!module) warn.push('看不出是哪個功能區，請選一下');
+  const { c, how } = matchCustomer(isUuid(it.customer_id) ? it.customer_id : null, it.customer_name);
+  if (!c && (it.customer_id || it.customer_name)) warn.push(`找不到客戶「${it.customer_name || it.customer_id}」${how === '多個可能' ? '（有多個相似名稱）' : ''}，請手動選或不關聯`);
+  if (c && how !== '編號') warn.push(`用${how}比對到「${c.name}」，請確認`);
+  const arr = v => Array.isArray(v) ? v.map(x => typeof x === 'string' ? x : JSON.stringify(x)) : (v ? fromLines(v) : []);
+  const due = isoDate(it.due_date); if (it.due_date && !due) warn.push('預計執行日期格式看不懂，已留空');
+  const details = (it.details && typeof it.details === 'object' && !Array.isArray(it.details)) ? { ...it.details } : {};
+  for (const [k, v] of Object.entries(it)) if (!KNOWN_KEYS.includes(k)) details[k] = v;
+  const ref = it.ref || it.id || null;
+  const dup = ref && existingRefs.has(String(ref));
+  if (dup) warn.push('這筆之前匯入過（同一個 ref），預設不勾選');
+  const title = String(it.title || it.next_action || it.strategy || '').trim().slice(0, 120) || '（未命名分析）';
+  let deal = isUuid(it.deal_id) && deals.find(d => d.id === it.deal_id) ? it.deal_id : null;
+  if (deal && c && deals.find(d => d.id === deal).customer_id !== c.id) deal = null;
+  return { include: !dup, warn, row: {
+    module, title, customer_id: c?.id || null, customer_name: it.customer_name || null, deal_id: deal,
+    analysis_date: isoDate(it.analysis_date) || isoDate(top.analysis_date) || today(), source: String(it.source || top.source || 'GPT').slice(0, 40), source_ref: ref ? String(ref) : null,
+    confirmed_facts: arr(it.confirmed_facts), ai_inferences: arr(it.ai_inferences), open_questions: arr(it.open_questions),
+    strategy: it.strategy ? toLines(it.strategy) : null, next_action: it.next_action ? toLines(it.next_action) : null, due_date: due,
+    status: AI_STATUS.includes(it.status) ? it.status : '待執行', details, tags: Array.isArray(it.tags) ? it.tags.map(String) : [], raw: it,
+    history: [{ at: new Date().toISOString(), action: '匯入', source: String(it.source || top.source || 'GPT') }] } };
+}
+const isUuid = v => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(v || ''));
+$('ai_check').onclick = async () => {
+  const box = $('ai_preview'); $('ai_confirm').classList.add('hidden'); aiPending = [];
+  let data;
+  try { data = extractJSON($('ai_paste').value); } catch (e) { box.innerHTML = `<div style="color:var(--red)">讀不懂這段內容：${esc(e.message)}。請確認貼的是 GPT 回覆裡完整的 JSON。</div>`; return; }
+  const top = Array.isArray(data) ? {} : data;
+  const items = Array.isArray(data) ? data : Array.isArray(data.insights) ? data.insights : (data.title || data.next_action ? [data] : null);
+  if (!items || !items.length) { box.innerHTML = '<div style="color:var(--red)">JSON 裡沒有 insights（分析清單）。</div>'; return; }
+  let refs = new Set();
+  try { refs = new Set((await run(sb.from('ai_insights').select('*'))).map(r => r.source_ref).filter(Boolean)); } catch {}
+  aiPending = items.filter(x => x && typeof x === 'object').map(it => normalizeInsight(it, top, refs));
+  renderAIPreview(top);
+};
+function renderAIPreview(top){
+  const box = $('ai_preview');
+  const matched = aiPending.filter(p => p.row.customer_id).length, dup = aiPending.filter(p => !p.include).length;
+  const custOpts = sel => '<option value="">不關聯客戶</option>' + customers.map(c => `<option value="${c.id}" ${c.id === sel ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
+  box.innerHTML = `<div class="small" style="margin-bottom:8px"><b>共 ${aiPending.length} 筆分析</b>${top.analysis_date ? '・分析日期 ' + esc(top.analysis_date) : ''}・比對到客戶 ${matched} 筆${dup ? `・之前匯入過 ${dup} 筆` : ''}。勾選要存入的，確認無誤再按「確認存入」。</div>
+    <div class="items-wrap"><table class="prev"><thead><tr><th style="width:30px">存</th><th style="width:150px">功能區</th><th>標題／下一步</th><th style="width:170px">客戶</th><th style="width:96px">日期</th></tr></thead><tbody>` +
+    aiPending.map((p, i) => `<tr data-i="${i}"><td><input type="checkbox" data-p="inc" ${p.include ? 'checked' : ''} style="width:18px;height:18px;min-height:0"></td>
+      <td><select data-p="module"><option value="">請選擇</option>${AI_KEYS.map(k => `<option value="${k}" ${k === p.row.module ? 'selected' : ''}>${AI_MODULES[k].name}</option>`).join('')}</select></td>
+      <td><b>${esc(p.row.title)}</b>${p.row.next_action ? `<div class="muted">下一步：${esc(p.row.next_action.slice(0, 70))}</div>` : ''}<div class="muted">事實 ${p.row.confirmed_facts.length}・推論 ${p.row.ai_inferences.length}・待確認 ${p.row.open_questions.length}</div>${p.warn.map(w => `<div style="color:var(--yellow);font-weight:600">⚠ ${esc(w)}</div>`).join('')}</td>
+      <td><select data-p="cust">${custOpts(p.row.customer_id)}</select></td>
+      <td>${esc(p.row.due_date || '—')}</td></tr>`).join('') + '</tbody></table></div>';
+  box.querySelectorAll('tr[data-i]').forEach(tr => {
+    const p = aiPending[tr.dataset.i];
+    tr.querySelector('[data-p=inc]').onchange = e => { p.include = e.target.checked; };
+    tr.querySelector('[data-p=module]').onchange = e => { p.row.module = e.target.value || null; };
+    tr.querySelector('[data-p=cust]').onchange = e => { p.row.customer_id = e.target.value || null; if (p.row.deal_id && deals.find(d => d.id === p.row.deal_id)?.customer_id !== p.row.customer_id) p.row.deal_id = null; };
+  });
+  $('ai_confirm').classList.remove('hidden');
+}
+$('ai_confirm').onclick = async () => {
+  const rows = aiPending.filter(p => p.include).map(p => p.row);
+  if (!rows.length) { toast('沒有勾選任何一筆'); return; }
+  if (rows.some(r => !r.module)) { toast('有分析還沒選功能區'); return; }
+  try {
+    await run(sb.from('ai_insights').insert(rows).select());
+    $('aiImportModal').classList.add('hidden'); toast(`✅ 已存入 ${rows.length} 筆 AI 分析`);
+    if (rows.length && new Set(rows.map(r => r.module)).size === 1) aiMod = rows[0].module;
+    if ($('aiView').classList.contains('hidden')) switchView('ai'); else renderAI();
+  } catch (e) { toast('⚠️ 存入失敗：' + e.message); }
+};
+
+// ---------- 單筆分析 ----------
+async function openAIInsight(id){
+  aiEditing = id ? aiRows.find(r => r.id === id) : null;
+  if (id && !aiEditing) { try { aiEditing = await run(sb.from('ai_insights').select('*').eq('id', id).single()); if (aiEditing) aiRows.push(aiEditing); } catch {} }
+  if (id && !aiEditing) { toast('找不到這筆分析'); return; }
+  const r = aiEditing || { module: aiMod || 'coach', analysis_date: today(), source: '手動', status: '待執行', confirmed_facts: [], ai_inferences: [], open_questions: [], details: {} };
+  $('aiTitleH').textContent = id ? 'AI 分析' : '新增分析';
+  $('ai_module').innerHTML = AI_KEYS.map(k => `<option value="${k}">${AI_MODULES[k].name}</option>`).join('');
+  $('ai_title').value = r.title || ''; $('ai_module').value = r.module; $('ai_customer').value = custById(r.customer_id)?.name || '';
+  $('ai_date').value = r.analysis_date || ''; $('ai_source').value = r.source || ''; $('ai_status').value = r.status; $('ai_due').value = r.due_date || '';
+  $('ai_facts').value = toLines(r.confirmed_facts); $('ai_infer').value = toLines(r.ai_inferences); $('ai_questions').value = toLines(r.open_questions);
+  $('ai_strategy').value = r.strategy || ''; $('ai_next').value = r.next_action || ''; $('ai_reply').value = r.client_reply || ''; $('ai_result').value = r.actual_result || '';
+  renderAIDetails(r.module, r.details || {});
+  $('ai_arch').textContent = r.archived ? '取消歸檔' : '歸檔';
+  $('ai_arch').classList.toggle('hidden', !id); $('ai_del').classList.toggle('hidden', !id);
+  const known = new Set(AI_MODULES[r.module].fields.map(([k]) => k.split('.')[0]));
+  const extra = Object.fromEntries(Object.entries(r.details || {}).filter(([k]) => !known.has(k)));
+  $('ai_trace').innerHTML = id ? `建立：${esc(String(r.created_at || '').slice(0, 16).replace('T', ' '))}・來源：${esc(r.source || '')}${r.source_ref ? '・ref ' + esc(r.source_ref) : ''}${r.customer_name && !r.customer_id ? `・GPT 寫的客戶：${esc(r.customer_name)}` : ''}<br>` +
+    ((r.history || []).map(h => `${esc(String(h.at || '').slice(0, 16).replace('T', ' '))}　${esc(h.action || '')}${h.fields ? '：' + esc(h.fields.join('、')) : ''}`).join('<br>') || '') +
+    (Object.keys(extra).length ? `<div style="margin-top:6px"><b>其他內容</b><pre style="white-space:pre-wrap;font-size:12px">${esc(JSON.stringify(extra, null, 2))}</pre></div>` : '') +
+    (r.raw ? `<div style="margin-top:6px"><b>原始匯入資料</b><pre style="white-space:pre-wrap;font-size:12px;max-height:240px;overflow:auto">${esc(JSON.stringify(r.raw, null, 2))}</pre></div>` : '') : '';
+  $('aiModal').classList.remove('hidden');
+}
+function renderAIDetails(mod, details){
+  const m = AI_MODULES[mod];
+  $('ai_details').innerHTML = `<div class="fact-box" style="background:#F7F7F5"><label>${esc(m.name)}・專屬內容</label><div class="grid g2">` +
+    m.fields.map(([k, label]) => `<div><label>${esc(label)}</label><textarea data-dk="${k}" style="min-height:60px">${esc(toLines(getPath(details, k)))}</textarea></div>`).join('') + '</div></div>';
+}
+$('ai_module').addEventListener('change', () => renderAIDetails($('ai_module').value, aiEditing?.details || {}));
+$('aiNewBtn').onclick = () => openAIInsight(null);
+$('ai_save').onclick = async () => {
+  const title = $('ai_title').value.trim(); if (!title) { toast('請填標題'); return; }
+  const cname = $('ai_customer').value.trim(); const c = cname ? custByName(cname) : null;
+  if (cname && !c) { toast('找不到這個客戶，請從清單選，或留空'); return; }
+  const details = JSON.parse(JSON.stringify(aiEditing?.details || {}));
+  $('ai_details').querySelectorAll('[data-dk]').forEach(t => {
+    const old = getPath(details, t.dataset.dk); const v = t.value.trim();
+    setPath(details, t.dataset.dk, Array.isArray(old) ? fromLines(v) : (v || null));
+  });
+  const row = { title, module: $('ai_module').value, customer_id: c?.id || null, analysis_date: $('ai_date').value || today(), source: $('ai_source').value.trim() || '手動',
+    status: $('ai_status').value, due_date: $('ai_due').value || null, confirmed_facts: fromLines($('ai_facts').value), ai_inferences: fromLines($('ai_infer').value),
+    open_questions: fromLines($('ai_questions').value), strategy: $('ai_strategy').value.trim() || null, next_action: $('ai_next').value.trim() || null,
+    client_reply: $('ai_reply').value.trim() || null, actual_result: $('ai_result').value.trim() || null, details };
+  try {
+    if (aiEditing) {
+      const changed = Object.keys(row).filter(k => JSON.stringify(row[k] ?? null) !== JSON.stringify(aiEditing[k] ?? null));
+      if (!changed.length) { $('aiModal').classList.add('hidden'); return; }
+      const label = { title:'標題', module:'功能區', customer_id:'客戶', analysis_date:'分析日期', source:'來源', status:'狀態', due_date:'預計日期', confirmed_facts:'已確認事實', ai_inferences:'AI 推論', open_questions:'待確認事項', strategy:'建議策略', next_action:'下一步', client_reply:'客戶實際回覆', actual_result:'實際執行結果', details:'專屬內容' };
+      row.history = [...(aiEditing.history || []), { at: new Date().toISOString(), action: '修改', fields: changed.map(k => label[k] || k) }];
+      await run(sb.from('ai_insights').update(row).eq('id', aiEditing.id));
+    } else {
+      row.history = [{ at: new Date().toISOString(), action: '手動新增' }];
+      await run(sb.from('ai_insights').insert(row).select());
+    }
+    $('aiModal').classList.add('hidden'); toast('✅ 已儲存'); renderAI();
+  } catch (e) { toast('⚠️ 儲存失敗：' + e.message); }
+};
+$('ai_arch').onclick = async () => {
+  if (!aiEditing) return;
+  const archived = !aiEditing.archived;
+  try { await run(sb.from('ai_insights').update({ archived, history: [...(aiEditing.history || []), { at: new Date().toISOString(), action: archived ? '歸檔' : '取消歸檔' }] }).eq('id', aiEditing.id));
+    $('aiModal').classList.add('hidden'); toast(archived ? '已歸檔（勾「含已歸檔」可以再看到）' : '已取消歸檔'); renderAI(); }
+  catch (e) { toast('⚠️ ' + e.message); }
+};
+$('ai_del').onclick = async () => {
+  if (!aiEditing || !confirm('確定要刪除這筆分析？刪了就找不回來（不想看到可以用「歸檔」）。')) return;
+  try { await run(sb.from('ai_insights').delete().eq('id', aiEditing.id)); $('aiModal').classList.add('hidden'); toast('已刪除'); renderAI(); }
+  catch (e) { toast('⚠️ ' + e.message); }
+};
+
+// ================= AI Sales Playbook 文件庫 =================
+const PB_CATS = { strategy:'商業策略', dev_sop:'客戶開發 SOP', ai_research:'AI 客戶研究', sandbox:'每週商機沙盤推演', scripts:'業務溝通話術', crm_rules:'CRM 與系統規則', kpi:'KPI 與成效分析' };
+const PB_KEYS = Object.keys(PB_CATS);
+const PB_ALIAS = {}; for (const [k, v] of Object.entries(PB_CATS)) { PB_ALIAS[k] = k; PB_ALIAS[v] = k; }
+Object.assign(PB_ALIAS, { 策略:'strategy', 商業:'strategy', SOP:'dev_sop', 開發SOP:'dev_sop', 客戶開發:'dev_sop', 客戶研究:'ai_research', 研究:'ai_research', 沙盤推演:'sandbox', 沙盤:'sandbox', 話術:'scripts', 溝通話術:'scripts', CRM:'crm_rules', 系統規則:'crm_rules', KPI:'kpi', 成效分析:'kpi' });
+const LINK_LABEL = { customer:'客戶', deal:'商機', project:'專案', task:'任務' };
+let pbDocs = [], pbVers = [], pbLinks = [], pbCat = '', pbCur = null, pbViewVer = null, pbEditBase = null, pbPending = [], pbTasks = [], pbProjects = [];
+let mdLib = null;
+async function loadMd(){
+  if (mdLib) return mdLib;
+  try {
+    if (window.__MD__) mdLib = window.__MD__;
+    else {
+      const [m, d] = await Promise.all([import('https://cdn.jsdelivr.net/npm/marked@15.0.12/+esm'), import('https://cdn.jsdelivr.net/npm/dompurify@3.2.6/+esm')]);
+      const purify = d.default || d;
+      mdLib = s => purify.sanitize(m.marked.parse(String(s || ''), { gfm:true, breaks:true }));
+    }
+  } catch (e) { mdLib = s => `<div style="white-space:pre-wrap">${esc(s)}</div>`; }
+  return mdLib;
+}
+const verOf = id => pbVers.find(v => v.id === id);
+const docVers = d => pbVers.filter(v => v.doc_id === d.id).sort((a, b) => b.version_no - a.version_no);
+function docStatus(d){
+  if (d.archived) return '已封存';
+  const appr = verOf(d.approved_version_id);
+  if (!appr) return '草稿';
+  return d.latest_version_no > appr.version_no ? '有新草稿' : '已核准';
+}
+function verStatus(d, v){
+  const appr = verOf(d.approved_version_id);
+  if (appr && v.id === appr.id) return '已核准';
+  if (!appr || v.version_no > appr.version_no) return v.version_no === d.latest_version_no ? '草稿' : '歷史版本';
+  return '歷史版本';
+}
+const bestVer = d => verOf(d.approved_version_id) || docVers(d)[0];
+const stripMd = s => String(s || '').replace(/[#>*_`|\-]+/g, ' ').replace(/\s+/g, ' ').trim();
+
+async function loadPB(){
+  [pbDocs, pbVers, pbLinks] = await Promise.all([
+    run(sb.from('playbook_docs').select('*').order('updated_at', { ascending:false })),
+    run(sb.from('playbook_versions').select('*')),
+    run(sb.from('playbook_links').select('*')),
+  ]);
+}
+async function renderPlaybook(){
+  $('pbList').innerHTML = '<div class="empty">載入中…</div>';
+  try { await loadPB(); }
+  catch (e) { $('pbList').innerHTML = `<div class="empty" style="color:var(--red)">讀取失敗：${esc(e.message)}<br>如果剛更新系統，請先到 Supabase 執行 12 那份 SQL。</div>`; $('pbCats').innerHTML = ''; return; }
+  renderPBList();
+}
+function pbFiltered(){
+  const kw = $('pbSearch').value.trim().toLowerCase(), st = $('pbStatus').value;
+  return pbDocs.filter(d => (!pbCat || d.category === pbCat))
+    .filter(d => st === '已封存' ? d.archived : (!d.archived && (!st || docStatus(d) === st)))
+    .filter(d => !kw || [d.title, PB_CATS[d.category], ...docVers(d).slice(0, 1).map(v => v.content_md), bestVer(d)?.content_md].some(x => (x || '').toLowerCase().includes(kw)));
+}
+function renderPBList(){
+  const live = pbDocs.filter(d => !d.archived);
+  $('pbCats').innerHTML = `<button class="chip ${pbCat === '' ? 'active' : ''}" data-c="">全部 ${live.length}</button>` +
+    PB_KEYS.map(k => `<button class="chip ${pbCat === k ? 'active' : ''}" data-c="${k}">${PB_CATS[k]} ${live.filter(d => d.category === k).length}</button>`).join('');
+  $('pbCats').querySelectorAll('.chip').forEach(b => b.onclick = () => { pbCat = b.dataset.c; renderPBList(); });
+  const list = pbFiltered();
+  $('pbList').innerHTML = list.length ? list.map(d => {
+    const v = bestVer(d), st = docStatus(d), nl = pbLinks.filter(l => l.doc_id === d.id).length;
+    return `<div class="pbcard ${d.archived ? 'arch' : ''}" data-id="${d.id}">
+      <div>${!pbCat ? `<span class="pbtag">${PB_CATS[d.category]}</span>` : ''}<span class="pst pst-${st}">${st}</span></div>
+      <div class="t">${esc(d.title)}</div>
+      <div class="meta">v${d.latest_version_no}${verOf(d.approved_version_id) ? `・核准版 v${verOf(d.approved_version_id).version_no}` : ''}・更新 ${esc(String(d.updated_at || '').slice(0, 10))}・建立 ${esc(String(d.created_at || '').slice(0, 10))}${nl ? `・連結 ${nl}` : ''}</div>
+      <div class="pv">${esc(stripMd(v?.content_md).slice(0, 160))}</div></div>`;
+  }).join('') : `<div class="empty">${pbDocs.length ? '沒有符合條件的文件' : '還沒有文件。按「＋ 新文件」，或把 ChatGPT 寫好的內容用「匯入 ChatGPT 內容」貼進來。'}</div>`;
+  $('pbList').querySelectorAll('.pbcard').forEach(el => el.onclick = () => openPBDoc(el.dataset.id));
+}
+['pbSearch','pbStatus'].forEach(id => $(id).addEventListener('input', () => renderPBList()));
+
+// ---------- 文件內容 ----------
+async function openPBDoc(id, verId){
+  if (!pbDocs.some(d => d.id === id)) { try { await loadPB(); } catch (e) { toast('⚠️ ' + e.message); return; } }
+  pbCur = pbDocs.find(d => d.id === id); if (!pbCur) { toast('找不到這份文件'); return; }
+  pbViewVer = verId ? verOf(verId) : bestVer(pbCur);
+  await renderPBDoc();
+  if ($('pbDocView').classList.contains('hidden')) await switchView('pbDoc');
+}
+async function renderPBDoc(){
+  const d = pbCur, v = pbViewVer, md = await loadMd();
+  const vs = verStatus(d, v);
+  $('pbHead').innerHTML = `<div><span class="pbtag">${PB_CATS[d.category]}</span><span class="pst pst-${docStatus(d)}">${docStatus(d)}</span></div>
+    <h2 style="margin:8px 0 4px;font-size:21px">${esc(d.title)}</h2>
+    <div class="small muted">正在看：<b>v${v.version_no}</b>（<span class="pst pst-${vs}">${vs}</span>）・${esc(String(v.created_at || '').slice(0, 16).replace('T', ' '))}・來源 ${esc(v.source || '')}${v.change_note ? '・' + esc(v.change_note) : ''}<br>建立 ${esc(String(d.created_at || '').slice(0, 10))}・更新 ${esc(String(d.updated_at || '').slice(0, 10))}・共 ${d.latest_version_no} 個版本</div>`;
+  $('pbContent').innerHTML = v.content_md ? md(v.content_md) : '<div class="muted">（沒有內容）</div>';
+  $('pbApproveBtn').classList.toggle('hidden', vs === '已核准' || d.archived);
+  $('pbApproveBtn').textContent = `核准 v${v.version_no}`;
+  $('pbEditBtn').textContent = v.version_no === d.latest_version_no ? '編輯（另存新版本）' : `以 v${v.version_no} 為基礎編輯`;
+  $('pbEditBtn').classList.toggle('hidden', d.archived);
+  $('pbArchBtn').textContent = d.archived ? '取消封存' : '封存';
+  $('pbState').textContent = '';
+  $('pbVersions').innerHTML = docVers(d).map(x => `<div class="v ${x.id === v.id ? 'cur' : ''}" data-v="${x.id}"><span>v${x.version_no}　<span class="pst pst-${verStatus(d, x)}">${verStatus(d, x)}</span>${esc(x.change_note ? ' ' + x.change_note : '')}</span><span class="muted">${esc(String(x.created_at || '').slice(0, 10))}・${esc(x.source || '')}</span></div>`).join('');
+  $('pbVersions').querySelectorAll('[data-v]').forEach(el => el.onclick = () => { pbViewVer = verOf(el.dataset.v); renderPBDoc(); window.scrollTo(0, 0); });
+  renderPBLinks(); fillLinkTargets();
+}
+$('pbBack').onclick = () => switchView('playbook');
+$('pbApproveBtn').onclick = async () => {
+  if (!pbCur || !pbViewVer) return;
+  const prev = verOf(pbCur.approved_version_id);
+  if (!confirm(`核准 v${pbViewVer.version_no} 成為正式版？${prev ? `\n目前的正式版 v${prev.version_no} 會變成歷史版本（內容保留）。` : ''}`)) return;
+  try { await run(sb.from('playbook_docs').update({ approved_version_id:pbViewVer.id }).eq('id', pbCur.id)); pbCur.approved_version_id = pbViewVer.id; pbCur.updated_at = new Date().toISOString();
+    toast(`✅ v${pbViewVer.version_no} 已核准`); renderPBDoc(); }
+  catch (e) { toast('⚠️ ' + e.message); }
+};
+$('pbArchBtn').onclick = async () => {
+  if (!pbCur) return;
+  const archived = !pbCur.archived;
+  if (archived && !confirm('封存後不會出現在列表（篩選「已封存」可以找回），內容和版本都會保留。確定封存？')) return;
+  try { await run(sb.from('playbook_docs').update({ archived }).eq('id', pbCur.id)); pbCur.archived = archived; toast(archived ? '已封存' : '已取消封存'); renderPBDoc(); }
+  catch (e) { toast('⚠️ ' + e.message); }
+};
+function mdFile(d, v){
+  return `---\ntitle: ${d.title}\ncategory: ${PB_CATS[d.category]}\nversion: v${v.version_no}\nstatus: ${verStatus(d, v)}\nupdated: ${String(v.created_at || '').slice(0, 10)}\n---\n\n${v.content_md || ''}\n`;
+}
+const safeName = s => String(s).replace(/[\\/:*?"<>|]+/g, '_').slice(0, 60);
+$('pbMdBtn').onclick = () => { if (pbCur) downloadBlob(new Blob([mdFile(pbCur, pbViewVer)], { type:'text/markdown' }), `${safeName(pbCur.title)}_v${pbViewVer.version_no}.md`); };
+
+// ---------- 連結 ----------
+function linkName(l){
+  if (l.target_type === 'customer') return custById(l.target_id)?.name;
+  if (l.target_type === 'deal') return deals.find(x => x.id === l.target_id)?.title;
+  if (l.target_type === 'project') return pbProjects.find(x => x.id === l.target_id)?.name;
+  if (l.target_type === 'task') { const t = pbTasks.find(x => x.id === l.target_id); if (!t) return null; const p = pbProjects.find(x => x.id === t.project_id); return (p ? p.name + '：' : '') + t.title; }
+}
+async function ensureProjTasks(){ if (pbProjects.length && pbTasks.length) return; try { [pbProjects, pbTasks] = await Promise.all([run(sb.from('projects').select('*')), run(sb.from('project_tasks').select('*').order('sort_order'))]); } catch {} }
+async function renderPBLinks(){
+  await ensureProjTasks();
+  const ls = pbLinks.filter(l => l.doc_id === pbCur.id);
+  $('pbLinks').innerHTML = ls.length ? ls.map(l => `<span class="lchip" data-l="${l.id}"><span class="k">${LINK_LABEL[l.target_type]}</span><a href="#" data-go="${l.id}">${esc(linkName(l) || '（已刪除）')}</a><button title="移除連結" data-rm="${l.id}">✕</button></span>`).join('') : '<div class="muted small">還沒有連結</div>';
+  $('pbLinks').querySelectorAll('[data-rm]').forEach(b => b.onclick = async () => {
+    try { await run(sb.from('playbook_links').delete().eq('id', b.dataset.rm)); pbLinks = pbLinks.filter(l => l.id !== b.dataset.rm); renderPBLinks(); } catch (e) { toast('⚠️ ' + e.message); } });
+  $('pbLinks').querySelectorAll('[data-go]').forEach(a => a.onclick = e => { e.preventDefault(); const l = pbLinks.find(x => x.id === a.dataset.go);
+    if (l.target_type === 'customer') openCustomer(l.target_id); else if (l.target_type === 'deal') openDeal(l.target_id);
+    else if (l.target_type === 'project') openProject(l.target_id); else { const t = pbTasks.find(x => x.id === l.target_id); if (t) openProject(t.project_id); } });
+}
+async function fillLinkTargets(){
+  await ensureProjTasks();
+  const t = $('pbLinkType').value;
+  const opts = t === 'customer' ? customers.map(c => [c.id, c.name]) : t === 'deal' ? deals.map(d => [d.id, `${d.title}（${d.stage}）`])
+    : t === 'project' ? pbProjects.map(p => [p.id, p.name]) : pbTasks.filter(x => !['完成','不需要'].includes(x.status)).map(x => [x.id, (pbProjects.find(p => p.id === x.project_id)?.name || '') + '：' + x.title]);
+  $('pbLinkTarget').innerHTML = opts.length ? opts.map(([id, n]) => `<option value="${id}">${esc(n)}</option>`).join('') : '<option value="">（沒有可選的）</option>';
+}
+$('pbLinkType').addEventListener('change', fillLinkTargets);
+$('pbLinkAdd').onclick = async () => {
+  const id = $('pbLinkTarget').value; if (!id || !pbCur) return;
+  if (pbLinks.some(l => l.doc_id === pbCur.id && l.target_type === $('pbLinkType').value && l.target_id === id)) { toast('已經連結過了'); return; }
+  try { const l = await run(sb.from('playbook_links').insert({ doc_id:pbCur.id, target_type:$('pbLinkType').value, target_id:id }).select().single()); pbLinks.push(l); renderPBLinks(); toast('已加入連結'); }
+  catch (e) { toast('⚠️ ' + e.message); }
+};
+
+// ---------- 新增／編輯（永遠另存新版本） ----------
+function openPBEditor(doc, baseVer){
+  pbEditBase = { doc, baseVer };
+  $('pe_cat').innerHTML = PB_KEYS.map(k => `<option value="${k}">${PB_CATS[k]}</option>`).join('');
+  $('pbEditTitle').textContent = doc ? `編輯「${doc.title}」→ 會存成 v${doc.latest_version_no + 1}` : '新文件';
+  $('pe_title').value = doc?.title || ''; $('pe_cat').value = doc?.category || pbCat || 'strategy';
+  $('pe_md').value = baseVer?.content_md || ''; $('pe_note').value = baseVer && baseVer.version_no !== doc.latest_version_no ? `以 v${baseVer.version_no} 為基礎修改` : '';
+  $('pe_approve').checked = false;
+  showPETab(false);
+  $('pbEditModal').classList.remove('hidden'); (doc ? $('pe_md') : $('pe_title')).focus();
+}
+async function showPETab(prev){
+  $('pe_tabEdit').classList.toggle('active', !prev); $('pe_tabPrev').classList.toggle('active', prev);
+  $('pe_md').classList.toggle('hidden', prev); $('pe_preview').classList.toggle('hidden', !prev);
+  if (prev) $('pe_preview').innerHTML = (await loadMd())($('pe_md').value) || '<span class="muted">（沒有內容）</span>';
+}
+$('pe_tabEdit').onclick = () => showPETab(false);
+$('pe_tabPrev').onclick = () => showPETab(true);
+$('pbNewBtn').onclick = () => openPBEditor(null, null);
+$('pbEditBtn').onclick = () => pbCur && openPBEditor(pbCur, pbViewVer);
+async function addVersion(doc, { title, category, content_md, change_note, source, raw, approve }){
+  let d = doc;
+  if (!d) d = await run(sb.from('playbook_docs').insert({ title, category, source: source || null, latest_version_no: 0 }).select().single());
+  const vno = (d.latest_version_no || 0) + 1;
+  const v = await run(sb.from('playbook_versions').insert({ doc_id:d.id, version_no:vno, content_md:content_md || '', change_note:change_note || null, source:source || '手動', raw:raw || null }).select().single());
+  const patch = { latest_version_no:vno };
+  if (title && title !== d.title) patch.title = title;
+  if (category && category !== d.category) patch.category = category;
+  if (approve) patch.approved_version_id = v.id;
+  const d2 = await run(sb.from('playbook_docs').update(patch).eq('id', d.id).select().single());
+  return { doc:d2, ver:v };
+}
+$('pe_save').onclick = async () => {
+  const title = $('pe_title').value.trim(); if (!title) { toast('請填標題'); return; }
+  const md = $('pe_md').value;
+  const { doc, baseVer } = pbEditBase || {};
+  if (doc && baseVer && md === baseVer.content_md && title === doc.title && $('pe_cat').value === doc.category) { toast('內容沒有改變，不需要存新版本'); return; }
+  $('pe_save').disabled = true;
+  try {
+    const r = await addVersion(doc, { title, category:$('pe_cat').value, content_md:md, change_note:$('pe_note').value.trim() || (doc ? null : '建立文件'), source:'手動', approve:$('pe_approve').checked });
+    $('pbEditModal').classList.add('hidden');
+    toast(`✅ 已存成 v${r.ver.version_no}${$('pe_approve').checked ? '，並已核准' : '（草稿）'}`);
+    await loadPB(); await openPBDoc(r.doc.id, r.ver.id);
+  } catch (e) { toast('⚠️ 儲存失敗：' + e.message); }
+  finally { $('pe_save').disabled = false; }
+};
+
+// ---------- 匯入 ChatGPT 內容 ----------
+$('pbImportBtn').onclick = () => {
+  $('pi_cat').innerHTML = PB_KEYS.map(k => `<option value="${k}">${PB_CATS[k]}</option>`).join(''); $('pi_cat').value = pbCat || 'strategy';
+  $('pi_text').value = ''; $('pi_preview').innerHTML = ''; $('pi_confirm').classList.add('hidden'); pbPending = [];
+  $('pbImportModal').classList.remove('hidden'); $('pi_text').focus();
+};
+function parsePBInput(text, defCat){
+  const t = String(text || '').trim(); if (!t) throw new Error('沒有內容');
+  let data = null;
+  if (/^[\[{]/.test(t) || /```json/i.test(t)) { try { data = extractJSON(t); } catch {} }
+  if (data && (Array.isArray(data) || Array.isArray(data.documents) || data.content_md != null)) {
+    const docsIn = Array.isArray(data) ? data : Array.isArray(data.documents) ? data.documents : [data];
+    return docsIn.filter(x => x && typeof x === 'object').map(x => ({
+      title: String(x.title || '').trim(), category: PB_ALIAS[x.category] || PB_ALIAS[String(x.category || '').trim()] || null,
+      content_md: String(x.content_md ?? x.content ?? x.markdown ?? ''), change_note: x.change_note || null, approve: !!x.approve,
+      links: Array.isArray(x.links) ? x.links : [], raw: x, catGuess: !!x.category }));
+  }
+  // Markdown：去掉外層 ```markdown，取第一個 # 標題
+  let md = t.replace(/^```(?:markdown|md)?\s*\n([\s\S]*?)\n```\s*$/i, '$1');
+  let title = '', fm = {};
+  const fmM = md.match(/^---\n([\s\S]*?)\n---\n?/); if (fmM) { fmM[1].split('\n').forEach(l => { const m = l.match(/^(\w+):\s*(.*)$/); if (m) fm[m[1]] = m[2].trim(); }); md = md.slice(fmM[0].length); }
+  const h = md.match(/^\s*#\s+(.+)$/m); title = fm.title || (h ? h[1].trim() : '');
+  return [{ title, category: PB_ALIAS[fm.category] || defCat, content_md: md.trim(), change_note: null, approve: false, links: [], raw: { markdown: t } }];
+}
+function resolveLinks(links){
+  const out = [], warn = [];
+  for (const l of links) {
+    const type = { customer:'customer', 客戶:'customer', deal:'deal', 商機:'deal', project:'project', 專案:'project', task:'task', 任務:'task' }[l.type || l.target_type];
+    if (!type) { warn.push('看不懂的連結類型'); continue; }
+    let id = isUuid(l.id || l.target_id) ? (l.id || l.target_id) : null;
+    const n = String(l.name || '').trim();
+    if (!id && n) {
+      if (type === 'customer') id = matchCustomer(null, n).c?.id;
+      if (type === 'deal') id = deals.find(d => d.title === n)?.id;
+      if (type === 'project') id = pbProjects.find(p => p.name === n)?.id;
+      if (type === 'task') id = pbTasks.find(x => x.title === n)?.id;
+    }
+    if (id) out.push({ target_type:type, target_id:id }); else warn.push(`找不到${LINK_LABEL[type]}「${n || l.id}」，略過這個連結`);
+  }
+  return { out, warn };
+}
+$('pi_check').onclick = async () => {
+  const box = $('pi_preview'); $('pi_confirm').classList.add('hidden'); pbPending = [];
+  let items;
+  try { items = parsePBInput($('pi_text').value, $('pi_cat').value); } catch (e) { box.innerHTML = `<div style="color:var(--red)">${esc(e.message)}</div>`; return; }
+  try { await loadPB(); await ensureProjTasks(); } catch (e) { box.innerHTML = `<div style="color:var(--red)">讀取失敗：${esc(e.message)}</div>`; return; }
+  pbPending = items.map(it => {
+    const warn = [];
+    if (!it.title) { it.title = (stripMd(it.content_md).slice(0, 30) || '未命名文件'); warn.push('沒有標題，先用內容開頭當標題，可以改'); }
+    if (!it.category) { it.category = $('pi_cat').value; if (it.catGuess) warn.push('看不懂分類，先用預設分類'); }
+    if (!it.content_md.trim()) warn.push('內容是空的');
+    const { out, warn: lw } = resolveLinks(it.links); warn.push(...lw);
+    return { ...it, links: out, warn, include: !!it.content_md.trim() };
+  });
+  renderPIPreview();
+};
+function renderPIPreview(){
+  const box = $('pi_preview');
+  const match = p => pbDocs.find(d => d.title === p.title && d.category === p.category);
+  box.innerHTML = `<div class="small" style="margin-bottom:8px"><b>共 ${pbPending.length} 份文件</b>。確認標題、分類，再按「確認存入」。</div><div class="items-wrap"><table class="prev"><thead><tr><th style="width:30px">存</th><th>標題</th><th style="width:150px">分類</th><th style="width:150px">存成</th></tr></thead><tbody>` +
+    pbPending.map((p, i) => { const m = match(p);
+      return `<tr data-i="${i}"><td><input type="checkbox" data-p="inc" ${p.include ? 'checked' : ''} style="width:18px;height:18px;min-height:0"></td>
+      <td><input data-p="title" value="${esc(p.title)}" style="min-height:32px;padding:4px 6px"><div class="muted small">${esc(stripMd(p.content_md).slice(0, 90))}</div>${p.links.length ? `<div class="small">連結 ${p.links.length} 個</div>` : ''}${p.warn.map(w => `<div style="color:var(--yellow);font-weight:600" class="small">⚠ ${esc(w)}</div>`).join('')}</td>
+      <td><select data-p="cat">${PB_KEYS.map(k => `<option value="${k}" ${k === p.category ? 'selected' : ''}>${PB_CATS[k]}</option>`).join('')}</select></td>
+      <td class="small">${m ? `既有文件的新版本 <b>v${m.latest_version_no + 1}</b>（草稿${p.approve ? '，並核准' : ''}）` : `新文件 v1（${p.approve ? '已核准' : '草稿'}）`}</td></tr>`; }).join('') + '</tbody></table></div>';
+  box.querySelectorAll('tr[data-i]').forEach(tr => { const p = pbPending[tr.dataset.i];
+    tr.querySelector('[data-p=inc]').onchange = e => p.include = e.target.checked;
+    tr.querySelector('[data-p=title]').onchange = e => { p.title = e.target.value.trim() || p.title; renderPIPreview(); };
+    tr.querySelector('[data-p=cat]').onchange = e => { p.category = e.target.value; renderPIPreview(); }; });
+  $('pi_confirm').classList.toggle('hidden', !pbPending.length);
+}
+$('pi_confirm').onclick = async () => {
+  const items = pbPending.filter(p => p.include); if (!items.length) { toast('沒有勾選任何文件'); return; }
+  $('pi_confirm').disabled = true;
+  let n = 0, lastDoc = null;
+  try {
+    for (const p of items) {
+      const existing = pbDocs.find(d => d.title === p.title && d.category === p.category);
+      const r = await addVersion(existing || null, { title:p.title, category:p.category, content_md:p.content_md, change_note:p.change_note || (existing ? '從 ChatGPT 匯入的新版本' : '從 ChatGPT 匯入'), source:$('pi_source').value.trim() || 'ChatGPT', raw:p.raw, approve:p.approve });
+      for (const l of p.links) { try { await run(sb.from('playbook_links').insert({ doc_id:r.doc.id, ...l }).select()); } catch {} }
+      if (existing) Object.assign(existing, r.doc); else pbDocs.push(r.doc);
+      n++; lastDoc = r.doc;
+    }
+    $('pbImportModal').classList.add('hidden'); toast(`✅ 已存入 ${n} 份文件`);
+    if (n === 1) { await loadPB(); openPBDoc(lastDoc.id); } else { if ($('playbookView').classList.contains('hidden')) switchView('playbook'); else renderPlaybook(); }
+  } catch (e) { toast(`⚠️ 存到第 ${n + 1} 份時失敗：${e.message}`); if (n) renderPlaybook(); }
+  finally { $('pi_confirm').disabled = false; }
+};
+
+// ---------- 匯出 ----------
+function pbExportDocs(){
+  const scope = $('px_scope').value;
+  return scope === 'filtered' ? pbFiltered() : pbDocs.filter(d => scope === 'all_arch' || !d.archived);
+}
+$('pbExportBtn').onclick = () => { $('pbExportModal').classList.remove('hidden'); pxInfo(); };
+['px_scope','px_ver'].forEach(id => $(id).addEventListener('change', pxInfo));
+function pxInfo(){ const ds = pbExportDocs(); $('px_info').textContent = `共 ${ds.length} 份文件。.md 方便閱讀或貼給 ChatGPT；.json 可以再匯入回來（格式 revoco.playbook.v1）。完整備份請用右上角「備份」。`; }
+function pxVersions(d){ const mode = $('px_ver').value; return mode === 'all' ? docVers(d).slice().reverse() : [mode === 'latest' ? docVers(d)[0] : bestVer(d)].filter(Boolean); }
+$('px_md').onclick = () => {
+  const ds = pbExportDocs(); if (!ds.length) { toast('沒有文件可以匯出'); return; }
+  const body = ds.map(d => pxVersions(d).map(v => mdFile(d, v)).join('\n')).join('\n\n');
+  downloadBlob(new Blob([body], { type:'text/markdown' }), `REVOCO_Playbook_${today()}.md`);
+};
+$('px_json').onclick = () => {
+  const ds = pbExportDocs(); if (!ds.length) { toast('沒有文件可以匯出'); return; }
+  const out = { schema:'revoco.playbook.v1', exported_at:new Date().toISOString(), documents: ds.flatMap(d => pxVersions(d).map(v => ({
+    title:d.title, category:d.category, category_name:PB_CATS[d.category], version:v.version_no, status:verStatus(d, v), archived:d.archived,
+    created_at:d.created_at, updated_at:v.created_at, change_note:v.change_note, content_md:v.content_md,
+    links: pbLinks.filter(l => l.doc_id === d.id).map(l => ({ type:l.target_type, id:l.target_id, name:linkName(l) || null })) }))) };
+  downloadBlob(new Blob([JSON.stringify(out, null, 2)], { type:'application/json' }), `REVOCO_Playbook_${today()}.json`);
 };
 
 // ================= 帳本 =================
