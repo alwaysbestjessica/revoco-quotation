@@ -162,6 +162,19 @@ table.fees input[type=checkbox]{width:20px;height:20px;min-height:0}
 .timeline .ev .when{font-size:12px;color:var(--quiet)}
 .quick{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
 .modal.wide{max-width:760px}
+.theme{background:#FDEBDD;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:14px;color:#7A3D0C}
+.plan-head{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:12px}
+.plan-head .prog{margin-left:auto;font-weight:700;color:var(--mint-dark)}
+.daygrp h3{font-size:14px;color:var(--quiet);margin:18px 0 8px}
+.pcard{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:10px}
+.pcard.done{opacity:.55}
+.pcard .top{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.pcard .who{font-weight:800;font-size:16px}
+.pcard .ct{font-size:13px;color:var(--quiet);margin-top:4px}
+.pcard .why{font-size:13px;margin-top:8px}
+.pcard .step{font-size:12px;color:var(--mint-dark);background:var(--mint-light);border-radius:8px;padding:6px 10px;margin-top:8px}
+.pcard textarea{margin-top:8px;min-height:96px;font-size:14px}
+.pcard .acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .check-row{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:14px}
 .check-row input{width:20px;height:20px;min-height:0}
 </style>
@@ -185,6 +198,7 @@ table.fees input[type=checkbox]{width:20px;height:20px;min-height:0}
   <header>
     <div class="brand">報價系統</div>
     <nav class="tabs">
+      <button class="tab" data-view="plan">本週計畫</button>
       <button class="tab" data-view="prospects">人脈開發</button>
       <button class="tab active" data-view="list">報價</button>
       <button class="tab" data-view="customers">客戶</button>
@@ -195,6 +209,17 @@ table.fees input[type=checkbox]{width:20px;height:20px;min-height:0}
   </header>
 
   <main>
+    <!-- 本週計畫 -->
+    <section id="planView" class="hidden">
+      <div class="plan-head">
+        <b id="planRange"></b>
+        <span class="prog" id="planProg"></span>
+      </div>
+      <div class="theme" id="planTheme"></div>
+      <div id="planList"></div>
+      <p class="small muted">依《REVOCO 業務開發手冊》自動排出：過期的優先、A 舊客戶 3 位、B 已提案 3 位、C 人脈 2 位、D 新開發 3 家。按「已聯絡」後，系統會記錄並自動排好他的下一步。</p>
+    </section>
+
     <!-- 客戶開發 -->
     <section id="prospectsView" class="hidden">
       <div class="today" id="todayBox"></div>
@@ -560,7 +585,7 @@ function showLogin(){ $('appView').classList.add('hidden'); $('loginView').class
 async function showApp(){
   $('loginView').classList.add('hidden'); $('appView').classList.remove('hidden');
   await loadMasters();
-  switchView('prospects');
+  switchView('plan');
 }
 $('loginBtn').onclick = async () => {
   $('loginErr').textContent = '';
@@ -586,13 +611,14 @@ const custByName = name => customers.find(c => c.name === name.trim());
 // ================= 切換畫面 =================
 async function switchView(v){
   if (v !== 'edit' && !$('editView').classList.contains('hidden') && dirty) await saveQuote(true);
-  ['prospects','list','edit','customers','suppliers','ledger'].forEach(x => $(x + 'View').classList.toggle('hidden', x !== v));
+  ['plan','prospects','list','edit','customers','suppliers','ledger'].forEach(x => $(x + 'View').classList.toggle('hidden', x !== v));
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === v || (v === 'edit' && t.dataset.view === 'list')));
   if (v === 'list') renderQuoteList();
   if (v === 'customers') renderCustomers();
   if (v === 'suppliers') renderSuppliers();
   if (v === 'ledger') renderLedger();
   if (v === 'prospects') renderProspects();
+  if (v === 'plan') renderPlan();
   window.scrollTo(0,0);
 }
 document.querySelectorAll('.tab').forEach(t => t.onclick = () => switchView(t.dataset.view));
@@ -1288,6 +1314,183 @@ $('bulkSaveBtn').onclick = async () => {
     toast(`✅ 新增 ${added} 家、更新 ${updated} 家、補上 ${ctAdded} 個窗口`);
   } catch (e) { await loadMasters(); renderProspects(); toast('⚠️ 加入失敗：' + e.message); }
 };
+
+// ================= 本週計畫 =================
+const MY_NAME = 'WenWen';
+const SEQ = {
+  A: { loop:true, steps:[
+    { purpose:'分享一個新案例', ch:'Line', principle:'社會認同', gap:42, tpl:'{窗口}您好～最近幫一家【產業】的客戶做了【案例】，覺得你們之後的活動也可能用得到，分享給您參考，有興趣我再寄詳細資料給您 🙂' },
+    { purpose:'當月時令提醒', ch:'Line', principle:'時機', gap:42, tpl:'{窗口}您好～提醒一下，{主題}差不多要開始準備了，從工廠到交貨大約要 6～8 週。有需要的話，我可以先幫您整理幾個方向參考，不急～' },
+    { purpose:'問下一季的活動計畫，提早抓預算', ch:'Line／電話', principle:'互惠＋小承諾', gap:42, tpl:'{窗口}您好～想先問一下，你們下一季有沒有已經排定的活動？如果有，我可以先幫你抓贈品和周邊的預算，提早備料，交期和價格都比較好談。' },
+    { purpose:'年度感謝，附小樣品或約拜訪', ch:'拜訪／寄送', principle:'互惠', gap:42, tpl:'{窗口}您好～今年謝謝您的照顧！我準備了一份小樣品想寄給您，也想找時間當面跟您說聲謝謝，您哪天比較方便？' } ] },
+  B: { loop:false, steps:[
+    { purpose:'確認收到報價，提供替代方案', ch:'Line', principle:'小承諾', gap:14, tpl:'{窗口}您好，上週寄的報價不知道有沒有順利收到？如果規格或預算需要調整，我可以再準備一兩個替代方案給您比較。不急，您方便時回覆就好 🙏' },
+    { purpose:'補一個新點子或不同預算的版本', ch:'Line／Email', principle:'互惠', gap:21, tpl:'{窗口}您好，針對上次的需求，我另外想到一個做法：【新點子或不同預算的版本】，提供給您參考看看～' },
+    { purpose:'分享同業案例', ch:'Email', principle:'社會認同', gap:30, tpl:'主旨：同業參考：【案例】\n\n{窗口}您好，分享一個最近的案例：【同業】用【商品】做【用途】。覺得跟貴公司的需求蠻接近的，提供您參考。' },
+    { purpose:'時機提醒：交期、決策時程', ch:'Line', principle:'時機', gap:30, tpl:'{窗口}您好，提醒一下時程：如果要趕在【活動日期】前交貨，大約【日期】前要確認規格。需要的話我可以先幫您留工廠的產能～' },
+    { purpose:'輕鬆收尾，之後改成人脈經營', ch:'Line', principle:'降低壓力', gap:90, tpl:'{窗口}您好，這陣子應該很忙，我就先不打擾了～之後如果有贈品或活動周邊的需要，隨時找我，很樂意幫忙 🙂' } ] },
+  C: { loop:true, steps:[
+    { purpose:'問候＋分享一則對他有用的資訊', ch:'Line', principle:'單純曝光＋互惠', gap:90, tpl:'{窗口}好久不見～最近看到【一則跟他有關的資訊】就想到你，分享給你參考！最近都好嗎？' },
+    { purpose:'介紹人脈給他，或邀他參加活動', ch:'Line', principle:'互惠', gap:90, tpl:'{窗口}你好～我認識一位【某領域】的朋友，覺得你們可能聊得來，要不要幫你們介紹一下？' },
+    { purpose:'節日問候', ch:'Line', principle:'單純曝光', gap:90, tpl:'{窗口}，【節日】快樂！祝你和家人一切順心 🙂' },
+    { purpose:'分享近況，輕輕提到可以幫什麼', ch:'Line', principle:'小承諾', gap:90, tpl:'{窗口}好～跟你分享一下近況，我們最近在做【新服務或新商品】。你身邊如果有朋友需要，再幫我想到我就好，謝謝你！' } ] },
+  D: { loop:false, steps:[
+    { purpose:'洞察開發信：針對對方近期動態', ch:'Email', principle:'洞察＋時機', gap:3, tpl:'主旨：關於{公司}的一個小想法\n\n{窗口}您好，我是 REVOCO 的 {我}。看到貴公司【近期動態】，想分享一個觀察：{切入點}。我們專做再生材質的客製禮贈品，附上 2 個適合貴公司的點子給您參考。如果有興趣，我可以先寄一份型錄給您？' },
+    { purpose:'確認有沒有收到信', ch:'電話／Line', principle:'小承諾', gap:6, tpl:'{窗口}您好，我是 REVOCO 的 {我}，前幾天寄了一封信給您，想確認有沒有收到？如果方便，我可以把型錄直接傳給您。' },
+    { purpose:'補一個同業案例', ch:'Email', principle:'社會認同', gap:11, tpl:'主旨：同業參考：【案例】\n\n{窗口}您好，補充一個案例給您參考：【同業】用【商品】做【用途】。如果貴公司也有類似的規劃，很樂意提供建議。' },
+    { purpose:'最後一封：先不打擾', ch:'Email', principle:'降低壓力', gap:90, tpl:'主旨：先不打擾了\n\n{窗口}您好，前幾封信應該打擾到您了，這是最後一封～之後如果有禮贈品或活動周邊的需要，隨時歡迎找我，祝一切順利！' } ] }
+};
+const MONTH_THEME = {
+  1:'春酒與開工禮、股東會紀念品最後決策', 2:'世界地球日（4/22）與 ESG 活動贈品', 3:'中秋禮提早規劃、上半年展覽周邊',
+  4:'中秋禮下單時程、下半年活動', 5:'下半年品牌活動與展覽', 6:'可以寫進永續報告書的 ESG 紀念品、尾牙早鳥',
+  7:'尾牙禮、年節禮早鳥', 8:'尾牙禮交期、年節禮', 9:'年節禮、明年活動行事曆', 10:'明年活動預算、股東會紀念品前期接觸',
+  11:'股東會紀念品提案', 12:'股東會紀念品、年度感謝'
+};
+const DAY_ORDER = ['週一','週二','週三','週四','週五'];
+function weekRange(){
+  const d = new Date(today() + 'T00:00:00'); const wd = (d.getDay() + 6) % 7;
+  const mon = new Date(d); mon.setDate(d.getDate() - wd); const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+  return [iso(mon), iso(sun)];
+}
+const stepOf = c => { const s = SEQ[c.pipeline]; if (!s) return null; const i = c.seq_step || 0; return s.steps[s.loop ? i % s.steps.length : Math.min(i, s.steps.length - 1)]; };
+const primaryContact = c => contacts.find(x => x.customer_id === c.id && x.is_primary) || contacts.find(x => x.customer_id === c.id);
+function fillTpl(tpl, c){
+  const ct = primaryContact(c);
+  let who = (ct?.name || '').replace(/（.*?）|\(.*?\)/g, '').trim();
+  if (!who || /待確認|總機|窗口|辦公室|處|部|室/.test(who)) who = '';
+  return tpl.replaceAll('{窗口}', who ? who + ' ' : '').replaceAll('{公司}', c.name).replaceAll('{我}', MY_NAME)
+    .replaceAll('{主題}', MONTH_THEME[new Date().getMonth() + 1]).replaceAll('{切入點}', c.fit_reason || '【切入點】')
+    .replace(/^ +/gm, '');
+}
+function planScore(c){
+  let s = 0; const notes = (c.fit_reason || '') + (c.research_notes || ''); const m = new Date().getMonth() + 1;
+  if (c.next_contact_date) s += Math.min(30, Math.max(0, -daysFromToday(c.next_contact_date)) * 2);
+  s += { A:6, B:3, C:1 }[c.tier] || 0;
+  if ([11,12,1,2].includes(m) && /股東會/.test(notes)) s += 5;
+  if (/ESG|永續/.test(notes)) s += 2;
+  if (c.prospect_stage === '有回應') s += 4;
+  return s;
+}
+function buildPlan(){
+  const [ws, we] = weekRange();
+  const pool = customers.filter(c => c.pipeline && c.prospect_stage !== '暫不考慮' && c.prospect_stage !== '轉商機');
+  const done = pool.filter(c => c.last_contact_date && c.last_contact_date >= ws && c.last_contact_date <= we).map(c => ({ c, done:true }));
+  const doneIds = new Set(done.map(x => x.c.id));
+  const due = pool.filter(c => !doneIds.has(c.id) && c.next_contact_date && c.next_contact_date <= we).sort((a, b) => planScore(b) - planScore(a));
+  const picked = [];
+  const take = (list, n) => { for (const c of list) { if (n <= 0) break; if (picked.some(p => p.c.id === c.id)) continue; picked.push({ c }); n--; } };
+  take(due.filter(c => c.next_contact_date < ws), 6);
+  const quota = { A:3, B:3, C:2, D:3 };
+  for (const p of picked) quota[p.c.pipeline] = Math.max(0, (quota[p.c.pipeline] || 0) - 1);
+  for (const k of ['A','B','C','D']) take(due.filter(c => c.pipeline === k), quota[k]);
+  const dLeft = 3 - picked.filter(p => p.c.pipeline === 'D').length - done.filter(x => x.c.pipeline === 'D').length;
+  if (dLeft > 0) take(pool.filter(c => c.pipeline === 'D' && !doneIds.has(c.id) && !c.next_contact_date && ['待研究','已研究'].includes(c.prospect_stage))
+    .sort((a, b) => ({A:0,B:1,C:2}[a.tier] ?? 3) - ({A:0,B:1,C:2}[b.tier] ?? 3) || (b.created_at || '').localeCompare(a.created_at || '')), dLeft);
+  for (const p of picked) {
+    const c = p.c;
+    p.day = c.next_contact_date && c.next_contact_date < ws ? '週一' : { A:'週二', D:'週三', B:'週四', C:'週四' }[c.pipeline];
+    const why = [];
+    if (c.next_contact_date && c.next_contact_date < today()) why.push(`已過聯絡日 ${-daysFromToday(c.next_contact_date)} 天`);
+    else if (c.next_contact_date) why.push(`預定 ${c.next_contact_date.slice(5)} 聯絡`);
+    else why.push('新名單，還沒聯絡過');
+    if (c.last_contact_date) why.push(`上次聯絡 ${c.last_contact_date.slice(5)}`);
+    const notes = (c.fit_reason || '') + (c.research_notes || '');
+    if ([11,12,1,2].includes(new Date().getMonth() + 1) && /股東會/.test(notes)) why.push('股東會紀念品決策期');
+    if (c.prospect_stage === '有回應') why.push('對方有回應過');
+    p.why = why.join('・');
+  }
+  for (const x of done) x.day = '已完成';
+  return { ws, we, items:[...picked, ...done] };
+}
+
+let planCache = null;
+function renderPlan(){
+  planCache = buildPlan();
+  const { ws, we, items } = planCache;
+  const total = items.length, doneN = items.filter(x => x.done).length;
+  $('planRange').textContent = `本週 ${ws.slice(5).replace('-','/')}～${we.slice(5).replace('-','/')}`;
+  $('planProg').textContent = total ? `已完成 ${doneN} / ${total}` : '';
+  $('planTheme').innerHTML = `<b>這個月的主題：</b>${esc(MONTH_THEME[new Date().getMonth() + 1])}`;
+  if (!total) { $('planList').innerHTML = '<div class="empty">這週沒有排到要聯絡的人。可以到「人脈開發」加入名單，或幫現有的人設定下次聯絡日。</div>'; return; }
+  const groups = [...DAY_ORDER, '已完成'].map(d => [d, items.filter(x => x.day === d)]).filter(([, l]) => l.length);
+  $('planList').innerHTML = groups.map(([d, list]) => `<div class="daygrp"><h3>${d}${({週一:'｜規劃＋過期的',週二:'｜舊客戶日',週三:'｜新客戶日',週四:'｜推進商機＋人脈'})[d] || ''}</h3>` + list.map(x => {
+    const c = x.c, st = stepOf(c), ct = primaryContact(c), seq = SEQ[c.pipeline];
+    const stepNo = seq ? (seq.loop ? (c.seq_step || 0) % seq.steps.length : Math.min(c.seq_step || 0, seq.steps.length - 1)) + 1 : 0;
+    return `<div class="pcard ${x.done ? 'done' : ''}" data-id="${c.id}">
+      <div class="top">${plBadge(c)}<span class="who">${esc(c.name)}</span>${c.tier ? `<span class="badge">${c.tier}</span>` : ''}</div>
+      <div class="ct">${ct ? esc([ct.name, ct.title, ct.phone, ct.email].filter(Boolean).join('・')) : '窗口待確認'}</div>
+      ${x.done ? `<div class="why">✓ 本週已聯絡（${esc(c.last_contact_date || '')}）</div>` : `
+      <div class="why"><b>為什麼是現在：</b>${esc(x.why || '')}</div>
+      ${st ? `<div class="step">步驟 ${stepNo}／${seq.steps.length}｜<b>${esc(st.purpose)}</b>｜${esc(st.ch)}｜原則：${esc(st.principle)}</div>
+      <textarea data-msg>${esc(fillTpl(st.tpl, c))}</textarea>` : ''}
+      <div class="acts">
+        <button class="btn btn-sm" data-act="copy">複製訊息</button>
+        <button class="btn btn-sm" data-act="ai">請 Claude 改寫</button>
+        <button class="btn btn-sm btn-primary" data-act="done">✓ 已聯絡</button>
+        <button class="btn btn-sm" data-act="replied">對方回覆了</button>
+        <button class="btn btn-sm" data-act="later">延到下週</button>
+        <button class="btn btn-sm" data-act="open">資料</button>
+      </div>`}
+    </div>`;
+  }).join('') + '</div>').join('');
+}
+
+$('planList').addEventListener('click', async e => {
+  const b = e.target.closest('[data-act]'); if (!b) return;
+  const card = b.closest('.pcard'); const c = custById(card.dataset.id); if (!c) return;
+  const msg = card.querySelector('[data-msg]')?.value || '';
+  const st = stepOf(c);
+  if (b.dataset.act === 'copy') { try { await navigator.clipboard.writeText(msg); toast('已複製，貼到 Line 或 Email 就能發'); } catch { card.querySelector('[data-msg]').select(); document.execCommand('copy'); toast('已複製'); } return; }
+  if (b.dataset.act === 'open') { openProspect(c.id); return; }
+  if (b.dataset.act === 'ai') {
+    showPrompt(`我是${POSITIONING[c.company_entity] || POSITIONING.REVOCO}。請幫我改寫一則要發給「${c.name}」${primaryContact(c)?.name ? '的 ' + primaryContact(c).name : ''}的訊息。
+
+關係：${PIPES[c.pipeline]?.name || ''}
+這次的目的：${st?.purpose || ''}（管道：${st?.ch || ''}；運用的原則：${st?.principle || ''}）
+這個月的主題：${MONTH_THEME[new Date().getMonth() + 1]}
+背景：${c.fit_reason || '（無）'}
+${c.research_notes ? '筆記：\n' + c.research_notes + '\n' : ''}
+草稿：
+${msg}
+
+要求：
+- 繁體中文，口語、親切、不推銷；Line 80 字以內，Email 200 字以內（Email 要附主旨）
+- 帶一樣對方用得到的東西，不要問「最近有沒有需要」
+- 【】裡是我要自己填的地方，如果背景資料足夠就幫我填，不夠就保留【】，不要編造我沒做過的案例
+- 給 2 個版本：一個比較輕鬆，一個比較正式`);
+    return;
+  }
+  try {
+    if (b.dataset.act === 'later') {
+      const [, we] = weekRange();
+      await run(sb.from('customers').update({ next_contact_date: addDays(we, 1) }).eq('id', c.id));
+      toast('已延到下週一');
+    }
+    if (b.dataset.act === 'replied') {
+      await run(sb.from('activities').insert({ customer_id:c.id, channel:(st?.ch || '其他').split('／')[0].replace('拜訪','見面').replace('電話','電話'), summary:'對方回覆了（本週計畫）' }).select());
+      await run(sb.from('customers').update({ prospect_stage:'有回應', status: c.status === '潛在' ? '開發中' : c.status, last_contact_date: today(), next_contact_date: addDays(today(), 3) }).eq('id', c.id));
+      toast('👍 太好了！先用手冊最後一節的 SPIN 問題把需求問清楚，談到具體需求就按「轉成商機」');
+    }
+    if (b.dataset.act === 'done') {
+      const seq = SEQ[c.pipeline]; const i = c.seq_step || 0;
+      const chMap = { 'Line':'Line', 'Email':'Email', '電話':'電話', '拜訪':'見面', '寄送':'其他' };
+      const ch = chMap[(st?.ch || '其他').split('／')[0]] || '其他';
+      await run(sb.from('activities').insert({ customer_id:c.id, channel:ch, summary:`${st?.purpose || '聯絡'}（本週計畫）`, next_step: null }).select());
+      const patch = { last_contact_date: today(), contact_count: (c.contact_count || 0) + 1, next_contact_date: addDays(today(), st?.gap || 30) };
+      if (seq) {
+        const last = !seq.loop && i >= seq.steps.length - 1;
+        if (last && c.pipeline === 'B') { patch.pipeline = 'C'; patch.seq_step = 0; }
+        else if (last && c.pipeline === 'D') { patch.seq_step = 0; }
+        else patch.seq_step = i + 1;
+      }
+      if (['待研究','已研究'].includes(c.prospect_stage)) patch.prospect_stage = '已聯絡';
+      if (c.status === '潛在') patch.status = '開發中';
+      await run(sb.from('customers').update(patch).eq('id', c.id));
+      toast(`✓ 已記錄，下次聯絡：${patch.next_contact_date}${patch.pipeline === 'C' ? '（改成人脈經營）' : ''}`);
+    }
+    await loadMasters(); renderPlan();
+  } catch (err) { toast('⚠️ ' + err.message); }
+});
 
 // ================= 帳本 =================
 const iso = d => new Date(d - d.getTimezoneOffset()*60000).toISOString().slice(0,10);
