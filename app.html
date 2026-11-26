@@ -143,6 +143,25 @@ table.fees input[type=checkbox]{width:20px;height:20px;min-height:0}
 .ltable tfoot td{font-weight:800;border-top:2px solid var(--ink);border-bottom:none}
 .ltable tr.click{cursor:pointer}.ltable tr.click:hover{background:var(--mint-light)}
 .bar{height:6px;border-radius:3px;background:var(--mint);margin-top:4px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.chip{border:1px solid var(--line);background:#fff;border-radius:999px;padding:5px 12px;font-size:13px;font-weight:600;cursor:pointer;color:var(--quiet)}
+.chip.active{background:var(--mint);border-color:var(--mint);color:#fff}
+.today{border-left:4px solid var(--orange);border-radius:0;background:#fff;padding:12px 14px;margin-bottom:14px;border-top:1px solid var(--line);border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+.today h3{margin:0 0 8px;font-size:15px;color:var(--ink)}
+.today .item{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px dashed var(--line);cursor:pointer;font-size:14px}
+.today .item:last-child{border-bottom:none}
+.overdue{color:var(--red);font-weight:700}
+.stg{font-size:12px;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--mint-light);color:var(--mint-dark)}
+.stg-待研究{background:#F1EFE8;color:#5F5E5A}.stg-已研究{background:#E5ECF8;color:#3B5B95}.stg-已聯絡{background:#FAEEDA;color:#854F0B}
+.pl{font-size:12px;font-weight:800;padding:2px 7px;border-radius:6px;background:#F1EFE8;color:#444441}
+.pl-A{background:#FDEBDD;color:#B65A12}.pl-B{background:#E5ECF8;color:#3B5B95}.pl-C{background:#E1F5EE;color:#085041}.pl-D{background:#EEEDFE;color:#3C3489}
+.hint{font-size:12px;color:var(--quiet);margin-top:2px}
+.stg-有回應{background:#E1F5EE;color:#085041}.stg-轉商機{background:#EAF3DE;color:#27500A}.stg-暫不考慮{background:#FCEBEB;color:#791F1F}
+.timeline{margin-top:6px}
+.timeline .ev{border-left:2px solid var(--line);padding:4px 0 10px 12px;font-size:14px}
+.timeline .ev .when{font-size:12px;color:var(--quiet)}
+.quick{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.modal.wide{max-width:760px}
 .check-row{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:14px}
 .check-row input{width:20px;height:20px;min-height:0}
 </style>
@@ -166,6 +185,7 @@ table.fees input[type=checkbox]{width:20px;height:20px;min-height:0}
   <header>
     <div class="brand">報價系統</div>
     <nav class="tabs">
+      <button class="tab" data-view="prospects">人脈開發</button>
       <button class="tab active" data-view="list">報價</button>
       <button class="tab" data-view="customers">客戶</button>
       <button class="tab" data-view="suppliers">工廠</button>
@@ -175,6 +195,20 @@ table.fees input[type=checkbox]{width:20px;height:20px;min-height:0}
   </header>
 
   <main>
+    <!-- 客戶開發 -->
+    <section id="prospectsView" class="hidden">
+      <div class="today" id="todayBox"></div>
+      <div class="toolbar">
+        <input class="grow" id="pSearch" placeholder="搜尋公司、產業…">
+        <select id="pPipe" style="width:auto"><option value="">全部類別</option><option value="A">A 舊客戶</option><option value="B">B 已提案</option><option value="C">C 人脈</option><option value="D">D 陌生開發</option></select>
+        <select id="pCompany" style="width:auto"><option value="">兩家公司</option><option>REVOCO</option><option>JULI</option></select>
+        <button class="btn" id="pBulkBtn">批次貼上名單</button>
+        <button class="btn btn-primary" id="pNewBtn">＋ 潛在客戶</button>
+      </div>
+      <div class="chips" id="pChips"></div>
+      <div class="list" id="prospectList"></div>
+    </section>
+
     <!-- 報價列表 -->
     <section id="listView">
       <div class="toolbar">
@@ -396,6 +430,87 @@ table.fees input[type=checkbox]{width:20px;height:20px;min-height:0}
   </div>
 </div>
 
+<!-- 潛在客戶 -->
+<div class="modal-bg hidden" id="pModal">
+  <div class="modal wide">
+    <h3 id="pModalTitle">潛在客戶</h3>
+    <div class="grid g3">
+      <div style="grid-column:1/-1"><label>公司名稱 *</label><input id="p_name"></div>
+      <div><label>類別</label><select id="p_pipe"><option value="A">A 舊客戶</option><option value="B">B 已提案</option><option value="C">C 人脈</option><option value="D">D 陌生開發</option></select><div class="hint" id="p_pipeHint"></div></div>
+      <div><label>開發階段</label><select id="p_stage"><option value="">—</option><option>待研究</option><option>已研究</option><option>已聯絡</option><option>有回應</option><option>轉商機</option><option>暫不考慮</option></select></div>
+      <div><label>下次聯絡日</label><input id="p_next" type="date"></div>
+      <div><label>等級</label><select id="p_tier"><option value="">—</option><option>A</option><option>B</option><option>C</option></select></div>
+      <div><label>產業</label><input id="p_industry" placeholder="例：食品、科技、金融"></div>
+      <div><label>來源</label><input id="p_source" list="sourceOptions" placeholder="展覽、轉介、網路…"></div>
+      <div><label>由哪家公司開發</label><select id="p_company"><option>REVOCO</option><option>JULI</option></select></div>
+      <div style="grid-column:1/-1"><label>網站</label><input id="p_web" placeholder="https://"></div>
+      <div style="grid-column:1/-1"><label>為什麼適合／切入點</label><textarea id="p_fit" placeholder="例：明年 50 週年，往年都有做員工禮"></textarea></div>
+      <div style="grid-column:1/-1"><label>研究筆記（可貼 Claude 整理的內容）</label><textarea id="p_notes" style="min-height:110px"></textarea></div>
+    </div>
+    <h3 style="margin:16px 0 10px;font-size:14px">窗口</h3>
+    <div class="grid g3">
+      <div><label>姓名</label><input id="pc_name"></div>
+      <div><label>職稱／部門</label><input id="pc_title"></div>
+      <div><label>電話</label><input id="pc_phone"></div>
+      <div><label>Email</label><input id="pc_email"></div>
+      <div><label>Line ID</label><input id="pc_line"></div>
+    </div>
+    <div class="quick" style="margin-top:14px">
+      <button class="btn btn-sm" id="pAskResearch">請 Claude 研究這家公司</button>
+      <button class="btn btn-sm" id="pAskEmail">請 Claude 寫訊息</button>
+      <button class="btn btn-sm" id="pConvert">轉成商機</button>
+    </div>
+    <div id="pActivityBox" class="hidden">
+      <h3 style="margin:18px 0 8px;font-size:14px">開發紀錄</h3>
+      <div class="grid g3">
+        <div><label>日期</label><input id="a_date" type="date"></div>
+        <div><label>方式</label><select id="a_channel"><option>Email</option><option>Line</option><option>電話</option><option>微信</option><option>拜訪</option><option>LinkedIn</option><option>見面</option><option>其他</option></select></div>
+        <div><label>下次聯絡</label><select id="a_after"><option value="">不設定</option><option value="3">3 天後</option><option value="7" selected>1 週後</option><option value="14">2 週後</option><option value="30">1 個月後</option><option value="42">6 週後</option><option value="90">3 個月後</option></select></div>
+        <div style="grid-column:1/-1"><label>這次聯絡的內容</label><textarea id="a_summary" placeholder="例：寄出開發信＋型錄，對方說會轉給行政部"></textarea></div>
+        <div style="grid-column:1/-1"><label>下一步</label><input id="a_next" placeholder="例：一週後打電話確認有沒有收到"></div>
+      </div>
+      <button class="btn btn-sm btn-primary" id="aAddBtn" style="margin-top:8px">＋ 記一筆</button>
+      <div class="timeline" id="pTimeline"></div>
+    </div>
+    <div class="actions">
+      <button class="btn btn-danger" id="pDelBtn" style="margin-right:auto">刪除</button>
+      <button class="btn" data-close>關閉</button>
+      <button class="btn btn-primary" id="pSaveBtn">儲存</button>
+    </div>
+  </div>
+</div>
+<datalist id="sourceOptions"><option value="展覽"><option value="轉介"><option value="網路搜尋"><option value="社群"><option value="舊客戶"><option value="Claude 研究"></datalist>
+
+<!-- 批次貼上 -->
+<div class="modal-bg hidden" id="bulkModal">
+  <div class="modal">
+    <h3>批次貼上名單</h3>
+    <p class="small muted" style="margin-top:0">一行一家公司。可以只寫公司名稱，也可以用「公司名稱｜產業｜網站」的格式（用 | 或 Tab 分隔）。已經在名單裡的公司會自動跳過。</p>
+    <textarea id="bulkText" style="min-height:180px" placeholder="統一企業｜食品｜https://www.uni-president.com.tw&#10;台灣大哥大｜電信"></textarea>
+    <div class="grid g2" style="margin-top:10px">
+      <div><label>來源</label><input id="bulkSource" list="sourceOptions" value="Claude 研究"></div>
+      <div><label>由哪家公司開發</label><select id="bulkCompany"><option>REVOCO</option><option>JULI</option></select></div>
+    </div>
+    <div class="actions">
+      <button class="btn" data-close>取消</button>
+      <button class="btn btn-primary" id="bulkSaveBtn">加入名單</button>
+    </div>
+  </div>
+</div>
+
+<!-- 複製給 Claude -->
+<div class="modal-bg hidden" id="promptModal">
+  <div class="modal">
+    <h3>已複製，貼給 Claude</h3>
+    <p class="small muted" style="margin-top:0">下面的內容已經複製好了。到 Claude 開一個新對話貼上；Claude 回覆後，把重點貼回「研究筆記」或開發紀錄。</p>
+    <textarea id="promptText" style="min-height:220px" readonly></textarea>
+    <div class="actions">
+      <button class="btn" id="promptCopyBtn">再複製一次</button>
+      <button class="btn btn-primary" data-close>好</button>
+    </div>
+  </div>
+</div>
+
 <div id="printArea"></div>
 <div id="toast"></div>
 
@@ -445,7 +560,7 @@ function showLogin(){ $('appView').classList.add('hidden'); $('loginView').class
 async function showApp(){
   $('loginView').classList.add('hidden'); $('appView').classList.remove('hidden');
   await loadMasters();
-  switchView('list');
+  switchView('prospects');
 }
 $('loginBtn').onclick = async () => {
   $('loginErr').textContent = '';
@@ -471,12 +586,13 @@ const custByName = name => customers.find(c => c.name === name.trim());
 // ================= 切換畫面 =================
 async function switchView(v){
   if (v !== 'edit' && !$('editView').classList.contains('hidden') && dirty) await saveQuote(true);
-  ['list','edit','customers','suppliers','ledger'].forEach(x => $(x + 'View').classList.toggle('hidden', x !== v));
+  ['prospects','list','edit','customers','suppliers','ledger'].forEach(x => $(x + 'View').classList.toggle('hidden', x !== v));
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === v || (v === 'edit' && t.dataset.view === 'list')));
   if (v === 'list') renderQuoteList();
   if (v === 'customers') renderCustomers();
   if (v === 'suppliers') renderSuppliers();
   if (v === 'ledger') renderLedger();
+  if (v === 'prospects') renderProspects();
   window.scrollTo(0,0);
 }
 document.querySelectorAll('.tab').forEach(t => t.onclick = () => switchView(t.dataset.view));
@@ -929,6 +1045,224 @@ $('supSaveBtn').onclick = async () => {
     await loadMasters(); $('supModal').classList.add('hidden'); toast('✅ 工廠已儲存');
     if (supCallback) supCallback(s); else renderSuppliers();
   } catch (e) { toast('⚠️ 儲存失敗：' + e.message); }
+};
+
+// ================= 客戶開發 =================
+const STAGES = ['待研究','已研究','已聯絡','有回應','轉商機','暫不考慮'];
+const POSITIONING = {
+  REVOCO: '睿握科技（REVOCO），提供永續環保禮贈品與展覽整體解決方案，從中國工廠客製生產、進口到台灣交貨',
+  JULI: '鉅立貿易（JULI），專做文創商品與企業禮贈品，從中國工廠客製生產、進口到台灣交貨'
+};
+let pFilter = '進行中';
+const PIPES = {
+  A: { name:'A 舊客戶', days:42, hint:'每 6～8 週聯絡一次：分享新案例、時令提醒、問明年的活動行事曆' },
+  B: { name:'B 已提案', days:14, hint:'報價後 1 週確認收到 → 3 週後補一個新點子 → 之後每月一次；連續 3 次沒回就改成 C' },
+  C: { name:'C 人脈', days:90, hint:'每季一次，不談生意：問候、分享對他有用的資訊、介紹人脈給他' },
+  D: { name:'D 陌生開發', days:7, hint:'第 1 天寄信 → 第 4 天 Line／電話 → 第 10 天補案例 → 第 21 天最後一封；沒回就 3 個月後再試' }
+};
+const isProspect = c => !!c.prospect_stage || !!c.pipeline;
+const active = c => isProspect(c) && !['轉商機','暫不考慮'].includes(c.prospect_stage);
+const plBadge = c => c.pipeline ? `<span class="pl pl-${c.pipeline}">${c.pipeline}</span> ` : '';
+const daysFromToday = d => Math.round((new Date(d + 'T00:00:00') - new Date(today() + 'T00:00:00')) / 864e5);
+
+function renderToday(){
+  const due = customers.filter(c => isProspect(c) && c.prospect_stage !== '暫不考慮' && c.next_contact_date && c.next_contact_date <= today())
+    .sort((a, b) => a.next_contact_date.localeCompare(b.next_contact_date));
+  const box = $('todayBox');
+  if (!due.length) { box.innerHTML = '<h3>今日要聯絡</h3><div class="muted small">今天沒有要聯絡的潛在客戶 👍</div>'; return; }
+  box.innerHTML = `<h3>今日要聯絡（${due.length}）</h3>` + due.map(c => {
+    const d = daysFromToday(c.next_contact_date);
+    return `<div class="item" data-id="${c.id}"><span>${plBadge(c)}<b>${esc(c.name)}</b>${c.pipeline ? `<div class="hint">${esc(PIPES[c.pipeline].hint.split('：')[1] || PIPES[c.pipeline].hint)}</div>` : ''}</span>
+      <span class="${d < 0 ? 'overdue' : 'muted'}" style="white-space:nowrap">${d < 0 ? '過期 ' + (-d) + ' 天' : '今天'}</span></div>`;
+  }).join('');
+  box.querySelectorAll('.item').forEach(el => el.onclick = () => openProspect(el.dataset.id));
+}
+
+['pSearch','pCompany','pPipe'].forEach(id => $(id).addEventListener('input', renderProspectList));
+function renderProspects(){ renderToday(); renderChips(); renderProspectList(); }
+function renderChips(){
+  const all = customers.filter(isProspect);
+  const cnt = s => s === '進行中' ? all.filter(active).length : s === '全部' ? all.length : all.filter(c => c.prospect_stage === s).length;
+  $('pChips').innerHTML = ['進行中', ...STAGES, '全部'].map(s => `<button class="chip ${s === pFilter ? 'active' : ''}" data-s="${s}">${s} ${cnt(s)}</button>`).join('');
+  $('pChips').querySelectorAll('.chip').forEach(b => b.onclick = () => { pFilter = b.dataset.s; renderChips(); renderProspectList(); });
+}
+function renderProspectList(){
+  const kw = $('pSearch').value.trim().toLowerCase(), co = $('pCompany').value, pp = $('pPipe').value;
+  let list = customers.filter(isProspect)
+    .filter(c => pFilter === '全部' || (pFilter === '進行中' ? active(c) : c.prospect_stage === pFilter))
+    .filter(c => !co || c.company_entity === co)
+    .filter(c => !pp || c.pipeline === pp)
+    .filter(c => !kw || [c.name, c.industry, c.fit_reason, c.research_notes].some(v => (v || '').toLowerCase().includes(kw)));
+  list.sort((a, b) => (a.next_contact_date || '9999').localeCompare(b.next_contact_date || '9999') || (a.tier || 'Z').localeCompare(b.tier || 'Z'));
+  $('prospectList').innerHTML = list.length ? list.map(c => {
+    const d = c.next_contact_date ? daysFromToday(c.next_contact_date) : null;
+    return `<div class="row" data-id="${c.id}" style="grid-template-columns:2fr 1fr 1.6fr 1fr auto">
+      <div><div class="cust">${plBadge(c)}${esc(c.name)}${c.tier ? ` <span class="badge">${c.tier}</span>` : ''}</div><div class="small muted">${esc([c.industry, c.source].filter(Boolean).join('・'))}</div></div>
+      <div>${c.prospect_stage ? `<span class="stg stg-${c.prospect_stage}">${c.prospect_stage}</span>` : `<span class="small muted">${esc(c.status || '')}</span>`}</div>
+      <div class="small muted">${esc((c.fit_reason || '').slice(0, 40))}</div>
+      <div class="small ${d != null && d < 0 && active(c) ? 'overdue' : 'muted'}">${c.next_contact_date ? '下次 ' + c.next_contact_date.slice(5) : ''}${c.contact_count ? `<br>聯絡 ${c.contact_count} 次` : ''}</div>
+      <span class="badge b-${c.company_entity}">${c.company_entity}</span></div>`;
+  }).join('') : `<div class="empty">${pFilter === '進行中' && !customers.some(isProspect) ? '還沒有潛在客戶。按「＋ 潛在客戶」新增，或請 Claude 幫你找一份名單，再用「批次貼上名單」一次加進來。' : '這個分類沒有資料'}</div>`;
+  $('prospectList').querySelectorAll('.row').forEach(el => el.onclick = () => openProspect(el.dataset.id));
+}
+
+let pEditing = null;
+function openProspect(id){
+  pEditing = id ? custById(id) : null;
+  const c = pEditing || {};
+  const ct = id ? (contacts.find(x => x.customer_id === id && x.is_primary) || contacts.find(x => x.customer_id === id) || {}) : {};
+  $('pModalTitle').textContent = id ? c.name : '新增潛在客戶';
+  $('p_name').value = c.name || ''; $('p_pipe').value = c.pipeline || 'D'; $('p_stage').value = c.prospect_stage || (id ? '' : '待研究');
+  $('p_pipeHint').textContent = PIPES[$('p_pipe').value].hint; $('a_after').value = String(PIPES[$('p_pipe').value].days); $('p_next').value = c.next_contact_date || '';
+  $('p_tier').value = c.tier || ''; $('p_industry').value = c.industry || ''; $('p_source').value = c.source || '';
+  $('p_company').value = c.company_entity || 'REVOCO'; $('p_web').value = c.website || '';
+  $('p_fit').value = c.fit_reason || ''; $('p_notes').value = c.research_notes || '';
+  $('pc_name').value = ct.name || ''; $('pc_title').value = ct.title || ''; $('pc_phone').value = ct.phone || '';
+  $('pc_email').value = ct.email || ''; $('pc_line').value = ct.line_id || '';
+  $('pModal').dataset.contactId = ct.id || '';
+  $('pActivityBox').classList.toggle('hidden', !id); $('pDelBtn').classList.toggle('hidden', !id); $('pConvert').classList.toggle('hidden', !id);
+  $('a_date').value = today(); $('a_summary').value = ''; $('a_next').value = '';
+  $('pModal').classList.remove('hidden');
+  if (id) loadTimeline(id); else $('p_name').focus();
+}
+$('pNewBtn').onclick = () => openProspect(null);
+$('p_pipe').addEventListener('change', () => { $('p_pipeHint').textContent = PIPES[$('p_pipe').value].hint; $('a_after').value = String(PIPES[$('p_pipe').value].days); });
+
+async function saveProspect(silent){
+  const name = $('p_name').value.trim(); if (!name) { toast('請填公司名稱'); return null; }
+  const row = { name, pipeline:$('p_pipe').value, prospect_stage:$('p_stage').value || null, next_contact_date:$('p_next').value || null, tier:$('p_tier').value || null,
+    industry:$('p_industry').value.trim() || null, source:$('p_source').value.trim() || null, company_entity:$('p_company').value,
+    website:$('p_web').value.trim() || null, fit_reason:$('p_fit').value.trim() || null, research_notes:$('p_notes').value.trim() || null };
+  if (!pEditing) row.status = '潛在';
+  else if (pEditing.status === '潛在' && ['已聯絡','有回應'].includes(row.prospect_stage)) row.status = '開發中';
+  try {
+    if (!pEditing && custByName(name)) { toast('名單裡已經有「' + name + '」了'); return null; }
+    const c = pEditing ? await run(sb.from('customers').update(row).eq('id', pEditing.id).select().single())
+                       : await run(sb.from('customers').insert(row).select().single());
+    const ctRow = { customer_id:c.id, name:$('pc_name').value.trim(), title:$('pc_title').value.trim() || null, phone:$('pc_phone').value.trim() || null,
+      email:$('pc_email').value.trim() || null, line_id:$('pc_line').value.trim() || null, is_primary:true };
+    const ctId = $('pModal').dataset.contactId;
+    if (ctRow.name) { if (ctId) await run(sb.from('contacts').update(ctRow).eq('id', ctId)); else { const n = await run(sb.from('contacts').insert(ctRow).select().single()); $('pModal').dataset.contactId = n.id; } }
+    await loadMasters(); pEditing = custById(c.id);
+    if (!silent) toast('✅ 已儲存');
+    return pEditing;
+  } catch (e) { toast('⚠️ 儲存失敗：' + e.message); return null; }
+}
+$('pSaveBtn').onclick = async () => { if (await saveProspect(false)) { $('pModal').classList.add('hidden'); renderProspects(); } };
+$('pDelBtn').onclick = async () => {
+  if (!pEditing || !confirm(`確定要刪除「${pEditing.name}」？開發紀錄也會一起刪掉。`)) return;
+  try { await run(sb.from('customers').delete().eq('id', pEditing.id)); await loadMasters(); $('pModal').classList.add('hidden'); renderProspects(); toast('已刪除'); }
+  catch (e) { toast('⚠️ 刪不掉：' + (e.message.includes('foreign key') ? '這家公司已經有報價或商機，不能刪除，可以把階段改成「暫不考慮」' : e.message)); }
+};
+
+async function loadTimeline(id){
+  const box = $('pTimeline'); box.innerHTML = '<div class="muted small">載入中…</div>';
+  try {
+    const evs = await run(sb.from('activities').select('*').eq('customer_id', id).order('happened_at', { ascending:false }));
+    box.innerHTML = evs.length ? evs.map(e => `<div class="ev"><div class="when">${esc((e.happened_at || '').slice(0,10))}・${esc(e.channel || '')}</div>
+      <div>${esc(e.summary || '')}</div>${e.next_step ? `<div class="small muted">下一步：${esc(e.next_step)}</div>` : ''}</div>`).join('')
+      : '<div class="muted small" style="margin-top:8px">還沒有開發紀錄</div>';
+  } catch (e) { box.innerHTML = `<div class="small" style="color:var(--red)">${esc(e.message)}</div>`; }
+}
+$('aAddBtn').onclick = async () => {
+  if (!pEditing) return;
+  const summary = $('a_summary').value.trim(); if (!summary) { toast('請寫一下這次聯絡的內容'); return; }
+  try {
+    await run(sb.from('activities').insert({ customer_id:pEditing.id, happened_at:$('a_date').value || today(), channel:$('a_channel').value,
+      summary, next_step:$('a_next').value.trim() || null }));
+    const after = $('a_after').value;
+    if (after) $('p_next').value = addDays(today(), parseInt(after));
+    if (['待研究','已研究'].includes($('p_stage').value)) $('p_stage').value = '已聯絡';
+    await saveProspect(true);
+    await run(sb.from('customers').update({ contact_count:(pEditing.contact_count || 0) + 1 }).eq('id', pEditing.id));
+    await loadMasters(); pEditing = custById(pEditing.id);
+    $('a_summary').value = ''; $('a_next').value = '';
+    toast('✅ 已記錄' + (after ? `，下次聯絡日：${$('p_next').value}` : ''));
+    loadTimeline(pEditing.id);
+  } catch (e) { toast('⚠️ 記錄失敗：' + e.message); }
+};
+
+$('pConvert').onclick = async () => {
+  const c = await saveProspect(true); if (!c) return;
+  const need = prompt(`「${c.name}」的需求是什麼？（例：明年尾牙禮 300 份，預算每份 500）`, '');
+  if (need === null) return;
+  try {
+    await run(sb.from('deals').insert({ title:`${c.name} ${need.slice(0, 20) || '新詢價'}`, customer_id:c.id, company_entity:c.company_entity,
+      requirement:need || null, stage:'詢價', contact_id:$('pModal').dataset.contactId || null }));
+    await run(sb.from('customers').update({ prospect_stage:'轉商機', status:'往來中', next_contact_date:null }).eq('id', c.id));
+    await run(sb.from('activities').insert({ customer_id:c.id, channel:'其他', summary:'轉成商機：' + (need || '新詢價') }));
+    await loadMasters(); $('pModal').classList.add('hidden'); renderProspects();
+    toast('✅ 已轉成商機（之後在「商機」分頁跟進）');
+  } catch (e) { toast('⚠️ 轉換失敗：' + e.message); }
+};
+
+// 複製給 Claude
+async function showPrompt(text){
+  $('promptText').value = text; $('promptModal').classList.remove('hidden');
+  try { await navigator.clipboard.writeText(text); } catch { $('promptText').select(); }
+}
+$('promptCopyBtn').onclick = async () => { try { await navigator.clipboard.writeText($('promptText').value); toast('已複製'); } catch { $('promptText').select(); document.execCommand('copy'); } };
+$('pAskResearch').onclick = () => {
+  const name = $('p_name').value.trim(); if (!name) { toast('請先填公司名稱'); return; }
+  showPrompt(`我是${POSITIONING[$('p_company').value]}。請幫我研究這家公司，判斷適不適合成為我的客戶：
+
+公司：${name}
+${$('p_web').value ? '網站：' + $('p_web').value + '\n' : ''}${$('p_industry').value ? '產業：' + $('p_industry').value + '\n' : ''}
+請上網查詢後整理：
+1. 公司簡介與規模（員工數、據點、品牌）
+2. 近期動態：週年慶、新品、展覽、ESG／永續活動、尾牙或員工活動
+3. 過去做過的贈品、周邊或禮盒（有的話附來源）
+4. 可能負責採購的部門或職稱
+5. 適合提案的商品方向與切入點（2～3 個）
+6. 適合度評分 A／B／C 與理由
+
+最後請用 5 行以內寫一段「摘要」，方便我貼回客戶系統。`);
+};
+$('pAskEmail').onclick = () => {
+  const name = $('p_name').value.trim(); if (!name) { toast('請先填公司名稱'); return; }
+  const pp = $('p_pipe').value;
+  if (pp !== 'D') {
+    showPrompt(`我是${POSITIONING[$('p_company').value]}。請幫我寫一則給「${name}」${$('pc_name').value ? $('pc_name').value + ($('pc_title').value ? '（' + $('pc_title').value + '）' : '') : '窗口'}的 Line 訊息。
+
+我們的關係：${PIPES[pp].name}。聯絡原則：${PIPES[pp].hint}
+背景：${$('p_fit').value || '（無）'}
+${$('p_notes').value ? '筆記：\n' + $('p_notes').value + '\n' : ''}
+要求：
+- 繁體中文，口語、親切、不推銷，80 字以內
+- 帶一樣對方用得到的東西（案例、點子、時令提醒），不要問「最近有沒有需要」
+- 不要編造我沒做過的案例；需要案例的地方用【填入案例】標示
+- 給 2 個版本：一個比較輕鬆，一個比較正式`);
+    return;
+  }
+  showPrompt(`我是${POSITIONING[$('p_company').value]}。請幫我寫一封給「${name}」的開發信。
+
+${$('pc_name').value ? '收件人：' + $('pc_name').value + ($('pc_title').value ? '（' + $('pc_title').value + '）' : '') + '\n' : ''}切入點：${$('p_fit').value || '（請依研究筆記判斷）'}
+研究筆記：
+${$('p_notes').value || '（尚無，請先上網了解這家公司）'}
+
+要求：
+- 繁體中文，語氣專業但親切，200 字以內
+- 開頭提到對方的具體動態，讓對方知道不是群發信
+- 提出 1～2 個具體的商品點子，並邀請對方看型錄或約 15 分鐘電話
+- 附一個吸引人的信件主旨
+- 另外再給一版 Line 用的短訊息（80 字以內）`);
+};
+
+// 批次貼上
+$('pBulkBtn').onclick = () => { $('bulkText').value = ''; $('bulkModal').classList.remove('hidden'); $('bulkText').focus(); };
+$('bulkSaveBtn').onclick = async () => {
+  const lines = $('bulkText').value.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  const seen = new Set(customers.map(c => c.name));
+  const rows = [];
+  for (const l of lines) {
+    const [name, industry, website] = l.split(/\s*[|｜\t]\s*/).map(x => (x || '').trim());
+    if (!name || seen.has(name)) continue; seen.add(name);
+    rows.push({ name, industry:industry || null, website:website || null, source:$('bulkSource').value.trim() || null,
+      company_entity:$('bulkCompany').value, status:'潛在', prospect_stage:'待研究', pipeline:'D' });
+  }
+  if (!rows.length) { toast('沒有新的公司可以加入（可能都已經在名單裡）'); return; }
+  try { await run(sb.from('customers').insert(rows)); await loadMasters(); $('bulkModal').classList.add('hidden'); pFilter = '待研究'; renderProspects(); toast(`✅ 加入 ${rows.length} 家公司`); }
+  catch (e) { toast('⚠️ 加入失敗：' + e.message); }
 };
 
 // ================= 帳本 =================
