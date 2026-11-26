@@ -73,7 +73,7 @@ main{max-width:1100px;margin:0 auto;padding:16px}
 .save-state{font-size:12px;color:var(--quiet);margin-right:auto}
 .save-state.dirty{color:var(--yellow)}.save-state.err{color:var(--red);font-weight:700}
 .items-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
-table.items{width:100%;border-collapse:collapse;min-width:980px}
+table.items{width:100%;border-collapse:collapse;min-width:1120px}
 table.items th{font-size:12px;color:var(--quiet);text-align:left;padding:6px 4px;border-bottom:2px solid var(--line);white-space:nowrap}
 table.items td{padding:4px;border-bottom:1px solid var(--line);vertical-align:top}
 table.items input,table.items select{min-height:36px;padding:6px 7px;font-size:14px}
@@ -421,17 +421,19 @@ table.tasks input[type=checkbox]{width:22px;height:22px;min-height:0;margin-top:
               <th style="width:22%">品名</th><th style="width:13%">規格</th>
               <th style="width:7%" class="num">數量</th><th style="width:6%">單位</th>
               <th style="width:9%" class="num">報價單價 NT$</th><th style="width:8%" class="num">小計</th>
-              <th style="width:11%" class="cost-col">工廠</th>
-              <th style="width:7%" class="num cost-col">成本 ¥/個</th>
-              <th style="width:7%" class="num cost-col">客製費 ¥/整批</th>
-              <th style="width:6%" class="num cost-col">毛利</th>
+              <th style="width:10%" class="cost-col">工廠</th>
+              <th style="width:7%" class="num cost-col">成本單價 <span class="cur">¥</span></th>
+              <th style="width:6%" class="num cost-col">採購數量</th>
+              <th style="width:8%" class="num cost-col">成本小計 <span class="cur">¥</span></th>
+              <th style="width:7%" class="num cost-col">客製費／整批 <span class="cur">¥</span></th>
+              <th style="width:5%" class="num cost-col">毛利</th>
               <th style="width:10%">備註</th><th></th>
             </tr></thead>
             <tbody id="itemsBody"></tbody>
           </table>
         </div>
         <button class="btn btn-sm" id="addItemBtn" style="margin-top:10px">＋ 加一列</button>
-        <p class="small muted" style="margin:8px 0 0">淺橘色欄位只在內部看得到，不會印在客戶報價單上。運費等要跟客戶收的費用，直接加一列寫進去。</p>
+        <p class="small muted" style="margin:8px 0 0">淺橘色欄位只在內部看得到，不會印在客戶報價單上。成本：填「成本單價」或直接填「成本小計」都可以，另一個會自動算；採購數量空白＝跟報價數量一樣；客製費是整批只收一次的費用（開模費、版費）。成本幣別在下面「成本設定」選。</p>
       </div>
 
       <div class="card">
@@ -450,6 +452,7 @@ table.tasks input[type=checkbox]{width:22px;height:22px;min-height:0;margin-top:
       <div class="card">
         <h3>成本設定（內部）</h3>
         <div class="grid g4">
+          <div><label>成本幣別</label><select id="f_costcur"><option value="CNY">人民幣 ¥</option><option value="TWD">台幣 NT$</option></select></div>
           <div><label>匯率（1 人民幣 = ? 台幣）</label><input id="f_rate" type="number" step="0.0001"></div>
           <div><label>工廠開票稅點 %</label><input id="f_taxpoint" type="number" step="0.1"></div>
           <div><label>運輸方式</label><select id="f_ship"><option value="">—</option><option>海運</option><option>空運</option><option>快遞</option></select></div>
@@ -903,14 +906,25 @@ async function openQuote(id){
   } catch (e) { toast('⚠️ 打不開：' + e.message); }
 }
 
-function blankItem(){ return { description:'', spec:'', quantity:'', unit:'個', unit_price_twd:'', supplier_id:'', unit_cost_cny:'', custom_fee_cny:'', note:'' }; }
+function blankItem(){ return { description:'', spec:'', quantity:'', unit:'個', unit_price_twd:'', supplier_id:'', unit_cost_cny:'', cost_qty:'', custom_fee_cny:'', note:'' }; }
+const isTWDcost = () => $('f_costcur').value === 'TWD';
+function applyCostCur(){
+  const twd = isTWDcost();
+  document.querySelectorAll('table.items .cur').forEach(el => el.textContent = twd ? 'NT$' : '¥');
+  $('f_rate').disabled = twd;
+  if (twd) $('f_rate').value = 1;
+}
+const costQtyOf = it => (it.cost_qty === '' || it.cost_qty == null) ? num(it.quantity) : num(it.cost_qty);
 
 const F = { company_entity:'f_company', quote_no:'f_qno', issued_at:'f_issued', valid_until:'f_valid', status:'f_status',
   mode:'f_mode', version:'f_version', exchange_rate:'f_rate', tax_point_pct:'f_taxpoint', shipping_method:'f_ship',
-  sales_tax_pct:'f_salestax', payment_terms:'f_terms', remark:'f_remark' };
+  sales_tax_pct:'f_salestax', payment_terms:'f_terms', remark:'f_remark', cost_currency:'f_costcur' };
 
 function fillEditor(){
   for (const [k, id] of Object.entries(F)) $(id).value = current[k] ?? '';
+  if (!current.cost_currency) $('f_costcur').value = 'CNY';
+  if ($('f_costcur').value === 'CNY' && !num($('f_rate').value)) $('f_rate').value = DEFAULTS.rate;   // 匯率空白會讓成本變 0
+  applyCostCur();
   $('f_customer').value = custById(current.customer_id)?.name || '';
   $('f_sign').checked = current.show_signature !== false;
   fillContacts();
@@ -956,7 +970,9 @@ function renderItems(){
     <td><input data-k="unit_price_twd" class="num" type="number" step="0.01" value="${esc(it.unit_price_twd)}"></td>
     <td class="calc" data-sub></td>
     <td class="cost-col"><select data-k="supplier_id">${supplierOptions(it.supplier_id)}</select></td>
-    <td class="cost-col"><input data-k="unit_cost_cny" class="num" type="number" step="0.01" value="${esc(it.unit_cost_cny)}"></td>
+    <td class="cost-col"><input data-k="unit_cost_cny" class="num" type="number" step="0.0001" value="${esc(it.unit_cost_cny)}"></td>
+    <td class="cost-col"><input data-k="cost_qty" class="num" type="number" value="${esc(it.cost_qty ?? '')}" placeholder="${esc(it.quantity || '同數量')}"></td>
+    <td class="cost-col"><input data-k="cost_total" class="num" type="number" step="0.01" value="${num(it.unit_cost_cny) && costQtyOf(it) ? +(num(it.unit_cost_cny) * costQtyOf(it)).toFixed(2) : ''}"></td>
     <td class="cost-col"><input data-k="custom_fee_cny" class="num" type="number" step="0.01" value="${esc(it.custom_fee_cny)}"></td>
     <td class="calc cost-col" data-margin></td>
     <td><input data-k="note" value="${esc(it.note)}"></td>
@@ -966,7 +982,20 @@ function renderItems(){
 
 $('itemsBody').addEventListener('input', e => {
   const tr = e.target.closest('tr'); const k = e.target.dataset.k; if (!tr || !k || k === 'supplier_id') return;
-  items[tr.dataset.i][k] = e.target.value; recalc(); markDirty();
+  const it = items[tr.dataset.i];
+  if (k === 'cost_total') {           // 填小計 → 反推單價
+    const q = costQtyOf(it);
+    it.unit_cost_cny = q ? +(num(e.target.value) / q).toFixed(4) : '';
+    tr.querySelector('[data-k=unit_cost_cny]').value = it.unit_cost_cny;
+  } else {
+    it[k] = e.target.value;
+    if (['unit_cost_cny','cost_qty','quantity'].includes(k)) {
+      const tot = tr.querySelector('[data-k=cost_total]'); const q = costQtyOf(it);
+      tot.value = num(it.unit_cost_cny) && q ? +(num(it.unit_cost_cny) * q).toFixed(2) : '';
+      if (k === 'quantity') tr.querySelector('[data-k=cost_qty]').placeholder = it.quantity || '同數量';
+    }
+  }
+  recalc(); markDirty();
 });
 $('itemsBody').addEventListener('change', async e => {
   if (e.target.dataset.k !== 'supplier_id') return;
@@ -1012,11 +1041,11 @@ $('f_sign').addEventListener('change', markDirty);
 
 // 計算（與資料庫 quote_margin 相同的算法）
 function calc(){
-  const rate = num($('f_rate').value), tp = num($('f_taxpoint').value);
+  const rate = isTWDcost() ? 1 : num($('f_rate').value), tp = num($('f_taxpoint').value);
   let sub = 0, goodsCny = 0;
   const rows = items.map(it => {
     const q = num(it.quantity), revenue = q * num(it.unit_price_twd);
-    const costCny = q * num(it.unit_cost_cny) + num(it.custom_fee_cny);
+    const costCny = costQtyOf(it) * num(it.unit_cost_cny) + num(it.custom_fee_cny);
     const costTwd = costCny * (1 + tp/100) * rate;
     sub += revenue; goodsCny += costCny;
     return { revenue, costTwd, hasCost: costCny > 0 };
@@ -1054,6 +1083,11 @@ Object.values(F).forEach(id => $(id).addEventListener('input', () => { recalc();
 $('f_customer').addEventListener('input', () => { fillContacts(); markDirty(); });
 $('f_contact').addEventListener('change', markDirty);
 $('f_deal').addEventListener('change', markDirty);
+$('f_costcur').addEventListener('change', () => {
+  if (isTWDcost()) { $('f_taxpoint').value = 0; toast('成本改用台幣：匯率固定為 1，開票稅點先設 0（需要可以再改）'); }
+  else { $('f_rate').value = DEFAULTS.rate; $('f_taxpoint').value = DEFAULTS.taxPoint; }
+  applyCostCur(); recalc(); markDirty();
+});
 $('f_company').addEventListener('change', async () => {
   if (!current.id) { $('f_qno').value = await nextQuoteNo($('f_company').value); }
 });
@@ -1082,7 +1116,7 @@ async function saveQuote(silent=false){
       deal_id: current.deal_id || null, company_entity: current.company_entity, version: parseInt(current.version) || 1,
       mode: current.mode, issued_at: current.issued_at || null, valid_until: current.valid_until || null,
       exchange_rate: numOrNull(current.exchange_rate), tax_point_pct: numOrNull(current.tax_point_pct),
-      shipping_method: current.shipping_method || null, freight: 0, duty: 0,
+      shipping_method: current.shipping_method || null, freight: 0, duty: 0, cost_currency: current.cost_currency || 'CNY',
       other_costs: 0, sales_tax_pct: numOrNull(current.sales_tax_pct), show_signature: current.show_signature,
       payment_terms: current.payment_terms || null, remark: current.remark || null, status: current.status
     };
@@ -1095,6 +1129,7 @@ async function saveQuote(silent=false){
       quote_id: current.id, sort_order: i, description: it.description.trim(), spec: it.spec || null,
       quantity: parseInt(it.quantity) || 0, unit: it.unit || null, unit_price_twd: num(it.unit_price_twd),
       supplier_id: it.supplier_id || null, unit_cost_cny: num(it.unit_cost_cny), custom_fee_cny: num(it.custom_fee_cny),
+      cost_qty: (it.cost_qty === '' || it.cost_qty == null) ? null : (parseInt(it.cost_qty) || 0),
       note: it.note || null, product_id: it.product_id || null
     }));
     if (rows.length) await run(sb.from('quote_items').insert(rows));
@@ -1177,12 +1212,12 @@ async function printQuote(internal){
     </div>
     <table class="p-table">
       <thead><tr><th>No.</th><th>商品名稱</th><th>規格/尺寸</th><th class="r">數量</th><th>單位</th><th class="r">單價</th><th class="r">小計</th>
-        ${internal ? '<th>工廠</th><th class="r">成本¥</th><th class="r">客製費¥</th><th class="r">毛利</th>' : ''}<th>備註</th></tr></thead>
+        ${internal ? `<th>工廠</th><th class="r">成本單價${isTWDcost() ? 'NT$' : '¥'}</th><th class="r">採購數量</th><th class="r">客製費</th><th class="r">毛利</th>` : ''}<th>備註</th></tr></thead>
       <tbody>${lines.map((it, i) => {
         const x = r.rows[items.indexOf(it)];
         return `<tr><td>${i+1}</td><td><b>${esc(it.description)}</b></td><td>${esc(it.spec || '-')}</td>
           <td class="r">${fmt(it.quantity)}</td><td>${esc(it.unit)}</td><td class="r">${fmt(it.unit_price_twd, 2)}</td><td class="r"><b>${fmt(x.revenue)}</b></td>
-          ${internal ? `<td>${esc(sup(it.supplier_id)?.name || '')}</td><td class="r">${fmt(it.unit_cost_cny, 2)}</td><td class="r">${fmt(it.custom_fee_cny, 2)}</td><td class="r">${x.revenue && x.hasCost ? Math.round((x.revenue - x.costTwd)/x.revenue*100) + '%' : ''}</td>` : ''}
+          ${internal ? `<td>${esc(sup(it.supplier_id)?.name || '')}</td><td class="r">${fmt(it.unit_cost_cny, 4)}</td><td class="r">${fmt(costQtyOf(it))}</td><td class="r">${fmt(it.custom_fee_cny, 2)}</td><td class="r">${x.revenue && x.hasCost ? Math.round((x.revenue - x.costTwd)/x.revenue*100) + '%' : ''}</td>` : ''}
           <td>${esc(it.note)}</td></tr>`;
       }).join('')}</tbody>
     </table>
@@ -1193,7 +1228,7 @@ async function printQuote(internal){
       <div class="grand"><span>總計</span><span>NT$ ${fmt(r.grand)}</span></div>
       ${internal ? `<div style="margin-top:8px"><span>總成本</span><b>NT$ ${fmt(r.cost)}</b></div><div><span>毛利</span><b>NT$ ${fmt(r.profit)}（${r.margin == null ? '—' : r.margin.toFixed(1) + '%'}）</b></div>
         ${r.fees.filter(f => f.bearer === '我方').map(f => `<div class="small"><span>我方吸收：${esc(f.label)}</span><span>NT$ ${fmt(f.amount_twd)}</span></div>`).join('')}
-        <div class="small muted"><span>匯率 ${esc(current.exchange_rate)}・稅點 ${esc(current.tax_point_pct)}%</span></div>` : ''}
+        <div class="small muted"><span>${isTWDcost() ? '成本幣別：台幣' : '匯率 ' + esc(current.exchange_rate)}・稅點 ${esc(current.tax_point_pct)}%</span></div>` : ''}
     </div>
     ${current.payment_terms ? `<div class="p-remark"><b>付款條件</b>\n${esc(current.payment_terms)}</div>` : ''}
     ${current.remark ? `<div class="p-remark"><b>備註</b>\n${esc(current.remark)}</div>` : ''}
