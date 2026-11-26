@@ -131,6 +131,18 @@ table.fees td{padding:4px;border-bottom:1px solid var(--line)}
 table.fees input,table.fees select{min-height:36px;padding:6px 7px;font-size:14px}
 table.fees .chk{text-align:center}
 table.fees input[type=checkbox]{width:20px;height:20px;min-height:0}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+.kpis div{background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px}
+.kpis .k{font-size:12px;color:var(--quiet);font-weight:600}
+.kpis .v{font-size:20px;font-weight:800;margin-top:4px}
+@media (max-width:720px){.kpis{grid-template-columns:repeat(2,1fr)}}
+.ltable{width:100%;border-collapse:collapse;font-size:14px;min-width:620px}
+.ltable th{font-size:12px;color:var(--quiet);text-align:right;padding:8px 6px;border-bottom:2px solid var(--line);white-space:nowrap}
+.ltable th:first-child,.ltable td:first-child{text-align:left}
+.ltable td{padding:8px 6px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+.ltable tfoot td{font-weight:800;border-top:2px solid var(--ink);border-bottom:none}
+.ltable tr.click{cursor:pointer}.ltable tr.click:hover{background:var(--mint-light)}
+.bar{height:6px;border-radius:3px;background:var(--mint);margin-top:4px}
 .check-row{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:14px}
 .check-row input{width:20px;height:20px;min-height:0}
 </style>
@@ -157,6 +169,7 @@ table.fees input[type=checkbox]{width:20px;height:20px;min-height:0}
       <button class="tab active" data-view="list">報價</button>
       <button class="tab" data-view="customers">客戶</button>
       <button class="tab" data-view="suppliers">工廠</button>
+      <button class="tab" data-view="ledger">帳本</button>
     </nav>
     <button class="btn btn-sm" id="logoutBtn">登出</button>
   </header>
@@ -294,6 +307,36 @@ table.fees input[type=checkbox]{width:20px;height:20px;min-height:0}
       <div class="list" id="customerList"></div>
     </section>
 
+    <!-- 帳本 -->
+    <section id="ledgerView" class="hidden">
+      <div class="toolbar">
+        <select id="lPeriod" style="width:auto">
+          <option value="thisQ">本季</option><option value="lastQ">上季</option>
+          <option value="thisM">本月</option><option value="lastM">上月</option>
+          <option value="thisY">今年</option><option value="lastY">去年</option>
+          <option value="all">全部</option><option value="custom">自訂…</option>
+        </select>
+        <input id="lFrom" type="date" class="hidden" style="width:auto"><input id="lTo" type="date" class="hidden" style="width:auto">
+        <select id="lCompany" style="width:auto"><option value="">兩家公司</option><option>REVOCO</option><option>JULI</option></select>
+        <span class="muted small grow" id="lRange"></span>
+        <button class="btn btn-sm" id="lExport">匯出 Excel</button>
+      </div>
+      <div class="kpis">
+        <div><div class="k">成交筆數</div><div class="v" id="k_n">0</div></div>
+        <div><div class="k">營收（未稅）</div><div class="v" id="k_rev">0</div></div>
+        <div><div class="k">商品成本</div><div class="v" id="k_cost">0</div></div>
+        <div><div class="k">費用（運費、包裝等）</div><div class="v" id="k_fee">0</div></div>
+        <div><div class="k">毛利</div><div class="v" id="k_profit">0</div></div>
+        <div><div class="k">毛利率</div><div class="v" id="k_margin">—</div></div>
+        <div><div class="k">應收總額（含稅）</div><div class="v" id="k_grand">0</div></div>
+        <div><div class="k">銷項營業稅</div><div class="v" id="k_tax">0</div></div>
+      </div>
+      <div class="card"><h3>依客戶</h3><div class="items-wrap"><table class="ltable" id="lByCust"></table></div></div>
+      <div class="card"><h3>依月份</h3><div class="items-wrap"><table class="ltable" id="lByMonth"></table></div></div>
+      <div class="card"><h3>成交明細</h3><div class="items-wrap"><table class="ltable" id="lDetail"></table></div></div>
+      <p class="small muted">以狀態為「接受」的報價計算，日期以成交日（報價改成接受、自動開專案的那天）為準。目前的成本是報價時估算的數字；之後做好收付款功能，就能換成實際付款金額。</p>
+    </section>
+
     <!-- 工廠 -->
     <section id="suppliersView" class="hidden">
       <div class="toolbar">
@@ -428,11 +471,12 @@ const custByName = name => customers.find(c => c.name === name.trim());
 // ================= 切換畫面 =================
 async function switchView(v){
   if (v !== 'edit' && !$('editView').classList.contains('hidden') && dirty) await saveQuote(true);
-  ['list','edit','customers','suppliers'].forEach(x => $(x + 'View').classList.toggle('hidden', x !== v));
+  ['list','edit','customers','suppliers','ledger'].forEach(x => $(x + 'View').classList.toggle('hidden', x !== v));
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === v || (v === 'edit' && t.dataset.view === 'list')));
   if (v === 'list') renderQuoteList();
   if (v === 'customers') renderCustomers();
   if (v === 'suppliers') renderSuppliers();
+  if (v === 'ledger') renderLedger();
   window.scrollTo(0,0);
 }
 document.querySelectorAll('.tab').forEach(t => t.onclick = () => switchView(t.dataset.view));
@@ -885,6 +929,90 @@ $('supSaveBtn').onclick = async () => {
     await loadMasters(); $('supModal').classList.add('hidden'); toast('✅ 工廠已儲存');
     if (supCallback) supCallback(s); else renderSuppliers();
   } catch (e) { toast('⚠️ 儲存失敗：' + e.message); }
+};
+
+// ================= 帳本 =================
+const iso = d => new Date(d - d.getTimezoneOffset()*60000).toISOString().slice(0,10);
+function periodRange(p){
+  const now = new Date(), y = now.getFullYear(), m = now.getMonth(), q = Math.floor(m / 3);
+  const r = (a, b) => [iso(a), iso(b)];
+  switch (p) {
+    case 'thisM': return r(new Date(y, m, 1), new Date(y, m + 1, 0));
+    case 'lastM': return r(new Date(y, m - 1, 1), new Date(y, m, 0));
+    case 'thisQ': return r(new Date(y, q*3, 1), new Date(y, q*3 + 3, 0));
+    case 'lastQ': return r(new Date(y, q*3 - 3, 1), new Date(y, q*3, 0));
+    case 'thisY': return r(new Date(y, 0, 1), new Date(y, 11, 31));
+    case 'lastY': return r(new Date(y - 1, 0, 1), new Date(y - 1, 11, 31));
+    case 'custom': return [$('lFrom').value || '2000-01-01', $('lTo').value || '2999-12-31'];
+    default: return ['2000-01-01', '2999-12-31'];
+  }
+}
+['lPeriod','lCompany','lFrom','lTo'].forEach(id => $(id).addEventListener('change', () => {
+  const c = $('lPeriod').value === 'custom'; $('lFrom').classList.toggle('hidden', !c); $('lTo').classList.toggle('hidden', !c);
+  renderLedger();
+}));
+
+let ledgerRows = [];
+async function renderLedger(){
+  const [from, to] = periodRange($('lPeriod').value);
+  $('lRange').textContent = $('lPeriod').value === 'all' ? '全部期間' : `${from} ～ ${to}`;
+  try {
+    let q = sb.from('quote_margin').select('*').eq('status', '接受');
+    if ($('lCompany').value) q = q.eq('company_entity', $('lCompany').value);
+    const [rows, projs] = await Promise.all([run(q), run(sb.from('projects').select('quote_id,order_date'))]);
+    const od = Object.fromEntries(projs.map(p => [p.quote_id, p.order_date]));
+    ledgerRows = rows.map(r => {
+      const rev = num(r.subtotal_twd) + num(r.client_fees_twd);
+      return { id:r.id, date: od[r.id] || r.issued_at || '', quote_no:r.quote_no, company:r.company_entity,
+        customer: custById(r.customer_id)?.name || '（未選客戶）', rev, cost:num(r.goods_cost_twd), fee:num(r.extra_cost_twd),
+        profit:num(r.gross_profit_twd), tax:num(r.sales_tax_twd), grand:num(r.grand_total_twd) };
+    }).filter(r => r.date >= from && r.date <= to).sort((a, b) => b.date.localeCompare(a.date));
+  } catch (e) { $('lByCust').innerHTML = `<tr><td style="color:var(--red)">讀取失敗：${esc(e.message)}</td></tr>`; return; }
+
+  const sum = (list, k) => list.reduce((a, r) => a + r[k], 0);
+  const pct = (p, r) => r > 0 ? (p / r * 100).toFixed(1) + '%' : '—';
+  const T = { n: ledgerRows.length, rev: sum(ledgerRows,'rev'), cost: sum(ledgerRows,'cost'), fee: sum(ledgerRows,'fee'),
+              profit: sum(ledgerRows,'profit'), tax: sum(ledgerRows,'tax'), grand: sum(ledgerRows,'grand') };
+  $('k_n').textContent = T.n; $('k_rev').textContent = fmt(T.rev); $('k_cost').textContent = fmt(T.cost);
+  $('k_fee').textContent = fmt(T.fee); $('k_profit').textContent = fmt(T.profit); $('k_margin').textContent = pct(T.profit, T.rev);
+  $('k_grand').textContent = fmt(T.grand); $('k_tax').textContent = fmt(T.tax);
+  $('k_profit').style.color = T.profit < 0 ? 'var(--red)' : '';
+
+  const group = key => {
+    const m = new Map();
+    ledgerRows.forEach(r => { const g = m.get(r[key]) || { name:r[key], n:0, rev:0, cost:0, fee:0, profit:0 };
+      g.n++; g.rev += r.rev; g.cost += r.cost; g.fee += r.fee; g.profit += r.profit; m.set(r[key], g); });
+    return [...m.values()];
+  };
+  const head = first => `<thead><tr><th>${first}</th><th>筆數</th><th>營收（未稅）</th><th>商品成本</th><th>費用</th><th>毛利</th><th>毛利率</th></tr></thead>`;
+  const foot = `<tfoot><tr><td>合計</td><td>${T.n}</td><td>${fmt(T.rev)}</td><td>${fmt(T.cost)}</td><td>${fmt(T.fee)}</td><td>${fmt(T.profit)}</td><td>${pct(T.profit, T.rev)}</td></tr></tfoot>`;
+  const line = (g, max) => `<tr><td>${esc(g.name)}${max ? `<div class="bar" style="width:${Math.max(2, g.rev / max * 100)}%"></div>` : ''}</td><td>${g.n}</td><td>${fmt(g.rev)}</td><td>${fmt(g.cost)}</td><td>${fmt(g.fee)}</td><td>${fmt(g.profit)}</td><td>${pct(g.profit, g.rev)}</td></tr>`;
+  const empty = '<tr><td class="muted" colspan="7" style="text-align:left">這段期間沒有成交的報價</td></tr>';
+
+  const byCust = group('customer').sort((a, b) => b.rev - a.rev);
+  const maxC = Math.max(1, ...byCust.map(g => g.rev));
+  $('lByCust').innerHTML = head('客戶') + '<tbody>' + (byCust.map(g => line(g, maxC)).join('') || empty) + '</tbody>' + (T.n ? foot : '');
+
+  ledgerRows.forEach(r => r.month = r.date.slice(0, 7));
+  const byMonth = group('month').sort((a, b) => a.name.localeCompare(b.name));
+  const maxM = Math.max(1, ...byMonth.map(g => g.rev));
+  $('lByMonth').innerHTML = head('月份') + '<tbody>' + (byMonth.map(g => line(g, maxM)).join('') || empty) + '</tbody>' + (T.n ? foot : '');
+
+  $('lDetail').innerHTML = `<thead><tr><th>成交日</th><th>報價單號</th><th>客戶</th><th>營收（未稅）</th><th>商品成本</th><th>費用</th><th>毛利</th><th>毛利率</th></tr></thead><tbody>` +
+    (ledgerRows.map(r => `<tr class="click" data-id="${r.id}"><td>${esc(r.date)}</td><td style="text-align:left">${esc(r.quote_no)}</td><td style="text-align:left">${esc(r.customer)}</td>
+      <td>${fmt(r.rev)}</td><td>${fmt(r.cost)}</td><td>${fmt(r.fee)}</td><td>${fmt(r.profit)}</td><td>${pct(r.profit, r.rev)}</td></tr>`).join('')
+     || '<tr><td class="muted" colspan="8" style="text-align:left">這段期間沒有成交的報價</td></tr>') + '</tbody>';
+  $('lDetail').querySelectorAll('tr.click').forEach(tr => tr.onclick = () => openQuote(tr.dataset.id));
+}
+
+$('lExport').onclick = () => {
+  if (!ledgerRows.length) { toast('這段期間沒有資料'); return; }
+  const cols = [['成交日','date'],['公司','company'],['報價單號','quote_no'],['客戶','customer'],['營收(未稅)','rev'],['商品成本','cost'],['費用','fee'],['毛利','profit'],['銷項稅','tax'],['應收總額(含稅)','grand']];
+  const cell = v => /[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : v;
+  const csv = [cols.map(c => c[0]).join(','), ...ledgerRows.map(r => cols.map(c => cell(r[c[1]])).join(','))].join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type:'text/csv;charset=utf-8' }));
+  a.download = `帳本_${$('lRange').textContent.replace(/[ ～]+/g, '_')}.csv`; a.click();
 };
 
 // 關閉表單
