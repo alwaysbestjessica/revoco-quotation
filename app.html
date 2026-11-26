@@ -120,6 +120,19 @@ table.items .calc{padding-top:12px;text-align:right;white-space:nowrap;font-size
 .p-total .grand{border-top:2px solid var(--ink);margin-top:4px;padding-top:8px;font-size:15px;font-weight:800}
 .p-remark{margin-top:14px;font-size:12px;background:var(--mint-light);border-radius:6px;padding:8px 10px;white-space:pre-wrap}
 .p-foot{margin-top:18px;font-size:11px;color:var(--quiet)}
+.p-sign{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:22px;font-size:12px;page-break-inside:avoid}
+.p-sign>div{border:1px solid var(--line);border-radius:7px;padding:10px 12px}
+.p-sign .t{font-weight:700;color:var(--mint);margin-bottom:6px}
+.p-sign .line{border-bottom:1px solid #999;height:34px;margin:6px 0 2px}
+.p-sign .lbl{font-size:10px;color:var(--quiet)}
+table.fees{width:100%;border-collapse:collapse;min-width:560px}
+table.fees th{font-size:12px;color:var(--quiet);text-align:left;padding:6px 4px;border-bottom:2px solid var(--line)}
+table.fees td{padding:4px;border-bottom:1px solid var(--line)}
+table.fees input,table.fees select{min-height:36px;padding:6px 7px;font-size:14px}
+table.fees .chk{text-align:center}
+table.fees input[type=checkbox]{width:20px;height:20px;min-height:0}
+.check-row{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:14px}
+.check-row input{width:20px;height:20px;min-height:0}
 </style>
 </head>
 <body>
@@ -227,15 +240,25 @@ table.items .calc{padding-top:12px;text-align:right;white-space:nowrap;font-size
       </div>
 
       <div class="card">
+        <h3>其他費用</h3>
+        <div class="items-wrap">
+          <table class="fees">
+            <thead><tr><th style="width:34%">項目</th><th style="width:20%" class="num">金額 NT$（未稅）</th><th style="width:22%">誰負擔</th><th style="width:14%" class="chk">加 5% 營業稅</th><th></th></tr></thead>
+            <tbody id="feesBody"></tbody>
+          </table>
+        </div>
+        <datalist id="feeOptions"><option value="空運費"><option value="海運費"><option value="快遞費"><option value="包裝費"><option value="報關費"><option value="關稅"><option value="打樣費"><option value="國內運費"><option value="雜費"></datalist>
+        <button class="btn btn-sm" id="addFeeBtn" style="margin-top:10px">＋ 加一筆費用</button>
+        <p class="small muted" style="margin:8px 0 0">「客戶負擔」會印在報價單上並算進總計；「我方吸收」只算進成本，客戶看不到。</p>
+      </div>
+
+      <div class="card">
         <h3>成本設定（內部）</h3>
         <div class="grid g4">
           <div><label>匯率（1 人民幣 = ? 台幣）</label><input id="f_rate" type="number" step="0.0001"></div>
           <div><label>工廠開票稅點 %</label><input id="f_taxpoint" type="number" step="0.1"></div>
           <div><label>運輸方式</label><select id="f_ship"><option value="">—</option><option>海運</option><option>空運</option><option>快遞</option></select></div>
           <div><label>營業稅 %</label><input id="f_salestax" type="number" step="0.1"></div>
-          <div><label>運費 NT$</label><input id="f_freight" type="number"></div>
-          <div><label>關稅 NT$</label><input id="f_duty" type="number"></div>
-          <div><label>其他成本 NT$</label><input id="f_other" type="number"></div>
         </div>
       </div>
 
@@ -245,12 +268,14 @@ table.items .calc{padding-top:12px;text-align:right;white-space:nowrap;font-size
           <div><label>付款條件</label><textarea id="f_terms"></textarea></div>
           <div><label>備註</label><textarea id="f_remark"></textarea></div>
         </div>
+        <label class="check-row"><input type="checkbox" id="f_sign"> 報價單底部加上「客戶確認回簽」欄（簽名／蓋章、日期）</label>
       </div>
 
       <div class="card">
         <h3>金額</h3>
         <div class="summary">
           <div><div class="k">商品小計</div><div class="v" id="s_sub">0</div></div>
+          <div><div class="k">其他費用（客戶負擔）</div><div class="v" id="s_fees">0</div></div>
           <div><div class="k">營業稅</div><div class="v" id="s_tax">0</div></div>
           <div><div class="k">總計（含稅）</div><div class="v" id="s_grand">0</div></div>
           <div class="internal"><div class="k">總成本（內部）</div><div class="v" id="s_cost">0</div></div>
@@ -364,6 +389,7 @@ async function run(q){ const { data, error } = await q; if (error) throw error; 
 let customers = [], contacts = [], suppliers = [];
 let current = null;        // 編輯中的報價
 let items = [];            // 編輯中的品項
+let fees = [];             // 編輯中的其他費用
 let dirty = false, saving = false, autosaveTimer = null;
 
 // ================= 登入 =================
@@ -431,7 +457,7 @@ async function renderQuoteList(){
     }
     if (!rows.length) { box.innerHTML = '<div class="empty">還沒有報價。按右上角「＋ 新報價」開始。</div>'; return; }
     box.innerHTML = rows.map(r => {
-      const grand = num(r.subtotal_twd) + num(r.sales_tax_twd);
+      const grand = num(r.grand_total_twd);
       return `<div class="row" data-id="${r.id}">
         <div><div class="qno">${esc(r.quote_no)}</div><span class="badge b-${r.company_entity}">${r.company_entity}</span></div>
         <div class="cust">${esc(custById(r.customer_id)?.name || '（未選客戶）')}</div>
@@ -469,8 +495,9 @@ $('newQuoteBtn').onclick = async () => {
   current = { id:null, company_entity:'REVOCO', version:1, mode:'正式報價', status:'草稿',
     issued_at:today(), valid_until:addDays(today(), DEFAULTS.validDays),
     exchange_rate:DEFAULTS.rate, tax_point_pct:DEFAULTS.taxPoint, sales_tax_pct:DEFAULTS.salesTax,
-    freight:0, duty:0, other_costs:0, quote_no: await nextQuoteNo('REVOCO') };
+    freight:0, duty:0, other_costs:0, show_signature:true, quote_no: await nextQuoteNo('REVOCO') };
   items = [blankItem(), blankItem(), blankItem()];
+  fees = [];
   fillEditor(); setDirty(false, '新報價，選好客戶後會自動儲存');
   switchView('edit');
 };
@@ -480,6 +507,7 @@ async function openQuote(id){
     current = await run(sb.from('quotes').select('*').eq('id', id).single());
     items = await run(sb.from('quote_items').select('*').eq('quote_id', id).order('sort_order'));
     if (!items.length) items = [blankItem()];
+    fees = await run(sb.from('quote_fees').select('*').eq('quote_id', id).order('sort_order'));
     fillEditor(); setDirty(false, '已儲存');
     switchView('edit');
   } catch (e) { toast('⚠️ 打不開：' + e.message); }
@@ -489,13 +517,14 @@ function blankItem(){ return { description:'', spec:'', quantity:'', unit:'個',
 
 const F = { company_entity:'f_company', quote_no:'f_qno', issued_at:'f_issued', valid_until:'f_valid', status:'f_status',
   mode:'f_mode', version:'f_version', exchange_rate:'f_rate', tax_point_pct:'f_taxpoint', shipping_method:'f_ship',
-  sales_tax_pct:'f_salestax', freight:'f_freight', duty:'f_duty', other_costs:'f_other', payment_terms:'f_terms', remark:'f_remark' };
+  sales_tax_pct:'f_salestax', payment_terms:'f_terms', remark:'f_remark' };
 
 function fillEditor(){
   for (const [k, id] of Object.entries(F)) $(id).value = current[k] ?? '';
   $('f_customer').value = custById(current.customer_id)?.name || '';
+  $('f_sign').checked = current.show_signature !== false;
   fillContacts();
-  renderItems(); recalc();
+  renderItems(); renderFees(); recalc();
 }
 
 function fillContacts(){
@@ -512,6 +541,7 @@ function readEditor(){
   const c = custByName($('f_customer').value);
   current.customer_id = c?.id || null;
   current.contact_id = $('f_contact').value || null;
+  current.show_signature = $('f_sign').checked;
 }
 
 function supplierOptions(sel){
@@ -552,6 +582,35 @@ $('itemsBody').addEventListener('click', e => {
 });
 $('addItemBtn').onclick = () => { items.push(blankItem()); renderItems(); recalc(); $('itemsBody').lastElementChild.querySelector('input').focus(); };
 
+// ---- 其他費用 ----
+function blankFee(){ return { label:'', amount_twd:'', bearer:'客戶', taxable:true }; }
+function renderFees(){
+  $('feesBody').innerHTML = fees.length ? fees.map((f, i) => `<tr data-i="${i}">
+    <td><input data-f="label" list="feeOptions" value="${esc(f.label)}" placeholder="例：空運費"></td>
+    <td><input data-f="amount_twd" class="num" type="number" value="${esc(f.amount_twd)}"></td>
+    <td><select data-f="bearer"><option value="客戶" ${f.bearer==='客戶'?'selected':''}>客戶負擔</option><option value="我方" ${f.bearer==='我方'?'selected':''}>我方吸收</option></select></td>
+    <td class="chk"><input data-f="taxable" type="checkbox" ${f.taxable && f.bearer==='客戶' ? 'checked' : ''} ${f.bearer==='我方' ? 'disabled' : ''}></td>
+    <td><button class="btn btn-sm btn-danger" data-delfee title="刪除">✕</button></td>
+  </tr>`).join('') : '<tr><td colspan="5" class="muted small" style="padding:10px 4px">沒有其他費用</td></tr>';
+}
+$('feesBody').addEventListener('input', e => {
+  const tr = e.target.closest('tr'); const k = e.target.dataset.f; if (!tr || !k || k === 'bearer' || k === 'taxable') return;
+  fees[tr.dataset.i][k] = e.target.value; recalc(); markDirty();
+});
+$('feesBody').addEventListener('change', e => {
+  const tr = e.target.closest('tr'); const k = e.target.dataset.f; if (!tr) return;
+  const f = fees[tr.dataset.i];
+  if (k === 'bearer') { f.bearer = e.target.value; if (f.bearer === '客戶') f.taxable = true; renderFees(); }
+  if (k === 'taxable') f.taxable = e.target.checked;
+  if (k === 'bearer' || k === 'taxable') { recalc(); markDirty(); }
+});
+$('feesBody').addEventListener('click', e => {
+  if (!e.target.hasAttribute('data-delfee')) return;
+  fees.splice(e.target.closest('tr').dataset.i, 1); renderFees(); recalc(); markDirty();
+});
+$('addFeeBtn').onclick = () => { fees.push(blankFee()); renderFees(); $('feesBody').lastElementChild.querySelector('input').focus(); };
+$('f_sign').addEventListener('change', markDirty);
+
 // 計算（與資料庫 quote_margin 相同的算法）
 function calc(){
   const rate = num($('f_rate').value), tp = num($('f_taxpoint').value);
@@ -563,9 +622,16 @@ function calc(){
     sub += revenue; goodsCny += costCny;
     return { revenue, costTwd, hasCost: costCny > 0 };
   });
-  const tax = Math.round(sub * num($('f_salestax').value) / 100);
-  const cost = Math.round(goodsCny * (1 + tp/100) * rate) + num($('f_freight').value) + num($('f_duty').value) + num($('f_other').value);
-  return { rows, sub, tax, grand: sub + tax, cost, profit: sub - cost, margin: sub > 0 ? (sub - cost) / sub * 100 : null };
+  const valid = fees.filter(f => String(f.label).trim() || num(f.amount_twd));
+  const clientFees = valid.filter(f => f.bearer === '客戶').reduce((a, f) => a + num(f.amount_twd), 0);
+  const taxableFees = valid.filter(f => f.bearer === '客戶' && f.taxable).reduce((a, f) => a + num(f.amount_twd), 0);
+  const allFees = valid.reduce((a, f) => a + num(f.amount_twd), 0);
+  const taxBase = sub + taxableFees;
+  const tax = Math.round(taxBase * num($('f_salestax').value) / 100);
+  const revenue = sub + clientFees;
+  const cost = Math.round(goodsCny * (1 + tp/100) * rate) + allFees;
+  return { rows, sub, clientFees, taxBase, tax, revenue, grand: revenue + tax, cost, profit: revenue - cost,
+           margin: revenue > 0 ? (revenue - cost) / revenue * 100 : null, fees: valid };
 }
 function recalc(){
   const r = calc();
@@ -575,6 +641,7 @@ function recalc(){
     tr.querySelector('[data-margin]').textContent = (x.revenue && x.hasCost) ? Math.round((x.revenue - x.costTwd) / x.revenue * 100) + '%' : '';
   });
   $('s_sub').textContent = 'NT$ ' + fmt(r.sub);
+  $('s_fees').textContent = 'NT$ ' + fmt(r.clientFees);
   $('s_tax').textContent = 'NT$ ' + fmt(r.tax);
   $('s_grand').textContent = 'NT$ ' + fmt(r.grand);
   $('s_cost').textContent = 'NT$ ' + fmt(r.cost);
@@ -615,8 +682,8 @@ async function saveQuote(silent=false){
       deal_id: current.deal_id || null, company_entity: current.company_entity, version: parseInt(current.version) || 1,
       mode: current.mode, issued_at: current.issued_at || null, valid_until: current.valid_until || null,
       exchange_rate: numOrNull(current.exchange_rate), tax_point_pct: numOrNull(current.tax_point_pct),
-      shipping_method: current.shipping_method || null, freight: num(current.freight), duty: num(current.duty),
-      other_costs: num(current.other_costs), sales_tax_pct: numOrNull(current.sales_tax_pct),
+      shipping_method: current.shipping_method || null, freight: 0, duty: 0,
+      other_costs: 0, sales_tax_pct: numOrNull(current.sales_tax_pct), show_signature: current.show_signature,
       payment_terms: current.payment_terms || null, remark: current.remark || null, status: current.status
     };
     const saved = current.id
@@ -631,6 +698,11 @@ async function saveQuote(silent=false){
       note: it.note || null, product_id: it.product_id || null
     }));
     if (rows.length) await run(sb.from('quote_items').insert(rows));
+    await run(sb.from('quote_fees').delete().eq('quote_id', current.id));
+    const feeRows = fees.filter(f => String(f.label).trim() || num(f.amount_twd)).map((f, i) => ({
+      quote_id: current.id, sort_order: i, label: String(f.label).trim() || '其他費用', amount_twd: num(f.amount_twd),
+      bearer: f.bearer, taxable: f.bearer === '客戶' && !!f.taxable }));
+    if (feeRows.length) await run(sb.from('quote_fees').insert(feeRows));
     dirty = false;
     const t = new Date(); setDirty(false, `✓ 已儲存 ${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}`);
     if (!silent) toast('✅ 已儲存');
@@ -655,6 +727,7 @@ $('copyBtn').onclick = async () => {
   const v = (parseInt(current.version) || 1) + 1;
   current = { ...current, id:null, version:v, status:'草稿', quote_no:`${base}-V${v}`, issued_at:today(), valid_until:addDays(today(), DEFAULTS.validDays) };
   items = items.map(it => ({ ...it, id:undefined, quote_id:undefined }));
+  fees = fees.map(f => ({ ...f, id:undefined, quote_id:undefined }));
   fillEditor(); dirty = true;
   if (await saveQuote(true)) toast(`✅ 已複製成第 ${v} 版，可以直接改`);
 };
@@ -709,13 +782,20 @@ async function printQuote(internal){
     </table>
     <div class="p-total">
       <div><span>商品小計</span><b>NT$ ${fmt(r.sub)}</b></div>
+      ${r.fees.filter(f => f.bearer === '客戶').map(f => `<div><span>${esc(f.label)}${f.taxable ? '' : '（免稅）'}</span><b>NT$ ${fmt(f.amount_twd)}</b></div>`).join('')}
       <div><span>營業稅（${esc(current.sales_tax_pct)}%）</span><b>NT$ ${fmt(r.tax)}</b></div>
       <div class="grand"><span>總計</span><span>NT$ ${fmt(r.grand)}</span></div>
       ${internal ? `<div style="margin-top:8px"><span>總成本</span><b>NT$ ${fmt(r.cost)}</b></div><div><span>毛利</span><b>NT$ ${fmt(r.profit)}（${r.margin == null ? '—' : r.margin.toFixed(1) + '%'}）</b></div>
-        <div class="small muted"><span>匯率 ${esc(current.exchange_rate)}・稅點 ${esc(current.tax_point_pct)}%・運費 ${fmt(current.freight)}・關稅 ${fmt(current.duty)}・其他 ${fmt(current.other_costs)}</span></div>` : ''}
+        ${r.fees.filter(f => f.bearer === '我方').map(f => `<div class="small"><span>我方吸收：${esc(f.label)}</span><span>NT$ ${fmt(f.amount_twd)}</span></div>`).join('')}
+        <div class="small muted"><span>匯率 ${esc(current.exchange_rate)}・稅點 ${esc(current.tax_point_pct)}%</span></div>` : ''}
     </div>
     ${current.payment_terms ? `<div class="p-remark"><b>付款條件</b>\n${esc(current.payment_terms)}</div>` : ''}
     ${current.remark ? `<div class="p-remark"><b>備註</b>\n${esc(current.remark)}</div>` : ''}
+    ${current.show_signature && !internal ? `<div class="p-sign">
+      <div><div class="t">報價單位</div>${esc(co.name)}<div class="line"></div><div class="lbl">簽章</div></div>
+      <div><div class="t">客戶確認回簽</div><div class="small">已確認上述報價內容，同意依此訂購。</div><div class="line"></div><div class="lbl">簽名／蓋章</div>
+        <div class="line" style="height:26px"></div><div class="lbl">日期：　　　年　　　月　　　日</div></div>
+    </div>` : ''}
     <div class="p-foot">此報價單有效期至 ${esc(current.valid_until)}。如有任何疑問請聯繫 ${esc(co.phone)} ${esc(co.email)}。</div>`;
   if (current.status === '草稿' && !internal) {
     if (confirm('要把這張報價的狀態改成「已送出」嗎？')) { $('f_status').value = '已送出'; current.status = '已送出'; await saveQuote(true); }
