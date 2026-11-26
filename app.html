@@ -211,6 +211,7 @@ table.tasks input[type=checkbox]{width:22px;height:22px;min-height:0;margin-top:
 .cat-沉睡{background:#A7C7E7;color:#24425F}
 .cat-開發中{background:#F37021;color:#fff}
 .cat-潛在{background:#D8C79A;color:#4A3F1E}
+.cat-人脈{background:#A79FB8;color:#fff}
 .cat-陌生{background:#DDDCD6;color:#55554F}
 .cat-暫不考慮{background:#800020;color:#fff}
 .chip.cc{display:inline-flex;align-items:center;gap:6px}
@@ -509,7 +510,7 @@ table.tasks input[type=checkbox]{width:22px;height:22px;min-height:0;margin-top:
       </div>
       <div class="chips" id="cChips"></div>
       <div class="list" id="customerList"></div>
-      <p class="small muted">分類由系統自動判斷：合作中＝一年內有成交（或 A 類舊客戶）；沉睡＝成交過但超過一年沒下單；開發中＝聯絡過、有回應或有進行中的商機；潛在＝研究過還沒聯絡；陌生＝還沒研究也沒聯絡；暫不考慮＝在人脈開發裡標記的。</p>
+      <p class="small muted">分類由系統自動判斷：合作中＝一年內有成交（或 A 類舊客戶）；沉睡＝成交過但超過一年沒下單；開發中＝正在談生意（有進行中的商機，或 B／D 類已經聯絡過）；人脈＝C 類，認識但還沒談過合作，談到需求按「轉成商機」就會變開發中；潛在＝研究過還沒聯絡；陌生＝還沒研究也沒聯絡；暫不考慮＝在人脈開發裡標記的。</p>
     </section>
 
     <!-- 帳本 -->
@@ -1269,8 +1270,8 @@ $('pdfBtn').onclick = () => printQuote(false);
 $('internalPdfBtn').onclick = () => printQuote(true);
 
 // ================= 客戶 =================
-const CATS = ['合作中','沉睡','開發中','潛在','陌生','暫不考慮'];
-const CAT_COLOR = { 合作中:'#8A9A86', 沉睡:'#A7C7E7', 開發中:'#F37021', 潛在:'#D8C79A', 陌生:'#DDDCD6', 暫不考慮:'#800020' };
+const CATS = ['合作中','沉睡','開發中','人脈','潛在','陌生','暫不考慮'];
+const CAT_COLOR = { 合作中:'#8A9A86', 沉睡:'#A7C7E7', 開發中:'#F37021', 人脈:'#A79FB8', 潛在:'#D8C79A', 陌生:'#DDDCD6', 暫不考慮:'#800020' };
 let custWins = {}, cFilter = '全部';
 async function loadCustWins(){
   try {
@@ -1286,6 +1287,8 @@ function custCat(c){
   if (w || c.status === '沉睡') return '沉睡';
   if (c.pipeline === 'A') return '合作中';
   if (c.prospect_stage === '暫不考慮') return '暫不考慮';
+  if (deals.some(d => d.customer_id === c.id && OPEN_STAGES.includes(d.stage)) || c.prospect_stage === '轉商機') return '開發中';
+  if (c.pipeline === 'C') return '人脈';
   if (deals.some(d => d.customer_id === c.id && OPEN_STAGES.includes(d.stage)) || ['已聯絡','有回應','轉商機'].includes(c.prospect_stage)
       || c.contact_count > 0 || c.last_contact_date || c.status === '開發中' || c.status === '往來中') return '開發中';
   if (c.prospect_stage === '已研究' || c.fit_reason || c.tier) return '潛在';
