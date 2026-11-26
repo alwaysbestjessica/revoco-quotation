@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>報價系統｜REVOCO・JULI</title>
+<title>REVOCO 工作台</title>
 <style>
 :root{
   --mint:#5C8070; --mint-dark:#3F5E51; --mint-light:#EBF2EE; --line:#D6E4DD;
@@ -177,13 +177,41 @@ table.fees input[type=checkbox]{width:20px;height:20px;min-height:0}
 .pcard .acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .check-row{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:14px}
 .check-row input{width:20px;height:20px;min-height:0}
+
+/* v9：選單可左右滑、總覽、商機看板、專案 */
+header .brand{flex:none}
+.tabs{flex:1;min-width:0;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.tabs::-webkit-scrollbar{display:none}
+.tab{white-space:nowrap}
+.kpis .sub{font-size:12px;color:var(--quiet);margin-top:2px}
+.kpis div.click{cursor:pointer}.kpis div.click:hover{border-color:var(--mint)}
+.today .tag{font-size:11px;font-weight:700;padding:1px 6px;border-radius:5px;background:var(--mint-light);color:var(--mint-dark);margin-right:4px}
+.funnel .fr{display:grid;grid-template-columns:64px 1fr 110px;gap:8px;align-items:center;font-size:13px;padding:4px 0}
+.funnel .fb{height:14px;border-radius:4px;background:var(--mint)}
+.board{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(220px,1fr);gap:10px;overflow-x:auto;padding-bottom:6px;-webkit-overflow-scrolling:touch}
+.col{background:#EEF3F0;border-radius:12px;padding:8px;min-height:140px}
+.col.over{outline:2px dashed var(--mint);outline-offset:-2px}
+.col h4{margin:2px 4px 8px;font-size:13px;display:flex;justify-content:space-between;color:var(--mint-dark)}
+.dcard{background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px;cursor:pointer;font-size:13px}
+.dcard:hover{border-color:var(--mint)}
+.dcard.stale{border-left:4px solid var(--red)}
+.dcard .t{font-weight:700;font-size:14px;margin-bottom:2px}
+.prog-bar{height:8px;background:var(--line);border-radius:4px;overflow:hidden;margin:4px 0 10px}
+.prog-bar>i{display:block;height:100%;background:var(--mint);width:0}
+table.tasks{min-width:760px}
+table.tasks tr.done input:not([type=checkbox]),table.tasks tr.done select{color:var(--quiet);text-decoration:line-through}
+table.tasks input[type=checkbox]{width:22px;height:22px;min-height:0;margin-top:7px}
+.radio-row{display:flex;flex-direction:column;gap:6px;margin:10px 0;font-size:14px}
+.radio-row label{display:flex;gap:8px;align-items:flex-start;font-size:14px;color:var(--ink);font-weight:400}
+.radio-row input{width:18px;height:18px;min-height:0;margin-top:2px}
+.wk{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed var(--line);font-size:14px}
 </style>
 </head>
 <body>
 
 <!-- ===== 登入 ===== -->
 <div id="loginView" class="hidden">
-  <h1>報價系統</h1>
+  <h1>REVOCO 工作台</h1>
   <p class="muted small" style="margin:0 0 18px">REVOCO・JULI</p>
   <div class="card">
     <div style="margin-bottom:10px"><label>Email</label><input id="loginEmail" type="email" autocomplete="username"></div>
@@ -196,28 +224,122 @@ table.fees input[type=checkbox]{width:20px;height:20px;min-height:0}
 <!-- ===== 主畫面 ===== -->
 <div id="appView" class="hidden">
   <header>
-    <div class="brand">報價系統</div>
+    <div class="brand">REVOCO</div>
     <nav class="tabs">
+      <button class="tab" data-view="dash">總覽</button>
       <button class="tab" data-view="plan">本週計畫</button>
       <button class="tab" data-view="prospects">人脈開發</button>
+      <button class="tab" data-view="deals">商機</button>
       <button class="tab active" data-view="list">報價</button>
+      <button class="tab" data-view="projects">專案</button>
       <button class="tab" data-view="customers">客戶</button>
       <button class="tab" data-view="suppliers">工廠</button>
       <button class="tab" data-view="ledger">帳本</button>
     </nav>
+    <button class="btn btn-sm" id="backupBtn">備份</button>
     <button class="btn btn-sm" id="logoutBtn">登出</button>
   </header>
 
   <main>
+    <!-- 總覽 -->
+    <section id="dashView" class="hidden">
+      <div class="kpis" id="dKpis"></div>
+      <div class="today" id="dTodo"></div>
+      <div class="grid g2">
+        <div class="card"><h3>商機（進行中）</h3><div class="funnel" id="dFunnel"></div></div>
+        <div class="card"><h3>進行中的專案</h3><div id="dProjects"></div></div>
+      </div>
+      <div class="card"><h3>送出超過 7 天還沒回覆的報價</h3><div id="dQuotes"></div></div>
+      <p class="small muted" id="dBackup"></p>
+    </section>
+
+    <!-- 商機 -->
+    <section id="dealsView" class="hidden">
+      <div class="toolbar">
+        <input class="grow" id="dSearch" placeholder="搜尋商機、客戶…">
+        <select id="dCompany" style="width:auto"><option value="">兩家公司</option><option>REVOCO</option><option>JULI</option></select>
+        <label class="check-row" style="margin:0"><input type="checkbox" id="dShowClosed"> 顯示成交／流失</label>
+        <button class="btn btn-primary" id="dNewBtn">＋ 新商機</button>
+      </div>
+      <p class="small muted" id="dSum" style="margin-top:0"></p>
+      <div class="board" id="dealBoard"></div>
+      <p class="small muted">電腦上可以直接把卡片拖到別的階段；手機請點開卡片改「階段」。紅色左邊框＝超過 14 天沒有任何聯絡。</p>
+    </section>
+
+    <!-- 專案列表 -->
+    <section id="projectsView" class="hidden">
+      <div class="toolbar">
+        <input class="grow" id="jSearch" placeholder="搜尋專案、客戶…">
+        <button class="btn btn-primary" id="jNewBtn">＋ 新專案</button>
+      </div>
+      <div class="chips" id="jChips"></div>
+      <div class="list" id="projectList"></div>
+      <p class="small muted">報價改成「接受」會自動建立專案，並放好標準流程的細項，可以自己增減、改期限。</p>
+    </section>
+
+    <!-- 專案內容 -->
+    <section id="projView" class="hidden">
+      <div class="edit-bar">
+        <button class="btn btn-sm" id="jBackBtn">← 專案列表</button>
+        <span class="save-state" id="jState"></span>
+        <button class="btn btn-sm" id="jOpenQuote">看報價</button>
+        <button class="btn btn-sm" id="jOpenDeal">看商機</button>
+        <button class="btn btn-sm btn-danger" id="jDelBtn">刪除專案</button>
+      </div>
+      <div class="card">
+        <h3>專案資料</h3>
+        <div class="grid g4">
+          <div style="grid-column:1/-1"><label>專案名稱</label><input id="j_name" data-j="name"></div>
+          <div><label>客戶</label><input id="j_customer" list="customerOptions"></div>
+          <div><label>階段</label><select id="j_stage" data-j="stage"><option>打樣</option><option>待確認</option><option>生產中</option><option>驗貨</option><option>運輸中</option><option>通關</option><option>已交貨</option><option>結案</option></select></div>
+          <div><label>主要工廠</label><select id="j_supplier" data-j="supplier_id"></select></div>
+          <div><label>下單日</label><input id="j_order" type="date" data-j="order_date"></div>
+          <div><label>工廠交期</label><input id="j_fdue" type="date" data-j="factory_due"></div>
+          <div><label>客戶交期</label><input id="j_cdue" type="date" data-j="client_due"></div>
+          <div><label>物流單號</label><input id="j_track" data-j="tracking_no"></div>
+          <div><label>驗貨結果</label><select id="j_qc" data-j="qc_result"><option value="">—</option><option>通過</option><option>有問題</option></select></div>
+          <div style="grid-column:1/-1"><label>備註</label><textarea id="j_note" data-j="note"></textarea></div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>細項進度　<span class="small muted" id="jProg"></span></h3>
+        <div class="prog-bar"><i id="jBar"></i></div>
+        <div class="items-wrap">
+          <table class="items tasks">
+            <thead><tr><th style="width:52px">完成</th><th>細項</th><th style="width:96px">負責</th><th style="width:150px">期限</th><th style="width:110px">狀態</th><th style="width:24%">備註</th><th></th></tr></thead>
+            <tbody id="taskBody"></tbody>
+          </table>
+        </div>
+        <button class="btn btn-sm" id="addTaskBtn" style="margin-top:10px">＋ 加一個細項</button>
+        <p class="small muted" style="margin:8px 0 0">改了就自動存。打勾＝完成；狀態選「等客戶」「等工廠」可以看出卡在誰身上。</p>
+      </div>
+      <div class="card">
+        <h3>聯絡事項</h3>
+        <div class="grid g3">
+          <div><label>日期</label><input id="jl_date" type="date"></div>
+          <div><label>跟誰</label><select id="jl_party"><option>客戶</option><option>工廠</option><option>物流</option><option>內部</option><option>其他</option></select></div>
+          <div><label>方式</label><select id="jl_channel"><option>Line</option><option>微信</option><option>電話</option><option>Email</option><option>見面</option><option>其他</option></select></div>
+          <div style="grid-column:1/-1"><label>內容</label><textarea id="jl_summary" placeholder="例：工廠說產前樣 12/3 寄出，Logo 位置照客戶確認的版本"></textarea></div>
+          <div style="grid-column:span 2"><label>下一步</label><input id="jl_next" placeholder="例：12/5 跟客戶確認樣品"></div>
+          <div><label>下一步期限</label><input id="jl_nextdate" type="date"></div>
+        </div>
+        <label class="check-row"><input type="checkbox" id="jl_toTask" checked> 有填「下一步」時，也加進上面的細項</label>
+        <button class="btn btn-sm btn-primary" id="jlAddBtn" style="margin-top:8px">＋ 記一筆</button>
+        <div class="timeline" id="jTimeline"></div>
+      </div>
+    </section>
+
     <!-- 本週計畫 -->
     <section id="planView" class="hidden">
       <div class="plan-head">
+        <select id="planWeek" style="width:auto"></select>
         <b id="planRange"></b>
         <span class="prog" id="planProg"></span>
+        <button class="btn btn-sm" id="planRebuild">重新排程</button>
       </div>
       <div class="theme" id="planTheme"></div>
       <div id="planList"></div>
-      <p class="small muted">依《REVOCO 業務開發手冊》自動排出：過期的優先、A 舊客戶 3 位、B 已提案 3 位、C 人脈 2 位、D 新開發 3 家。按「已聯絡」後，系統會記錄並自動排好他的下一步。</p>
+      <p class="small muted">依《REVOCO 業務開發手冊》自動排出：過期的優先、A 舊客戶 3 位、B 已提案 3 位、C 人脈 2 位、D 新開發 3 家。每週一第一次打開時會把這週的名單存起來，之後可以從左上角選單翻看過去每一週的完成情況。「重新排程」會把新到期的人補進來，已排的人不會被拿掉。</p>
     </section>
 
     <!-- 客戶開發 -->
@@ -276,7 +398,7 @@ table.fees input[type=checkbox]{width:20px;height:20px;min-height:0}
 
       <div class="card">
         <h3>客戶</h3>
-        <div class="grid g2">
+        <div class="grid g3">
           <div>
             <label>客戶（打字搜尋）</label>
             <div style="display:flex;gap:6px">
@@ -286,6 +408,7 @@ table.fees input[type=checkbox]{width:20px;height:20px;min-height:0}
             <datalist id="customerOptions"></datalist>
           </div>
           <div><label>窗口</label><select id="f_contact"><option value="">—</option></select></div>
+          <div><label>屬於哪個商機</label><select id="f_deal"><option value="">— 不連結 —</option></select></div>
         </div>
         <div class="cust-info" id="custInfo"></div>
       </div>
@@ -536,6 +659,81 @@ table.fees input[type=checkbox]{width:20px;height:20px;min-height:0}
   </div>
 </div>
 
+<!-- 商機 -->
+<div class="modal-bg hidden" id="dealModal">
+  <div class="modal wide">
+    <h3 id="dealTitle">商機</h3>
+    <div class="grid g3">
+      <div style="grid-column:1/-1"><label>商機名稱 *</label><input id="d_title" placeholder="例：芝初 2027 年節禮盒"></div>
+      <div><label>客戶 *（打字搜尋）</label><input id="d_customer" list="customerOptions"></div>
+      <div><label>窗口</label><select id="d_contact"><option value="">—</option></select></div>
+      <div><label>負責公司</label><select id="d_company"><option>REVOCO</option><option>JULI</option></select></div>
+      <div><label>階段</label><select id="d_stage"></select></div>
+      <div><label>預估金額 NT$</label><input id="d_value" type="number"></div>
+      <div><label>成交機率 %</label><input id="d_prob" type="number" min="0" max="100" placeholder="例：50"></div>
+      <div><label>用途／場合</label><input id="d_occasion" placeholder="尾牙、股東會、展覽…"></div>
+      <div><label>數量</label><input id="d_qty" type="number"></div>
+      <div><label>客戶要的到貨日</label><input id="d_needed" type="date"></div>
+      <div><label>下次跟進日</label><input id="d_follow" type="date"></div>
+      <div style="grid-column:span 2"><label>下一步要做什麼</label><input id="d_next" placeholder="例：週四前寄兩款樣品照片"></div>
+      <div style="grid-column:1/-1"><label>需求描述</label><textarea id="d_req" placeholder="例：員工禮 300 份，預算每份 500 內，希望用再生材質"></textarea></div>
+      <div style="grid-column:1/-1" id="d_lostWrap"><label>失單原因</label><input id="d_lost" list="lostOptions"></div>
+    </div>
+    <div id="dealExtra" class="hidden">
+      <h3 style="margin:18px 0 8px;font-size:14px">報價</h3>
+      <div id="dQuoteList" class="small"></div>
+      <button class="btn btn-sm" id="dNewQuote" style="margin-top:6px">＋ 從這個商機開報價</button>
+      <h3 style="margin:18px 0 8px;font-size:14px">聯絡紀錄</h3>
+      <div class="grid g3">
+        <div><label>日期</label><input id="dl_date" type="date"></div>
+        <div><label>方式</label><select id="dl_channel"><option>Line</option><option>Email</option><option>電話</option><option>見面</option><option>拜訪</option><option>微信</option><option>其他</option></select></div>
+        <div><label>下次跟進</label><select id="dl_after"><option value="">不改</option><option value="3">3 天後</option><option value="7" selected>1 週後</option><option value="14">2 週後</option><option value="30">1 個月後</option></select></div>
+        <div style="grid-column:1/-1"><label>內容</label><textarea id="dl_summary" placeholder="例：電話確認預算，對方希望 12 月底前看到樣品"></textarea></div>
+      </div>
+      <button class="btn btn-sm btn-primary" id="dlAddBtn" style="margin-top:8px">＋ 記一筆</button>
+      <div class="timeline" id="dTimeline"></div>
+    </div>
+    <div class="actions">
+      <button class="btn btn-danger" id="dDelBtn" style="margin-right:auto">刪除</button>
+      <button class="btn" data-close>關閉</button>
+      <button class="btn btn-primary" id="dSaveBtn">儲存</button>
+    </div>
+  </div>
+</div>
+<datalist id="lostOptions"><option value="輸給對手"><option value="預算不足"><option value="時程來不及"><option value="客戶取消活動"><option value="一直沒有回應"></datalist>
+
+<!-- 備份 -->
+<div class="modal-bg hidden" id="backupModal">
+  <div class="modal">
+    <h3>資料備份與還原</h3>
+    <p class="small" id="bkLast" style="margin-top:0"></p>
+    <div class="card">
+      <b>1. 下載完整備份</b>
+      <p class="small muted">所有客戶、商機、報價、專案、聯絡紀錄都在這個檔案裡，之後可以用它還原。建議每週一下載一次，存到 Google Drive 或電腦。</p>
+      <button class="btn btn-primary" id="bkJson">下載備份檔</button>
+    </div>
+    <div class="card">
+      <b>2. 下載 Excel</b>
+      <p class="small muted">每種資料一個分頁，方便自己看或給會計。這個檔案不能拿來還原。</p>
+      <button class="btn" id="bkXlsx">下載 Excel</button>
+    </div>
+    <div class="card">
+      <b>3. 從備份還原</b>
+      <p class="small muted">選擇之前下載的備份檔（檔名是「REVOCO備份_日期.json」）。還原前會先告訴你檔案裡有什麼。</p>
+      <input type="file" id="bkFile" accept=".json,application/json">
+      <div id="bkPreview" class="small" style="margin-top:8px"></div>
+      <div id="bkActions" class="hidden">
+        <div class="radio-row">
+          <label><input type="radio" name="bkMode" value="merge" checked><span><b>只補回不見的資料</b>（建議）<br><span class="muted">現在系統裡已經有的不會被改。</span></span></label>
+          <label><input type="radio" name="bkMode" value="overwrite"><span><b>改回備份當時的內容</b><br><span class="muted">同一筆資料以備份為準；備份之後新增的資料會保留。</span></span></label>
+        </div>
+        <button class="btn btn-orange" id="bkRestore">開始還原</button>
+      </div>
+    </div>
+    <div class="actions"><button class="btn" data-close>關閉</button></div>
+  </div>
+</div>
+
 <div id="printArea"></div>
 <div id="toast"></div>
 
@@ -569,7 +767,7 @@ function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('sho
 async function run(q){ const { data, error } = await q; if (error) throw error; return data; }
 
 // ================= 狀態 =================
-let customers = [], contacts = [], suppliers = [];
+let customers = [], contacts = [], suppliers = [], deals = [];
 let current = null;        // 編輯中的報價
 let items = [];            // 編輯中的品項
 let fees = [];             // 編輯中的其他費用
@@ -585,7 +783,7 @@ function showLogin(){ $('appView').classList.add('hidden'); $('loginView').class
 async function showApp(){
   $('loginView').classList.add('hidden'); $('appView').classList.remove('hidden');
   await loadMasters();
-  switchView('plan');
+  switchView('dash');
 }
 $('loginBtn').onclick = async () => {
   $('loginErr').textContent = '';
@@ -598,10 +796,11 @@ $('logoutBtn').onclick = async () => { if (dirty) await saveQuote(true); await s
 
 // ================= 主檔 =================
 async function loadMasters(){
-  [customers, contacts, suppliers] = await Promise.all([
+  [customers, contacts, suppliers, deals] = await Promise.all([
     run(sb.from('customers').select('*').order('name')),
     run(sb.from('contacts').select('*').order('is_primary', { ascending:false })),
     run(sb.from('suppliers').select('*').order('name')),
+    run(sb.from('deals').select('*').order('created_at', { ascending:false })),
   ]);
   $('customerOptions').innerHTML = customers.map(c => `<option value="${esc(c.name)}">`).join('');
 }
@@ -611,8 +810,11 @@ const custByName = name => customers.find(c => c.name === name.trim());
 // ================= 切換畫面 =================
 async function switchView(v){
   if (v !== 'edit' && !$('editView').classList.contains('hidden') && dirty) await saveQuote(true);
-  ['plan','prospects','list','edit','customers','suppliers','ledger'].forEach(x => $(x + 'View').classList.toggle('hidden', x !== v));
-  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === v || (v === 'edit' && t.dataset.view === 'list')));
+  ['dash','plan','prospects','deals','list','edit','projects','proj','customers','suppliers','ledger'].forEach(x => $(x + 'View').classList.toggle('hidden', x !== v));
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === v || (v === 'edit' && t.dataset.view === 'list') || (v === 'proj' && t.dataset.view === 'projects')));
+  if (v === 'dash') renderDash();
+  if (v === 'deals') renderDeals();
+  if (v === 'projects') renderProjects();
   if (v === 'list') renderQuoteList();
   if (v === 'customers') renderCustomers();
   if (v === 'suppliers') renderSuppliers();
@@ -677,16 +879,18 @@ async function nextQuoteNo(company){
   return prefix + String(max + 1).padStart(2, '0');
 }
 
-$('newQuoteBtn').onclick = async () => {
-  current = { id:null, company_entity:'REVOCO', version:1, mode:'正式報價', status:'草稿',
+async function newQuote(preset = {}){
+  const co = preset.company_entity || 'REVOCO';
+  current = { id:null, company_entity:co, version:1, mode:'正式報價', status:'草稿',
     issued_at:today(), valid_until:addDays(today(), DEFAULTS.validDays),
     exchange_rate:DEFAULTS.rate, tax_point_pct:DEFAULTS.taxPoint, sales_tax_pct:DEFAULTS.salesTax,
-    freight:0, duty:0, other_costs:0, show_signature:true, quote_no: await nextQuoteNo('REVOCO') };
+    freight:0, duty:0, other_costs:0, show_signature:true, quote_no: await nextQuoteNo(co), ...preset };
   items = [blankItem(), blankItem(), blankItem()];
   fees = [];
   fillEditor(); setDirty(false, '新報價，選好客戶後會自動儲存');
   switchView('edit');
-};
+}
+$('newQuoteBtn').onclick = () => newQuote();
 
 async function openQuote(id){
   try {
@@ -713,12 +917,20 @@ function fillEditor(){
   renderItems(); renderFees(); recalc();
 }
 
+function fillDeals(){
+  const c = custByName($('f_customer').value);
+  const list = c ? deals.filter(d => d.customer_id === c.id) : [];
+  $('f_deal').innerHTML = '<option value="">— 不連結 —</option>' + list.map(d => `<option value="${d.id}">${esc(d.title)}（${esc(d.stage)}）</option>`).join('');
+  if (current.deal_id && list.some(d => d.id === current.deal_id)) $('f_deal').value = current.deal_id;
+}
+
 function fillContacts(){
   const c = custByName($('f_customer').value);
   const list = c ? contacts.filter(x => x.customer_id === c.id) : [];
   $('f_contact').innerHTML = '<option value="">—</option>' + list.map(x => `<option value="${x.id}">${esc(x.name)}${x.title ? '（' + esc(x.title) + '）' : ''}</option>`).join('');
   if (current.contact_id && list.some(x => x.id === current.contact_id)) $('f_contact').value = current.contact_id;
   else if (list.length && !current.id) $('f_contact').value = list[0].id;
+  fillDeals();
   $('custInfo').innerHTML = c ? [c.tax_id && '統編 ' + esc(c.tax_id), c.address && esc(c.address)].filter(Boolean).join('　·　') : ($('f_customer').value ? '找不到這個客戶，按「＋」新增' : '');
 }
 
@@ -727,6 +939,7 @@ function readEditor(){
   const c = custByName($('f_customer').value);
   current.customer_id = c?.id || null;
   current.contact_id = $('f_contact').value || null;
+  current.deal_id = $('f_deal').value || null;
   current.show_signature = $('f_sign').checked;
 }
 
@@ -840,6 +1053,7 @@ function recalc(){
 Object.values(F).forEach(id => $(id).addEventListener('input', () => { recalc(); markDirty(); }));
 $('f_customer').addEventListener('input', () => { fillContacts(); markDirty(); });
 $('f_contact').addEventListener('change', markDirty);
+$('f_deal').addEventListener('change', markDirty);
 $('f_company').addEventListener('change', async () => {
   if (!current.id) { $('f_qno').value = await nextQuoteNo($('f_company').value); }
 });
@@ -889,6 +1103,12 @@ async function saveQuote(silent=false){
       quote_id: current.id, sort_order: i, label: String(f.label).trim() || '其他費用', amount_twd: num(f.amount_twd),
       bearer: f.bearer, taxable: f.bearer === '客戶' && !!f.taxable }));
     if (feeRows.length) await run(sb.from('quote_fees').insert(feeRows));
+    // 報價送出 → 商機自動推進到「報價」
+    const dl = deals.find(d => d.id === current.deal_id);
+    if (dl && current.status === '已送出' && ['詢價','提案','打樣'].includes(dl.stage)) {
+      await run(sb.from('deals').update({ stage:'報價' }).eq('id', dl.id)); dl.stage = '報價';
+    }
+    if (dl && current.status === '接受') dl.stage = '成交';
     dirty = false;
     const t = new Date(); setDirty(false, `✓ 已儲存 ${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}`);
     if (!silent) toast('✅ 已儲存');
@@ -1403,23 +1623,66 @@ function buildPlan(){
   return { ws, we, items:[...picked, ...done] };
 }
 
-let planCache = null;
-function renderPlan(){
-  planCache = buildPlan();
-  const { ws, we, items } = planCache;
-  const total = items.length, doneN = items.filter(x => x.done).length;
-  $('planRange').textContent = `本週 ${ws.slice(5).replace('-','/')}～${we.slice(5).replace('-','/')}`;
-  $('planProg').textContent = total ? `已完成 ${doneN} / ${total}` : '';
+let planCache = null, planRow = null, planSnap = null, planHasHistory = true;
+const fmtWeek = ws => `${ws.slice(5).replace('-','/')}～${addDays(ws, 6).slice(5).replace('-','/')}`;
+function planItemFromPick(p){
+  const st = stepOf(p.c);
+  return { id:p.c.id, name:p.c.name, pipeline:p.c.pipeline || '', day:p.day || '', why:p.why || '', purpose:st?.purpose || '', done:!!p.done, extra:!!p.done, postponed:false };
+}
+async function savePlan(){
+  if (!planHasHistory || !planSnap) return;
+  const [ws] = weekRange();
+  const counted = planSnap.filter(x => !x.postponed);
+  const row = { week_start:ws, items:planSnap, total:counted.length, done_count:counted.filter(x => x.done).length };
+  try { await run(sb.from('weekly_plans').upsert(row, { onConflict:'week_start' })); planRow = { ...(planRow || {}), ...row, items:JSON.parse(JSON.stringify(planSnap)) }; }
+  catch (e) { console.warn('本週計畫存檔失敗', e); }
+}
+async function renderPlan(rebuild = false){
+  const [ws, we] = weekRange();
+  let weeks = [];
+  try { weeks = await run(sb.from('weekly_plans').select('*').order('week_start', { ascending:false })); planHasHistory = true; }
+  catch (e) { weeks = []; planHasHistory = false; }
+  const sel = $('planWeek'); const chosen = sel.value || ws;
+  const opts = [ws, ...weeks.map(w => w.week_start).filter(w => w !== ws)];
+  sel.innerHTML = opts.map(w => `<option value="${w}" ${w === chosen ? 'selected' : ''}>${w === ws ? '本週' : fmtWeek(w)}</option>`).join('');
+  sel.classList.toggle('hidden', !planHasHistory);
+  if (chosen !== ws) { renderPlanHistory(weeks.find(w => w.week_start === chosen), weeks); return; }
+  $('planRebuild').classList.toggle('hidden', !planHasHistory);
+
+  const built = buildPlan();
+  planRow = weeks.find(w => w.week_start === ws) || null;
+  const before = JSON.stringify(planRow?.items || null);
+  let snap;
+  if (!planRow || rebuild) {
+    const old = planRow?.items || [];
+    const ids = new Set(old.map(x => x.id));
+    snap = [...old.map(x => ({ ...x })), ...built.items.filter(p => !ids.has(p.c.id)).map(planItemFromPick)];
+  } else {
+    snap = planRow.items.map(x => ({ ...x }));
+    const ids = new Set(snap.map(x => x.id));
+    built.items.filter(p => p.done && !ids.has(p.c.id)).forEach(p => snap.push(planItemFromPick(p)));
+  }
+  snap.forEach(x => { const c = custById(x.id); if (c && c.last_contact_date && c.last_contact_date >= ws && c.last_contact_date <= we) x.done = true; });
+  planSnap = snap;
+  if (JSON.stringify(snap) !== before) await savePlan();
+
+  const items = snap.map(x => ({ snap:x, c:custById(x.id), done:x.done, postponed:x.postponed && !x.done,
+    day: x.done ? '已完成' : (x.postponed ? '延到下週' : (x.day || '週一')), why:x.why })).filter(x => x.c);
+  planCache = { ws, we, items };
+  const counted = items.filter(x => !x.postponed);
+  const total = counted.length, doneN = counted.filter(x => x.done).length;
+  $('planRange').textContent = `本週 ${fmtWeek(ws)}`;
+  $('planProg').textContent = total ? `已完成 ${doneN} / ${total}（${Math.round(doneN / total * 100)}%）` : '';
   $('planTheme').innerHTML = `<b>這個月的主題：</b>${esc(MONTH_THEME[new Date().getMonth() + 1])}`;
-  if (!total) { $('planList').innerHTML = '<div class="empty">這週沒有排到要聯絡的人。可以到「人脈開發」加入名單，或幫現有的人設定下次聯絡日。</div>'; return; }
-  const groups = [...DAY_ORDER, '已完成'].map(d => [d, items.filter(x => x.day === d)]).filter(([, l]) => l.length);
+  if (!items.length) { $('planList').innerHTML = '<div class="empty">這週沒有排到要聯絡的人。可以到「人脈開發」加入名單，或幫現有的人設定下次聯絡日。</div>'; return; }
+  const groups = [...DAY_ORDER, '延到下週', '已完成'].map(d => [d, items.filter(x => x.day === d)]).filter(([, l]) => l.length);
   $('planList').innerHTML = groups.map(([d, list]) => `<div class="daygrp"><h3>${d}${({週一:'｜規劃＋過期的',週二:'｜舊客戶日',週三:'｜新客戶日',週四:'｜推進商機＋人脈'})[d] || ''}</h3>` + list.map(x => {
     const c = x.c, st = stepOf(c), ct = primaryContact(c), seq = SEQ[c.pipeline];
     const stepNo = seq ? (seq.loop ? (c.seq_step || 0) % seq.steps.length : Math.min(c.seq_step || 0, seq.steps.length - 1)) + 1 : 0;
-    return `<div class="pcard ${x.done ? 'done' : ''}" data-id="${c.id}">
+    return `<div class="pcard ${x.done || x.postponed ? 'done' : ''}" data-id="${c.id}">
       <div class="top">${plBadge(c)}<span class="who">${esc(c.name)}</span>${c.tier ? `<span class="badge">${c.tier}</span>` : ''}</div>
       <div class="ct">${ct ? esc([ct.name, ct.title, ct.phone, ct.email].filter(Boolean).join('・')) : '窗口待確認'}</div>
-      ${x.done ? `<div class="why">✓ 本週已聯絡（${esc(c.last_contact_date || '')}）</div>` : `
+      ${x.done ? `<div class="why">✓ 本週已聯絡（${esc(c.last_contact_date || '')}）</div>` : x.postponed ? `<div class="why">已延到下週（${esc(c.next_contact_date || '')}）</div>` : `
       <div class="why"><b>為什麼是現在：</b>${esc(x.why || '')}</div>
       ${st ? `<div class="step">步驟 ${stepNo}／${seq.steps.length}｜<b>${esc(st.purpose)}</b>｜${esc(st.ch)}｜原則：${esc(st.principle)}</div>
       <textarea data-msg>${esc(fillTpl(st.tpl, c))}</textarea>` : ''}
@@ -1434,6 +1697,25 @@ function renderPlan(){
     </div>`;
   }).join('') + '</div>').join('');
 }
+
+function renderPlanHistory(row, weeks){
+  $('planRebuild').classList.add('hidden');
+  const items = row?.items || [];
+  const counted = items.filter(x => !x.postponed || x.done);
+  const doneN = counted.filter(x => x.done).length;
+  $('planRange').textContent = row ? `${fmtWeek(row.week_start)}（已結束）` : '';
+  $('planProg').textContent = counted.length ? `完成 ${doneN} / ${counted.length}（${Math.round(doneN / counted.length * 100)}%）` : '';
+  $('planTheme').innerHTML = '<b>每週完成率</b>' + weeks.map(w => {
+    const pct = w.total ? Math.round(w.done_count / w.total * 100) : 0;
+    return `<div class="wk"><span>${fmtWeek(w.week_start)}</span><span>${w.done_count} / ${w.total}（${pct}%）</span></div>`;
+  }).join('');
+  const line = x => `<div class="pcard ${x.done ? '' : 'done'}"><div class="top">${x.pipeline ? `<span class="pl pl-${x.pipeline}">${x.pipeline}</span>` : ''}<span class="who">${esc(x.name)}</span></div>
+    <div class="ct">${esc([x.day, x.purpose].filter(Boolean).join('・'))}</div></div>`;
+  const grp = (t, l) => l.length ? `<div class="daygrp"><h3>${t}（${l.length}）</h3>${l.map(line).join('')}</div>` : '';
+  $('planList').innerHTML = grp('✓ 有聯絡', items.filter(x => x.done)) + grp('沒有聯絡到', items.filter(x => !x.done && !x.postponed)) + grp('延到下一週', items.filter(x => !x.done && x.postponed)) || '<div class="empty">這週沒有紀錄</div>';
+}
+$('planWeek').addEventListener('change', () => renderPlan());
+$('planRebuild').onclick = async () => { await renderPlan(true); toast('已把新到期的人補進本週計畫'); };
 
 $('planList').addEventListener('click', async e => {
   const b = e.target.closest('[data-act]'); if (!b) return;
@@ -1464,6 +1746,7 @@ ${msg}
     if (b.dataset.act === 'later') {
       const [, we] = weekRange();
       await run(sb.from('customers').update({ next_contact_date: addDays(we, 1) }).eq('id', c.id));
+      const it = planSnap?.find(x => x.id === c.id); if (it) { it.postponed = true; await savePlan(); }
       toast('已延到下週一');
     }
     if (b.dataset.act === 'replied') {
@@ -1491,6 +1774,511 @@ ${msg}
     await loadMasters(); renderPlan();
   } catch (err) { toast('⚠️ ' + err.message); }
 });
+
+// ================= 共用：商機與專案 =================
+const DEAL_STAGES = ['詢價','提案','打樣','報價','議價','成交','流失'];
+const OPEN_STAGES = ['詢價','提案','打樣','報價','議價'];
+const TASK_STATUS = ['未開始','進行中','等客戶','等工廠','完成','不需要'];
+const TASK_OWNERS = ['我方','客戶','工廠','物流'];
+const TASK_TEMPLATE = [
+  ['確認最終規格、數量、交期','我方'], ['客戶簽回報價單／付訂金','客戶'], ['設計稿、Logo 檔確認','客戶'],
+  ['工廠下單、付工廠訂金','我方'], ['產前樣製作','工廠'], ['客戶確認樣品','客戶'], ['大貨生產','工廠'],
+  ['驗貨（照片／影片）','我方'], ['付工廠尾款、安排出貨','我方'], ['運輸、報關進口','物流'],
+  ['國內配送、客戶驗收','我方'], ['開發票、收尾款','我方']
+];
+const hhmm = () => { const t = new Date(); return `${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}`; };
+function taskStats(list){
+  const act = list.filter(t => t.status !== '不需要');
+  const done = act.filter(t => t.status === '完成').length;
+  const open = act.filter(t => t.status !== '完成').sort((a, b) => a.sort_order - b.sort_order);
+  return { done, total:act.length, pct: act.length ? Math.round(done / act.length * 100) : 0, next:open[0],
+           overdue: open.filter(t => t.due_date && t.due_date < today()).length };
+}
+async function seedTasks(p){
+  const rows = TASK_TEMPLATE.map(([title, owner], i) => ({ project_id:p.id, sort_order:i, title, owner }));
+  await run(sb.from('project_tasks').insert(rows));
+  await run(sb.from('projects').update({ tasks_seeded:true }).eq('id', p.id));
+}
+const quoteDate = (q, projs) => projs.find(p => p.quote_id === q.id)?.order_date || q.issued_at || '';
+
+// ================= 總覽 =================
+async function renderDash(){
+  $('dTodo').innerHTML = '<h3>今天要做的事</h3><div class="muted small">載入中…</div>';
+  let qm = [], projs = [], tasks = [], setting = null, plan = null;
+  try {
+    [qm, projs, tasks] = await Promise.all([
+      run(sb.from('quote_margin').select('*')),
+      run(sb.from('projects').select('*')),
+      run(sb.from('project_tasks').select('*')),
+    ]);
+  } catch (e) {
+    $('dTodo').innerHTML = `<h3>今天要做的事</h3><div class="small" style="color:var(--red)">讀取失敗：${esc(e.message)}<br>如果剛更新系統，請先到 Supabase 執行 07 那份 SQL。</div>`;
+    return;
+  }
+  try { setting = (await run(sb.from('app_settings').select('*').eq('key', 'last_backup')))[0]; } catch {}
+  try { plan = (await run(sb.from('weekly_plans').select('*').eq('week_start', weekRange()[0])))[0]; } catch {}
+
+  // 數字
+  const won = qm.filter(q => q.status === '接受').map(q => ({ ...q, d: quoteDate(q, projs),
+    rev: num(q.subtotal_twd) + num(q.client_fees_twd), profit: num(q.gross_profit_twd) }));
+  const [m0, m1] = periodRange('thisM'), [q0, q1] = periodRange('thisQ');
+  const inRange = (a, b) => won.filter(q => q.d >= a && q.d <= b);
+  const sumK = (l, k) => l.reduce((x, q) => x + q[k], 0);
+  const mm = inRange(m0, m1), qq = inRange(q0, q1);
+  const openDeals = deals.filter(d => OPEN_STAGES.includes(d.stage));
+  const liveProjs = projs.filter(p => p.stage !== '結案');
+  const liveIds = new Set(liveProjs.map(p => p.id));
+  const overdueTasks = tasks.filter(t => liveIds.has(t.project_id) && !['完成','不需要'].includes(t.status) && t.due_date && t.due_date < today()).length;
+  const pctTxt = (p, r) => r > 0 ? (p / r * 100).toFixed(1) + '%' : '—';
+  $('dKpis').innerHTML = `
+    <div class="click" data-go="ledger"><div class="k">本月營收（未稅）</div><div class="v">${fmt(sumK(mm, 'rev'))}</div><div class="sub">毛利 ${fmt(sumK(mm, 'profit'))}・${mm.length} 筆</div></div>
+    <div class="click" data-go="ledger"><div class="k">本季營收（未稅）</div><div class="v">${fmt(sumK(qq, 'rev'))}</div><div class="sub">毛利率 ${pctTxt(sumK(qq, 'profit'), sumK(qq, 'rev'))}</div></div>
+    <div class="click" data-go="deals"><div class="k">進行中商機</div><div class="v">${openDeals.length}</div><div class="sub">預估 NT$ ${fmt(openDeals.reduce((a, d) => a + num(d.est_value), 0))}</div></div>
+    <div class="click" data-go="projects"><div class="k">進行中專案</div><div class="v">${liveProjs.length}</div><div class="sub" ${overdueTasks ? 'style="color:var(--red)"' : ''}>${overdueTasks ? overdueTasks + ' 個細項逾期' : '沒有逾期的細項'}</div></div>`;
+  $('dKpis').querySelectorAll('[data-go]').forEach(el => el.onclick = () => switchView(el.dataset.go));
+
+  // 今天要做的事
+  const soon = addDays(today(), 3);
+  const todo = [];
+  customers.filter(c => isProspect(c) && !['暫不考慮','轉商機'].includes(c.prospect_stage) && c.next_contact_date && c.next_contact_date <= today())
+    .forEach(c => todo.push({ tag:'人脈', text:c.name, due:c.next_contact_date, go:() => openProspect(c.id) }));
+  openDeals.filter(d => d.next_follow_up && d.next_follow_up <= today())
+    .forEach(d => todo.push({ tag:'商機', text:d.title + (d.next_step ? '：' + d.next_step : ''), due:d.next_follow_up, go:() => openDeal(d.id) }));
+  tasks.filter(t => liveIds.has(t.project_id) && !['完成','不需要'].includes(t.status) && t.due_date && t.due_date <= soon).forEach(t => {
+    const p = projs.find(x => x.id === t.project_id);
+    todo.push({ tag:'專案', text:`${p?.name || ''}：${t.title}（${t.owner}）`, due:t.due_date, go:() => openProject(t.project_id) });
+  });
+  todo.sort((a, b) => a.due.localeCompare(b.due));
+  const dueTxt = d => { const n = daysFromToday(d); return n < 0 ? `<span class="overdue">過期 ${-n} 天</span>` : n === 0 ? '<span class="muted">今天</span>' : `<span class="muted">${n} 天後</span>`; };
+  const planLine = plan && plan.total ? `<div class="item" data-plan><span><span class="tag">計畫</span>本週計畫：已完成 ${plan.done_count} / ${plan.total}</span><span class="muted">${Math.round(plan.done_count / plan.total * 100)}%</span></div>` : '';
+  $('dTodo').innerHTML = `<h3>今天要做的事（${todo.length}）</h3>` + planLine +
+    (todo.length ? todo.slice(0, 20).map((t, i) => `<div class="item" data-i="${i}"><span><span class="tag">${t.tag}</span>${esc(t.text)}</span><span style="white-space:nowrap">${dueTxt(t.due)}</span></div>`).join('')
+      + (todo.length > 20 ? `<div class="muted small">還有 ${todo.length - 20} 項</div>` : '')
+     : '<div class="muted small">今天沒有到期的事 👍</div>');
+  $('dTodo').querySelectorAll('[data-i]').forEach(el => el.onclick = () => todo[el.dataset.i].go());
+  $('dTodo').querySelector('[data-plan]')?.addEventListener('click', () => switchView('plan'));
+
+  // 商機漏斗
+  const maxN = Math.max(1, ...OPEN_STAGES.map(s => openDeals.filter(d => d.stage === s).length));
+  $('dFunnel').innerHTML = OPEN_STAGES.map(s => {
+    const l = openDeals.filter(d => d.stage === s);
+    return `<div class="fr"><span>${s}</span><div class="fb" style="width:${Math.max(2, l.length / maxN * 100)}%;opacity:${l.length ? 1 : .25}"></div><span class="right">${l.length} 件・${fmt(l.reduce((a, d) => a + num(d.est_value), 0))}</span></div>`;
+  }).join('') + '<div class="small muted" style="margin-top:6px">金額是預估金額（NT$）</div>';
+  $('dFunnel').onclick = () => switchView('deals');
+
+  // 專案
+  const pl = liveProjs.map(p => ({ p, st:taskStats(tasks.filter(t => t.project_id === p.id)) }))
+    .sort((a, b) => (a.p.client_due || '9999').localeCompare(b.p.client_due || '9999')).slice(0, 6);
+  $('dProjects').innerHTML = pl.length ? pl.map(({ p, st }) => `<div class="item" data-p="${p.id}" style="cursor:pointer;padding:6px 0;border-bottom:1px dashed var(--line)">
+      <div style="display:flex;justify-content:space-between;gap:8px"><b>${esc(p.name)}</b><span class="small ${p.client_due && p.client_due < today() ? 'overdue' : 'muted'}">${p.client_due ? '交期 ' + p.client_due.slice(5) : esc(p.stage)}</span></div>
+      <div class="prog-bar" style="margin:4px 0 2px"><i style="width:${st.pct}%"></i></div>
+      <div class="small muted">${st.done}/${st.total}${st.next ? '・下一步：' + esc(st.next.title) : ''}</div></div>`).join('')
+    : '<div class="muted small">目前沒有進行中的專案</div>';
+  $('dProjects').querySelectorAll('[data-p]').forEach(el => el.onclick = () => openProject(el.dataset.p));
+
+  // 報價沒回覆
+  const cut = addDays(today(), -7);
+  const waiting = qm.filter(q => q.status === '已送出' && q.issued_at && q.issued_at <= cut).sort((a, b) => a.issued_at.localeCompare(b.issued_at));
+  $('dQuotes').innerHTML = waiting.length ? waiting.map(q => `<div class="today item" data-q="${q.id}" style="border:none;padding:6px 0;margin:0;border-bottom:1px dashed var(--line)"><span><b>${esc(custById(q.customer_id)?.name || '')}</b>　${esc(q.quote_no)}　NT$ ${fmt(q.grand_total_twd)}</span><span class="overdue">${-daysFromToday(q.issued_at)} 天</span></div>`).join('')
+    : '<div class="muted small">沒有 👍</div>';
+  $('dQuotes').querySelectorAll('[data-q]').forEach(el => el.onclick = () => openQuote(el.dataset.q));
+
+  // 備份
+  const last = setting?.value?.at;
+  const days = last ? Math.floor((Date.now() - new Date(last)) / 864e5) : null;
+  $('dBackup').innerHTML = last ? `上次備份：${last.slice(0, 10)}（${days} 天前）${days > 7 ? '　<b style="color:var(--red)">建議現在備份一次 → 右上角「備份」</b>' : ''}`
+    : '<b style="color:var(--red)">還沒有備份過。請按右上角「備份」下載一份。</b>';
+}
+
+// ================= 商機 =================
+let dealActs = [], dealEditing = null;
+['dSearch','dCompany'].forEach(id => $(id).addEventListener('input', () => renderDealBoard()));
+$('dShowClosed').addEventListener('change', () => renderDealBoard());
+async function renderDeals(){
+  $('dealBoard').innerHTML = '<div class="empty">載入中…</div>';
+  try { await loadMasters(); dealActs = await run(sb.from('activities').select('*')); }
+  catch (e) { $('dealBoard').innerHTML = `<div class="empty" style="color:var(--red)">讀取失敗：${esc(e.message)}</div>`; return; }
+  renderDealBoard();
+}
+function lastTouch(d){
+  const a = dealActs.filter(x => x.deal_id === d.id).map(x => String(x.happened_at || '').slice(0, 10));
+  return [String(d.updated_at || d.created_at || '').slice(0, 10), ...a].sort().pop() || '';
+}
+function renderDealBoard(){
+  const kw = $('dSearch').value.trim().toLowerCase(), co = $('dCompany').value, showClosed = $('dShowClosed').checked;
+  const list = deals.filter(d => (!co || d.company_entity === co) &&
+    (!kw || [d.title, custById(d.customer_id)?.name, d.requirement, d.occasion].some(v => (v || '').toLowerCase().includes(kw))));
+  const stages = showClosed ? DEAL_STAGES : OPEN_STAGES;
+  const open = list.filter(d => OPEN_STAGES.includes(d.stage));
+  const weighted = open.reduce((a, d) => a + num(d.est_value) * (d.probability == null ? 0.3 : d.probability / 100), 0);
+  $('dSum').textContent = `進行中 ${open.length} 件・預估 NT$ ${fmt(open.reduce((a, d) => a + num(d.est_value), 0))}・依成交機率估算 NT$ ${fmt(weighted)}（沒填機率的以 30% 計）`;
+  const staleDay = addDays(today(), -14);
+  $('dealBoard').innerHTML = stages.map(st => {
+    const l = list.filter(d => d.stage === st).sort((a, b) => (a.next_follow_up || '9999').localeCompare(b.next_follow_up || '9999'));
+    return `<div class="col" data-stage="${st}"><h4><span>${st}</span><span class="muted">${l.length}${l.length ? '・' + fmt(l.reduce((a, d) => a + num(d.est_value), 0)) : ''}</span></h4>` +
+      l.map(d => {
+        const stale = OPEN_STAGES.includes(d.stage) && lastTouch(d) < staleDay;
+        const od = d.next_follow_up && d.next_follow_up < today() && OPEN_STAGES.includes(d.stage);
+        return `<div class="dcard ${stale ? 'stale' : ''}" draggable="true" data-id="${d.id}">
+          <div class="t">${esc(d.title)}</div>
+          <div class="muted">${esc(custById(d.customer_id)?.name || '')}</div>
+          ${d.est_value ? `<div>NT$ ${fmt(d.est_value)}${d.probability != null ? '・' + d.probability + '%' : ''}</div>` : ''}
+          ${d.next_follow_up || d.next_step ? `<div class="${od ? 'overdue' : 'muted'}">${d.next_follow_up ? '跟進 ' + d.next_follow_up.slice(5) : ''}${d.next_step ? ' ' + esc(d.next_step) : ''}</div>` : ''}
+          ${d.stage === '流失' && d.lost_reason ? `<div class="muted">原因：${esc(d.lost_reason)}</div>` : ''}
+        </div>`;
+      }).join('') + '</div>';
+  }).join('');
+  if (!deals.length) $('dealBoard').insertAdjacentHTML('afterbegin', '<div class="empty" style="grid-column:1/-1">還沒有商機。按「＋ 新商機」，或在「人脈開發」裡按「轉成商機」。</div>');
+  $('dealBoard').querySelectorAll('.dcard').forEach(el => {
+    el.onclick = () => openDeal(el.dataset.id);
+    el.ondragstart = e => e.dataTransfer.setData('text/plain', el.dataset.id);
+  });
+  $('dealBoard').querySelectorAll('.col').forEach(col => {
+    col.ondragover = e => { e.preventDefault(); col.classList.add('over'); };
+    col.ondragleave = () => col.classList.remove('over');
+    col.ondrop = async e => {
+      e.preventDefault(); col.classList.remove('over');
+      const d = deals.find(x => x.id === e.dataTransfer.getData('text/plain')); if (!d || d.stage === col.dataset.stage) return;
+      await moveDeal(d, col.dataset.stage); renderDealBoard();
+    };
+  });
+}
+async function moveDeal(d, stage){
+  const patch = { stage };
+  if (stage === '流失') { const r = prompt('為什麼沒成？（例：輸給對手、預算不足）', d.lost_reason || ''); if (r === null) return; patch.lost_reason = r || null; }
+  try { await run(sb.from('deals').update(patch).eq('id', d.id)); Object.assign(d, patch); toast(`已移到「${stage}」`); }
+  catch (e) { toast('⚠️ ' + e.message); }
+}
+
+function fillDealContacts(sel){
+  const c = custByName($('d_customer').value);
+  const list = c ? contacts.filter(x => x.customer_id === c.id) : [];
+  $('d_contact').innerHTML = '<option value="">—</option>' + list.map(x => `<option value="${x.id}">${esc(x.name)}${x.title ? '（' + esc(x.title) + '）' : ''}</option>`).join('');
+  if (sel && list.some(x => x.id === sel)) $('d_contact').value = sel; else if (list.length) $('d_contact').value = list[0].id;
+}
+const DF = { title:'d_title', company_entity:'d_company', stage:'d_stage', est_value:'d_value', probability:'d_prob', occasion:'d_occasion',
+  quantity:'d_qty', needed_by:'d_needed', next_follow_up:'d_follow', next_step:'d_next', requirement:'d_req', lost_reason:'d_lost' };
+function openDeal(id, preset = {}){
+  dealEditing = id ? deals.find(d => d.id === id) : null;
+  if (id && !dealEditing) { toast('找不到這個商機'); return; }
+  const d = dealEditing || { stage:'詢價', company_entity:'REVOCO', next_follow_up:addDays(today(), 7), ...preset };
+  $('dealTitle').textContent = id ? '商機' : '新商機';
+  $('d_stage').innerHTML = DEAL_STAGES.map(s => `<option>${s}</option>`).join('');
+  for (const [k, el] of Object.entries(DF)) $(el).value = d[k] ?? '';
+  $('d_customer').value = custById(d.customer_id)?.name || '';
+  fillDealContacts(d.contact_id);
+  $('d_lostWrap').classList.toggle('hidden', d.stage !== '流失');
+  $('dealExtra').classList.toggle('hidden', !id); $('dDelBtn').classList.toggle('hidden', !id);
+  $('dl_date').value = today(); $('dl_summary').value = '';
+  $('dealModal').classList.remove('hidden');
+  if (id) { loadDealQuotes(id); loadDealTimeline(id); } else $('d_title').focus();
+}
+$('dNewBtn').onclick = () => openDeal(null);
+$('d_stage').addEventListener('change', () => $('d_lostWrap').classList.toggle('hidden', $('d_stage').value !== '流失'));
+$('d_customer').addEventListener('input', () => { const c = custByName($('d_customer').value); fillDealContacts(); if (c && !dealEditing) $('d_company').value = c.company_entity; });
+
+async function saveDeal(silent){
+  const title = $('d_title').value.trim(); if (!title) { toast('請填商機名稱'); return null; }
+  const c = custByName($('d_customer').value); if (!c) { toast('請選客戶（找不到的話先到「客戶」新增）'); return null; }
+  const row = { customer_id:c.id, contact_id:$('d_contact').value || null };
+  for (const [k, el] of Object.entries(DF)) {
+    const v = $(el).value.trim();
+    row[k] = ['est_value','probability','quantity'].includes(k) ? numOrNull(v) : (v || null);
+  }
+  row.title = title;
+  if (row.stage !== '流失') row.lost_reason = row.lost_reason || null;
+  try {
+    const d = dealEditing ? await run(sb.from('deals').update(row).eq('id', dealEditing.id).select().single())
+                          : await run(sb.from('deals').insert(row).select().single());
+    await loadMasters(); dealEditing = deals.find(x => x.id === d.id);
+    if (!silent) toast('✅ 商機已儲存');
+    return dealEditing;
+  } catch (e) { toast('⚠️ 儲存失敗：' + e.message); return null; }
+}
+function refreshAfterDeal(){
+  if (!$('dealsView').classList.contains('hidden')) renderDeals();
+  if (!$('dashView').classList.contains('hidden')) renderDash();
+}
+$('dSaveBtn').onclick = async () => { if (await saveDeal(false)) { $('dealModal').classList.add('hidden'); refreshAfterDeal(); } };
+$('dDelBtn').onclick = async () => {
+  if (!dealEditing || !confirm(`確定要刪除「${dealEditing.title}」？這個商機的聯絡紀錄也會一起刪掉（報價會保留）。`)) return;
+  try { await run(sb.from('deals').delete().eq('id', dealEditing.id)); await loadMasters(); $('dealModal').classList.add('hidden'); refreshAfterDeal(); toast('已刪除'); }
+  catch (e) { toast('⚠️ 刪除失敗：' + e.message); }
+};
+async function loadDealQuotes(id){
+  const box = $('dQuoteList'); box.innerHTML = '<span class="muted">載入中…</span>';
+  try {
+    const qs = await run(sb.from('quote_margin').select('*').eq('deal_id', id));
+    box.innerHTML = qs.length ? qs.map(q => `<div class="today item" data-q="${q.id}" style="border:none;padding:6px 0;margin:0;border-bottom:1px dashed var(--line)"><span><b>${esc(q.quote_no)}</b>　${esc(q.status)}</span><span>NT$ ${fmt(q.grand_total_twd)}</span></div>`).join('')
+      : '<span class="muted">還沒有報價</span>';
+    box.querySelectorAll('[data-q]').forEach(el => el.onclick = () => { $('dealModal').classList.add('hidden'); openQuote(el.dataset.q); });
+  } catch (e) { box.innerHTML = `<span style="color:var(--red)">${esc(e.message)}</span>`; }
+}
+$('dNewQuote').onclick = async () => {
+  const d = await saveDeal(true); if (!d) return;
+  $('dealModal').classList.add('hidden');
+  await newQuote({ customer_id:d.customer_id, contact_id:d.contact_id, deal_id:d.id, company_entity:d.company_entity });
+  toast('已帶入客戶與商機，填品項就會自動儲存');
+};
+async function loadDealTimeline(id){
+  const box = $('dTimeline'); box.innerHTML = '<div class="muted small">載入中…</div>';
+  try {
+    const evs = await run(sb.from('activities').select('*').eq('deal_id', id).order('happened_at', { ascending:false }));
+    box.innerHTML = evs.length ? evs.map(e => `<div class="ev"><div class="when">${esc(String(e.happened_at || '').slice(0,10))}・${esc(e.channel || '')}</div><div>${esc(e.summary || '')}</div></div>`).join('')
+      : '<div class="muted small" style="margin-top:8px">還沒有聯絡紀錄</div>';
+  } catch (e) { box.innerHTML = `<div class="small" style="color:var(--red)">${esc(e.message)}</div>`; }
+}
+$('dlAddBtn').onclick = async () => {
+  if (!dealEditing) return;
+  const summary = $('dl_summary').value.trim(); if (!summary) { toast('請寫一下聯絡內容'); return; }
+  const date = $('dl_date').value || today();
+  try {
+    await run(sb.from('activities').insert({ customer_id:dealEditing.customer_id, deal_id:dealEditing.id, happened_at:date, channel:$('dl_channel').value, summary, party:'客戶' }));
+    const after = $('dl_after').value;
+    if (after) { $('d_follow').value = addDays(today(), parseInt(after)); await run(sb.from('deals').update({ next_follow_up:$('d_follow').value }).eq('id', dealEditing.id)); }
+    const c = custById(dealEditing.customer_id);
+    if (c && (!c.last_contact_date || c.last_contact_date < date)) await run(sb.from('customers').update({ last_contact_date:date }).eq('id', c.id));
+    await loadMasters(); dealEditing = deals.find(x => x.id === dealEditing.id);
+    $('dl_summary').value = ''; toast('✅ 已記錄' + (after ? '，下次跟進：' + $('d_follow').value : ''));
+    loadDealTimeline(dealEditing.id);
+  } catch (e) { toast('⚠️ 記錄失敗：' + e.message); }
+};
+
+// ================= 專案 =================
+let projects = [], ptasks = [], jFilter = '進行中', projEditing = null, curTasks = [];
+$('jSearch').addEventListener('input', () => renderProjectList());
+async function renderProjects(){
+  $('projectList').innerHTML = '<div class="empty">載入中…</div>';
+  try {
+    projects = await run(sb.from('projects').select('*').order('created_at', { ascending:false }));
+    for (const p of projects.filter(p => !p.tasks_seeded)) await seedTasks(p);
+    ptasks = await run(sb.from('project_tasks').select('*').order('sort_order'));
+  } catch (e) { $('projectList').innerHTML = `<div class="empty" style="color:var(--red)">讀取失敗：${esc(e.message)}<br>如果剛更新系統，請先到 Supabase 執行 07 那份 SQL。</div>`; return; }
+  renderProjectList();
+}
+function renderProjectList(){
+  const cnt = f => projects.filter(p => f === '全部' || (f === '已結案' ? p.stage === '結案' : p.stage !== '結案')).length;
+  $('jChips').innerHTML = ['進行中','已結案','全部'].map(f => `<button class="chip ${f === jFilter ? 'active' : ''}" data-f="${f}">${f} ${cnt(f)}</button>`).join('');
+  $('jChips').querySelectorAll('.chip').forEach(b => b.onclick = () => { jFilter = b.dataset.f; renderProjectList(); });
+  const kw = $('jSearch').value.trim().toLowerCase();
+  const list = projects.filter(p => jFilter === '全部' || (jFilter === '已結案' ? p.stage === '結案' : p.stage !== '結案'))
+    .filter(p => !kw || [p.name, custById(p.customer_id)?.name].some(v => (v || '').toLowerCase().includes(kw)))
+    .sort((a, b) => (a.client_due || '9999').localeCompare(b.client_due || '9999'));
+  $('projectList').innerHTML = list.length ? list.map(p => {
+    const st = taskStats(ptasks.filter(t => t.project_id === p.id));
+    const d = p.client_due ? daysFromToday(p.client_due) : null;
+    return `<div class="row" data-id="${p.id}" style="grid-template-columns:2fr .8fr 1.6fr 1fr">
+      <div><div class="cust">${esc(p.name)}</div><div class="small muted">${esc(custById(p.customer_id)?.name || '')}</div></div>
+      <div><span class="stg">${esc(p.stage)}</span></div>
+      <div><div class="prog-bar" style="margin:0 0 4px"><i style="width:${st.pct}%"></i></div><div class="small muted">${st.done}/${st.total}${st.next ? '・' + esc(st.next.title) : ''}${st.overdue ? `　<span class="overdue">${st.overdue} 項逾期</span>` : ''}</div></div>
+      <div class="small ${d != null && d < 0 && p.stage !== '結案' ? 'overdue' : 'muted'}">${p.client_due ? '客戶交期 ' + p.client_due.slice(5) + (p.stage !== '結案' ? `<br>${d < 0 ? '過期 ' + (-d) : '還有 ' + d} 天` : '') : '交期未填'}</div>
+    </div>`;
+  }).join('') : `<div class="empty">${projects.length ? '這個分類沒有專案' : '還沒有專案。報價改成「接受」就會自動建立，也可以按「＋ 新專案」。'}</div>`;
+  $('projectList').querySelectorAll('.row').forEach(el => el.onclick = () => openProject(el.dataset.id));
+}
+$('jNewBtn').onclick = async () => {
+  const name = prompt('專案名稱（例：芝初 2027 年節禮盒）', ''); if (!name || !name.trim()) return;
+  try { const p = await run(sb.from('projects').insert({ name:name.trim(), order_date:today() }).select().single()); openProject(p.id); }
+  catch (e) { toast('⚠️ 建立失敗：' + e.message); }
+};
+async function openProject(id){
+  try {
+    projEditing = await run(sb.from('projects').select('*').eq('id', id).single());
+    if (!projEditing) { toast('找不到這個專案'); return; }
+    if (!projEditing.tasks_seeded) { await seedTasks(projEditing); projEditing.tasks_seeded = true; }
+    curTasks = await run(sb.from('project_tasks').select('*').eq('project_id', id).order('sort_order'));
+  } catch (e) { toast('⚠️ 打不開：' + e.message); return; }
+  const p = projEditing;
+  $('j_supplier').innerHTML = '<option value="">—</option>' + suppliers.map(s => `<option value="${s.id}">${esc(s.short_name || s.name)}</option>`).join('');
+  $('projView').querySelectorAll('[data-j]').forEach(el => el.value = p[el.dataset.j] ?? '');
+  $('j_customer').value = custById(p.customer_id)?.name || '';
+  $('jOpenQuote').classList.toggle('hidden', !p.quote_id); $('jOpenDeal').classList.toggle('hidden', !p.deal_id);
+  $('jl_date').value = today(); $('jl_summary').value = ''; $('jl_next').value = ''; $('jl_nextdate').value = '';
+  $('jState').className = 'save-state'; $('jState').textContent = '改了就自動存';
+  renderTasks(); loadProjTimeline();
+  await switchView('proj');
+}
+async function saveProjField(patch){
+  try { await run(sb.from('projects').update(patch).eq('id', projEditing.id)); Object.assign(projEditing, patch);
+    $('jState').className = 'save-state'; $('jState').textContent = '✓ 已儲存 ' + hhmm(); }
+  catch (e) { $('jState').className = 'save-state err'; $('jState').textContent = '⚠️ 儲存失敗：' + e.message; }
+}
+$('projView').querySelectorAll('[data-j]').forEach(el => el.addEventListener('change', () => saveProjField({ [el.dataset.j]: el.value.trim() === '' ? null : el.value })));
+$('j_customer').addEventListener('change', () => {
+  const c = custByName($('j_customer').value);
+  if (c) saveProjField({ customer_id:c.id }); else if ($('j_customer').value.trim()) toast('找不到這個客戶，請先到「客戶」新增');
+});
+$('jBackBtn').onclick = () => switchView('projects');
+$('jOpenQuote').onclick = () => projEditing?.quote_id && openQuote(projEditing.quote_id);
+$('jOpenDeal').onclick = () => projEditing?.deal_id && openDeal(projEditing.deal_id);
+$('jDelBtn').onclick = async () => {
+  if (!projEditing || !confirm(`確定要刪除專案「${projEditing.name}」？細項和聯絡事項會一起刪掉，報價會保留。`)) return;
+  try { await run(sb.from('projects').delete().eq('id', projEditing.id)); toast('已刪除'); switchView('projects'); }
+  catch (e) { toast('⚠️ 刪除失敗：' + e.message); }
+};
+
+function renderTasks(){
+  $('taskBody').innerHTML = curTasks.map((t, i) => {
+    const od = t.due_date && t.due_date < today() && !['完成','不需要'].includes(t.status);
+    return `<tr data-i="${i}" class="${t.status === '完成' ? 'done' : ''}">
+      <td class="chk" style="text-align:center"><input type="checkbox" data-t="done" ${t.status === '完成' ? 'checked' : ''} title="完成"></td>
+      <td><input data-t="title" value="${esc(t.title)}"></td>
+      <td><select data-t="owner">${TASK_OWNERS.map(o => `<option ${o === t.owner ? 'selected' : ''}>${o}</option>`).join('')}</select></td>
+      <td><input type="date" data-t="due_date" value="${esc(t.due_date || '')}" ${od ? 'style="color:var(--red);font-weight:700"' : ''}></td>
+      <td><select data-t="status">${TASK_STATUS.map(o => `<option ${o === t.status ? 'selected' : ''}>${o}</option>`).join('')}</select></td>
+      <td><input data-t="note" value="${esc(t.note || '')}"></td>
+      <td><button class="btn btn-sm btn-danger" data-tdel title="刪除這個細項">✕</button></td></tr>`;
+  }).join('') || '<tr><td colspan="7" class="muted small" style="padding:10px 4px">沒有細項</td></tr>';
+  const st = taskStats(curTasks);
+  $('jProg').innerHTML = `完成 ${st.done} / ${st.total}（${st.pct}%）${st.overdue ? `　<span class="overdue">${st.overdue} 項逾期</span>` : ''}`;
+  $('jBar').style.width = st.pct + '%';
+}
+$('taskBody').addEventListener('change', async e => {
+  const tr = e.target.closest('tr'); const k = e.target.dataset.t; if (!tr || !k) return;
+  const t = curTasks[tr.dataset.i]; const patch = {};
+  if (k === 'done') { patch.status = e.target.checked ? '完成' : '未開始'; patch.done_at = e.target.checked ? today() : null; }
+  else if (k === 'status') { patch.status = e.target.value; patch.done_at = e.target.value === '完成' ? (t.done_at || today()) : null; }
+  else if (k === 'title') { const v = e.target.value.trim(); if (!v) { e.target.value = t.title; return; } patch.title = v; }
+  else patch[k] = e.target.value.trim() === '' ? null : e.target.value;
+  try { await run(sb.from('project_tasks').update(patch).eq('id', t.id)); Object.assign(t, patch);
+    $('jState').className = 'save-state'; $('jState').textContent = '✓ 已儲存 ' + hhmm();
+    if (['done','status','due_date'].includes(k)) renderTasks(); }
+  catch (err) { toast('⚠️ 儲存失敗：' + err.message); }
+});
+$('taskBody').addEventListener('click', async e => {
+  if (!e.target.hasAttribute('data-tdel')) return;
+  const t = curTasks[e.target.closest('tr').dataset.i];
+  if (!confirm(`刪除細項「${t.title}」？`)) return;
+  try { await run(sb.from('project_tasks').delete().eq('id', t.id)); curTasks = curTasks.filter(x => x !== t); renderTasks(); }
+  catch (err) { toast('⚠️ 刪除失敗：' + err.message); }
+});
+async function addTask(title, due, owner){
+  const sort = Math.max(-1, ...curTasks.map(t => t.sort_order || 0)) + 1;
+  const t = await run(sb.from('project_tasks').insert({ project_id:projEditing.id, title, due_date:due || null, owner:owner || '我方', sort_order:sort }).select().single());
+  curTasks.push(t); renderTasks(); return t;
+}
+$('addTaskBtn').onclick = async () => {
+  try { await addTask('新細項'); const inp = $('taskBody').lastElementChild.querySelector('[data-t=title]'); inp.focus(); inp.select(); }
+  catch (e) { toast('⚠️ ' + e.message); }
+};
+async function loadProjTimeline(){
+  const box = $('jTimeline'); box.innerHTML = '<div class="muted small">載入中…</div>';
+  try {
+    const evs = await run(sb.from('activities').select('*').eq('project_id', projEditing.id).order('happened_at', { ascending:false }));
+    box.innerHTML = evs.length ? evs.map(e => `<div class="ev"><div class="when">${esc(String(e.happened_at || '').slice(0,10))}・${esc(e.party || '')}・${esc(e.channel || '')}</div>
+      <div>${esc(e.summary || '')}</div>${e.next_step ? `<div class="small muted">下一步：${esc(e.next_step)}</div>` : ''}</div>`).join('')
+      : '<div class="muted small" style="margin-top:8px">還沒有聯絡事項</div>';
+  } catch (e) { box.innerHTML = `<div class="small" style="color:var(--red)">${esc(e.message)}</div>`; }
+}
+$('jlAddBtn').onclick = async () => {
+  if (!projEditing) return;
+  const summary = $('jl_summary').value.trim(); if (!summary) { toast('請寫一下聯絡內容'); return; }
+  const next = $('jl_next').value.trim(), party = $('jl_party').value;
+  try {
+    await run(sb.from('activities').insert({ customer_id:projEditing.customer_id || null, project_id:projEditing.id, deal_id:projEditing.deal_id || null,
+      happened_at:$('jl_date').value || today(), channel:$('jl_channel').value, party, summary, next_step:next || null }));
+    if (next && $('jl_toTask').checked) await addTask(next, $('jl_nextdate').value, party === '工廠' ? '工廠' : party === '物流' ? '物流' : party === '客戶' ? '客戶' : '我方');
+    $('jl_summary').value = ''; $('jl_next').value = ''; $('jl_nextdate').value = '';
+    toast('✅ 已記錄' + (next && $('jl_toTask').checked ? '，下一步也加進細項了' : ''));
+    loadProjTimeline();
+  } catch (e) { toast('⚠️ 記錄失敗：' + e.message); }
+};
+
+// ================= 備份與還原 =================
+const BACKUP_TABLES = [['customers','客戶'],['suppliers','工廠'],['contacts','窗口'],['products','產品'],['deals','商機'],['quotes','報價'],
+  ['quote_items','報價品項'],['quote_fees','報價費用'],['projects','專案'],['project_tasks','專案細項'],['activities','聯絡紀錄'],
+  ['samples','樣品'],['payments','收付款'],['files','檔案'],['weekly_plans','每週計畫'],['app_settings','設定']];
+const PKEY = { weekly_plans:'week_start', app_settings:'key' };
+let pendingBackup = null;
+async function fetchAll(t){
+  const out = [];
+  for (let i = 0; ; i += 1000) { const rows = await run(sb.from(t).select('*').range(i, i + 999)); out.push(...rows); if (rows.length < 1000) break; }
+  return out;
+}
+async function collectBackup(){
+  const tables = {}, missing = [];
+  for (const [t] of BACKUP_TABLES) { try { tables[t] = await fetchAll(t); } catch (e) { missing.push(t); } }
+  return { tables, missing };
+}
+function downloadBlob(blob, name){ const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove(); }
+async function lastBackupText(){
+  try { const s = (await run(sb.from('app_settings').select('*').eq('key', 'last_backup')))[0]; const at = s?.value?.at;
+    return at ? `上次備份：${at.slice(0, 10)}（${Math.floor((Date.now() - new Date(at)) / 864e5)} 天前）` : '<b style="color:var(--red)">還沒有備份過</b>'; }
+  catch { return ''; }
+}
+$('backupBtn').onclick = async () => {
+  pendingBackup = null; $('bkFile').value = ''; $('bkPreview').innerHTML = ''; $('bkActions').classList.add('hidden');
+  $('bkLast').innerHTML = '…'; $('backupModal').classList.remove('hidden');
+  $('bkLast').innerHTML = await lastBackupText();
+};
+$('bkJson').onclick = async () => {
+  $('bkJson').disabled = true; $('bkJson').textContent = '準備中…';
+  try {
+    const { tables, missing } = await collectBackup();
+    const data = { app:'REVOCO', version:9, exported_at:new Date().toISOString(), tables };
+    downloadBlob(new Blob([JSON.stringify(data)], { type:'application/json' }), `REVOCO備份_${today()}.json`);
+    try { await run(sb.from('app_settings').upsert({ key:'last_backup', value:{ at:data.exported_at } }, { onConflict:'key' })); } catch {}
+    const n = Object.values(tables).reduce((a, l) => a + l.length, 0);
+    $('bkLast').innerHTML = `上次備份：${today()}（剛剛）`;
+    toast(`✅ 已下載備份，共 ${n} 筆資料${missing.length ? '（有 ' + missing.length + ' 張表讀不到）' : ''}`);
+  } catch (e) { toast('⚠️ 備份失敗：' + e.message); }
+  finally { $('bkJson').disabled = false; $('bkJson').textContent = '下載備份檔'; }
+};
+$('bkXlsx').onclick = async () => {
+  $('bkXlsx').disabled = true; $('bkXlsx').textContent = '準備中…';
+  try {
+    const XLSX = window.__XLSX__ || await import('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/+esm');
+    const { tables } = await collectBackup();
+    const wb = XLSX.utils.book_new();
+    for (const [t, zh] of BACKUP_TABLES) {
+      const rows = (tables[t] || []).map(r => Object.fromEntries(Object.entries(r).map(([k, v]) => [k, v !== null && typeof v === 'object' ? JSON.stringify(v) : v])));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows.length ? rows : [{ 說明:'沒有資料' }]), zh);
+    }
+    XLSX.writeFile(wb, `REVOCO資料_${today()}.xlsx`);
+    toast('✅ 已下載 Excel');
+  } catch (e) { toast('⚠️ 下載失敗：' + e.message); }
+  finally { $('bkXlsx').disabled = false; $('bkXlsx').textContent = '下載 Excel'; }
+};
+$('bkFile').addEventListener('change', async () => {
+  const f = $('bkFile').files[0]; pendingBackup = null; $('bkActions').classList.add('hidden'); if (!f) return;
+  try {
+    const data = JSON.parse(await f.text());
+    if (data.app !== 'REVOCO' || !data.tables) throw new Error('這不是 REVOCO 的備份檔');
+    pendingBackup = data;
+    const lines = BACKUP_TABLES.filter(([t]) => (data.tables[t] || []).length).map(([t, zh]) => `${zh} ${data.tables[t].length} 筆`);
+    $('bkPreview').innerHTML = `<b>備份時間：${esc(data.exported_at ? new Date(data.exported_at).toLocaleString('zh-TW', { hour12:false }) : '不明')}</b><br>${esc(lines.join('、') || '檔案裡沒有資料')}`;
+    $('bkActions').classList.toggle('hidden', !lines.length);
+  } catch (e) { $('bkPreview').innerHTML = `<span style="color:var(--red)">讀不到這個檔案：${esc(e.message)}</span>`; }
+});
+$('bkRestore').onclick = async () => {
+  if (!pendingBackup) return;
+  const mode = document.querySelector('input[name=bkMode]:checked').value;
+  if (!confirm(mode === 'merge' ? '確定要把備份裡「現在沒有」的資料補回來？' : '確定要把資料改回備份當時的內容？同一筆資料會以備份為準。')) return;
+  $('bkRestore').disabled = true; $('bkRestore').textContent = '還原中…';
+  const result = [], errors = [], accepted = [];
+  try {
+    for (const [t, zh] of BACKUP_TABLES) {
+      let rows = pendingBackup.tables[t] || []; if (!rows.length) continue;
+      const pk = PKEY[t] || 'id';
+      if (t === 'quotes') rows = rows.map(r => r.status === '接受' ? { ...r, status:'已送出' } : r);   // 先不觸發自動開專案，專案還原後再改回
+      let written = 0;
+      try {
+        for (let i = 0; i < rows.length; i += 500) {
+          const back = await run(sb.from(t).upsert(rows.slice(i, i + 500), { onConflict:pk, ignoreDuplicates: mode === 'merge' }).select(pk));
+          written += back.length;
+          if (t === 'quotes') { const ids = new Set(back.map(b => b.id)); pendingBackup.tables.quotes.forEach(q => { if (q.status === '接受' && ids.has(q.id)) accepted.push(q.id); }); }
+        }
+        result.push(`${zh} ${written}`);
+      } catch (e) { errors.push(`${zh}：${e.message}`); }
+    }
+    for (const id of accepted) { try { await run(sb.from('quotes').update({ status:'接受' }).eq('id', id)); } catch (e) { errors.push('報價狀態：' + e.message); } }
+    await loadMasters();
+    $('bkPreview').innerHTML = `<b style="color:var(--green)">還原完成</b>（${mode === 'merge' ? '補回' : '寫回'}：${esc(result.join('、') || '沒有需要補的資料')}）` +
+      (errors.length ? `<br><span style="color:var(--red)">有問題的部分：${esc(errors.join('；'))}</span>` : '');
+    $('bkActions').classList.add('hidden');
+    toast(errors.length ? '⚠️ 還原完成，但有部分資料沒寫進去' : '✅ 還原完成');
+  } finally { $('bkRestore').disabled = false; $('bkRestore').textContent = '開始還原'; }
+};
 
 // ================= 帳本 =================
 const iso = d => new Date(d - d.getTimezoneOffset()*60000).toISOString().slice(0,10);
