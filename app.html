@@ -205,6 +205,24 @@ table.tasks input[type=checkbox]{width:22px;height:22px;min-height:0;margin-top:
 .radio-row label{display:flex;gap:8px;align-items:flex-start;font-size:14px;color:var(--ink);font-weight:400}
 .radio-row input{width:18px;height:18px;min-height:0;margin-top:2px}
 .wk{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed var(--line);font-size:14px}
+/* 客戶分類顏色 */
+.cat{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap}
+.cat-合作中{background:#8A9A86;color:#fff}
+.cat-沉睡{background:#A7C7E7;color:#24425F}
+.cat-開發中{background:#F37021;color:#fff}
+.cat-潛在{background:#D8C79A;color:#4A3F1E}
+.cat-陌生{background:#DDDCD6;color:#55554F}
+.cat-暫不考慮{background:#800020;color:#fff}
+.chip.cc{display:inline-flex;align-items:center;gap:6px}
+.chip.cc i{width:10px;height:10px;border-radius:50%;display:inline-block}
+.chip.cc.active{background:var(--ink);border-color:var(--ink);color:#fff}
+.hist h4{margin:16px 0 6px;font-size:13px;color:var(--mint-dark)}
+.hist .hl{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px dashed var(--line);font-size:13px;cursor:pointer}
+.hist .hl.nc{cursor:default}
+.hist .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.hist .stats div{background:var(--mint-light);border-radius:8px;padding:8px 10px}
+.hist .stats .k{font-size:11px;color:var(--quiet);font-weight:600}.hist .stats .v{font-size:16px;font-weight:800}
+@media (max-width:560px){.hist .stats{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
 <body>
@@ -486,10 +504,12 @@ table.tasks input[type=checkbox]{width:22px;height:22px;min-height:0;margin-top:
     <!-- 客戶 -->
     <section id="customersView" class="hidden">
       <div class="toolbar">
-        <input class="grow" id="cSearch" placeholder="搜尋客戶…">
+        <input class="grow" id="cSearch" placeholder="搜尋公司、窗口、產業…">
         <button class="btn btn-primary" id="newCustBtn">＋ 新客戶</button>
       </div>
+      <div class="chips" id="cChips"></div>
       <div class="list" id="customerList"></div>
+      <p class="small muted">分類由系統自動判斷：合作中＝一年內有成交（或 A 類舊客戶）；沉睡＝成交過但超過一年沒下單；開發中＝聯絡過、有回應或有進行中的商機；潛在＝研究過還沒聯絡；陌生＝還沒研究也沒聯絡；暫不考慮＝在人脈開發裡標記的。</p>
     </section>
 
     <!-- 帳本 -->
@@ -535,8 +555,9 @@ table.tasks input[type=checkbox]{width:22px;height:22px;min-height:0;margin-top:
 
 <!-- 客戶表單 -->
 <div class="modal-bg hidden" id="custModal">
-  <div class="modal">
+  <div class="modal wide">
     <h3 id="custModalTitle">新客戶</h3>
+    <div id="custCat" style="margin:-6px 0 12px"></div>
     <div class="grid g2">
       <div style="grid-column:1/-1"><label>公司名稱 *</label><input id="c_name"></div>
       <div><label>統一編號</label><input id="c_tax"></div>
@@ -557,6 +578,7 @@ table.tasks input[type=checkbox]{width:22px;height:22px;min-height:0;margin-top:
       <button class="btn" data-close>取消</button>
       <button class="btn btn-primary" id="custSaveBtn">儲存</button>
     </div>
+    <div class="hist" id="custHistory"></div>
   </div>
 </div>
 
@@ -1247,19 +1269,90 @@ $('pdfBtn').onclick = () => printQuote(false);
 $('internalPdfBtn').onclick = () => printQuote(true);
 
 // ================= 客戶 =================
-$('cSearch').addEventListener('input', renderCustomers);
-function renderCustomers(){
+const CATS = ['合作中','沉睡','開發中','潛在','陌生','暫不考慮'];
+const CAT_COLOR = { 合作中:'#8A9A86', 沉睡:'#A7C7E7', 開發中:'#F37021', 潛在:'#D8C79A', 陌生:'#DDDCD6', 暫不考慮:'#800020' };
+let custWins = {}, cFilter = '全部';
+async function loadCustWins(){
+  try {
+    const [qm, projs] = await Promise.all([run(sb.from('quote_margin').select('*').eq('status', '接受')), run(sb.from('projects').select('*'))]);
+    custWins = {};
+    qm.forEach(q => { const d = quoteDate(q, projs); const w = custWins[q.customer_id] ||= { n:0, rev:0, profit:0, last:'' };
+      w.n++; w.rev += num(q.subtotal_twd) + num(q.client_fees_twd); w.profit += num(q.gross_profit_twd); if (d > w.last) w.last = d; });
+  } catch (e) { custWins = {}; }
+}
+function custCat(c){
+  const w = custWins[c.id], yearAgo = addDays(today(), -365);
+  if (w && w.last >= yearAgo) return '合作中';
+  if (w || c.status === '沉睡') return '沉睡';
+  if (c.pipeline === 'A') return '合作中';
+  if (c.prospect_stage === '暫不考慮') return '暫不考慮';
+  if (deals.some(d => d.customer_id === c.id && OPEN_STAGES.includes(d.stage)) || ['已聯絡','有回應','轉商機'].includes(c.prospect_stage)
+      || c.contact_count > 0 || c.last_contact_date || c.status === '開發中' || c.status === '往來中') return '開發中';
+  if (c.prospect_stage === '已研究' || c.fit_reason || c.tier) return '潛在';
+  return '陌生';
+}
+const catBadge = cat => `<span class="cat cat-${cat}">${cat}</span>`;
+$('cSearch').addEventListener('input', () => renderCustomerList());
+async function renderCustomers(){
+  if (!customers.length) { renderCustomerList(); return; }
+  await loadCustWins(); renderCustomerList();
+}
+function renderCustomerList(){
+  const withCat = customers.map(c => ({ c, cat:custCat(c) }));
+  const cnt = k => k === '全部' ? withCat.length : withCat.filter(x => x.cat === k).length;
+  $('cChips').innerHTML = ['全部', ...CATS].map(k => `<button class="chip cc ${k === cFilter ? 'active' : ''}" data-k="${k}">${k === '全部' ? '' : `<i style="background:${CAT_COLOR[k]}"></i>`}${k} ${cnt(k)}</button>`).join('');
+  $('cChips').querySelectorAll('.chip').forEach(b => b.onclick = () => { cFilter = b.dataset.k; renderCustomerList(); });
   const kw = $('cSearch').value.trim().toLowerCase();
-  const list = customers.filter(c => !kw || c.name.toLowerCase().includes(kw) || (c.tax_id || '').includes(kw));
-  $('customerList').innerHTML = list.length ? list.map(c => {
-    const ct = contacts.find(x => x.customer_id === c.id);
-    return `<div class="row" data-id="${c.id}" style="grid-template-columns:2fr 1.4fr 1fr auto">
-      <div class="cust">${esc(c.name)}</div>
+  const list = withCat.filter(x => cFilter === '全部' || x.cat === cFilter)
+    .filter(({ c }) => !kw || [c.name, c.tax_id, c.industry, ...contacts.filter(k => k.customer_id === c.id).map(k => k.name + ' ' + (k.phone || ''))].some(v => (v || '').toLowerCase().includes(kw)))
+    .sort((a, b) => CATS.indexOf(a.cat) - CATS.indexOf(b.cat) || a.c.name.localeCompare(b.c.name, 'zh-Hant'));
+  $('customerList').innerHTML = list.length ? list.map(({ c, cat }) => {
+    const ct = primaryContact(c); const w = custWins[c.id];
+    return `<div class="row" data-id="${c.id}" style="grid-template-columns:auto 2fr 1.5fr 1.2fr auto">
+      ${catBadge(cat)}
+      <div><div class="cust">${esc(c.name)}</div>${c.industry ? `<div class="small muted">${esc(c.industry)}</div>` : ''}</div>
       <div class="muted small">${esc(ct ? ct.name + (ct.phone ? '・' + ct.phone : '') : '')}</div>
-      <div class="muted small">${esc(c.status)}</div>
+      <div class="muted small">${w ? `成交 ${w.n} 次・NT$ ${fmt(w.rev)}` : ''}</div>
       <span class="badge b-${c.company_entity}">${c.company_entity}</span></div>`;
-  }).join('') : '<div class="empty">還沒有客戶。</div>';
+  }).join('') : `<div class="empty">${customers.length ? '這個分類沒有客戶' : '還沒有客戶。'}</div>`;
   $('customerList').querySelectorAll('.row').forEach(el => el.onclick = () => openCustomer(el.dataset.id));
+}
+
+async function loadCustHistory(c){
+  const box = $('custHistory'); box.innerHTML = '<div class="muted small" style="margin-top:12px">載入往來紀錄…</div>';
+  try {
+    const [qs, projs, acts] = await Promise.all([
+      run(sb.from('quote_margin').select('*').eq('customer_id', c.id)),
+      run(sb.from('projects').select('*').eq('customer_id', c.id)),
+      run(sb.from('activities').select('*').eq('customer_id', c.id).order('happened_at', { ascending:false })),
+    ]);
+    const won = qs.filter(q => q.status === '接受');
+    const rev = won.reduce((a, q) => a + num(q.subtotal_twd) + num(q.client_fees_twd), 0), profit = won.reduce((a, q) => a + num(q.gross_profit_twd), 0);
+    const last = won.map(q => quoteDate(q, projs)).sort().pop();
+    const cds = deals.filter(d => d.customer_id === c.id);
+    const cts = contacts.filter(k => k.customer_id === c.id);
+    qs.sort((a, b) => String(b.issued_at || '').localeCompare(String(a.issued_at || '')));
+    box.innerHTML = `
+      <h4>往來總覽</h4>
+      <div class="stats"><div><div class="k">成交次數</div><div class="v">${won.length}</div></div>
+        <div><div class="k">累計營收（未稅）</div><div class="v">${fmt(rev)}</div></div>
+        <div><div class="k">累計毛利</div><div class="v">${fmt(profit)}</div></div>
+        <div><div class="k">上次成交</div><div class="v" style="font-size:14px">${last || '—'}</div></div></div>
+      <h4>所有窗口（${cts.length}）</h4>
+      ${cts.map(k => `<div class="hl nc"><span><b>${esc(k.name)}</b>${k.title ? '　' + esc(k.title) : ''}${k.is_primary ? '　<span class="badge">主要</span>' : ''}</span><span class="muted">${esc([k.phone, k.email, k.line_id && 'Line ' + k.line_id].filter(Boolean).join('・'))}</span></div>`).join('') || '<div class="muted small">沒有窗口</div>'}
+      <h4>報價（${qs.length}）</h4>
+      ${qs.map(q => `<div class="hl" data-q="${q.id}"><span><b>${esc(q.quote_no)}</b>　${esc(q.issued_at || '')}　<span class="st-${q.status}">${esc(q.status)}</span></span><span>NT$ ${fmt(q.grand_total_twd)}</span></div>`).join('') || '<div class="muted small">沒有報價</div>'}
+      <h4>商機（${cds.length}）</h4>
+      ${cds.map(d => `<div class="hl" data-d="${d.id}"><span><b>${esc(d.title)}</b>　${esc(d.stage)}</span><span class="muted">${d.est_value ? 'NT$ ' + fmt(d.est_value) : ''}</span></div>`).join('') || '<div class="muted small">沒有商機</div>'}
+      <h4>專案（${projs.length}）</h4>
+      ${projs.map(p => `<div class="hl" data-p="${p.id}"><span><b>${esc(p.name)}</b>　${esc(p.stage)}</span><span class="muted">${p.client_due ? '交期 ' + p.client_due : ''}</span></div>`).join('') || '<div class="muted small">沒有專案</div>'}
+      <h4>聯絡紀錄（${acts.length}）</h4>
+      <div class="timeline">${acts.slice(0, 30).map(e => `<div class="ev"><div class="when">${esc(String(e.happened_at || '').slice(0, 10))}・${esc([e.party, e.channel].filter(Boolean).join('・'))}${e.project_id ? '・專案' : e.deal_id ? '・商機' : ''}</div><div>${esc(e.summary || '')}</div></div>`).join('') || '<div class="muted small">沒有聯絡紀錄</div>'}</div>`;
+    const close = () => $('custModal').classList.add('hidden');
+    box.querySelectorAll('[data-q]').forEach(el => el.onclick = () => { close(); openQuote(el.dataset.q); });
+    box.querySelectorAll('[data-d]').forEach(el => el.onclick = () => { close(); openDeal(el.dataset.d); });
+    box.querySelectorAll('[data-p]').forEach(el => el.onclick = () => { close(); openProject(el.dataset.p); });
+  } catch (e) { box.innerHTML = `<div class="small" style="color:var(--red);margin-top:12px">讀取往來紀錄失敗：${esc(e.message)}</div>`; }
 }
 
 let custEditing = null, custCallback = null;
@@ -1273,7 +1366,10 @@ function openCustomer(id, cb){
   $('ct_name').value = ct.name || ''; $('ct_title').value = ct.title || ''; $('ct_phone').value = ct.phone || '';
   $('ct_email').value = ct.email || ''; $('ct_line').value = ct.line_id || '';
   $('custModal').dataset.contactId = ct.id || '';
-  $('custModal').classList.remove('hidden'); $('c_name').focus();
+  $('custCat').innerHTML = id ? catBadge(custCat(c)) : '';
+  $('custHistory').innerHTML = '';
+  $('custModal').classList.remove('hidden');
+  if (id) loadCustHistory(c); else $('c_name').focus();
 }
 $('newCustBtn').onclick = () => openCustomer(null);
 $('newCustInlineBtn').onclick = () => openCustomer(null, c => { $('f_customer').value = c.name; fillContacts(); markDirty(); });
