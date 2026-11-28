@@ -3082,13 +3082,28 @@ $('ax_download').onclick = () => { if (!axCache) return; downloadBlob(new Blob([
 // ---------- 匯入 GPT 結果 ----------
 $('aiImportBtn').onclick = () => { $('ai_paste').value = ''; $('ai_preview').innerHTML = ''; $('ai_confirm').classList.add('hidden'); aiPending = []; $('aiImportModal').classList.remove('hidden'); $('ai_paste').focus(); };
 function extractJSON(t){
-  t = String(t || '').trim();
-  const fence = t.match(/```(?:json)?\s*([\s\S]*?)```/i); if (fence) t = fence[1].trim();
-  try { return JSON.parse(t); } catch {}
-  const a = Math.min(...['{','['].map(ch => { const i = t.indexOf(ch); return i < 0 ? Infinity : i; }));
-  const b = Math.max(t.lastIndexOf('}'), t.lastIndexOf(']'));
-  if (a === Infinity || b <= a) throw new Error('找不到 JSON 內容');
-  return JSON.parse(t.slice(a, b + 1));
+  t = String(t || '').replace(/[​-‍﻿]/g, '').replace(/ /g, ' ').trim();
+  const wanted = o => o && typeof o === 'object' && (Array.isArray(o) || o.quotes || o.insights || o.documents || o.title || o.product_name || o.content_md != null);
+  const fixes = [x => x, x => x.replace(/,\s*([}\]])/g, '$1'), x => x.replace(/[“”„‟″＂]/g, '"').replace(/[‘’′]/g, "'").replace(/,\s*([}\]])/g, '$1')];
+  const tryParse = x => {
+    for (const f of fixes) {
+      const y = f(x);
+      try { return JSON.parse(y); } catch {}
+      const i = Math.min(...['{','['].map(ch => { const k = y.indexOf(ch); return k < 0 ? Infinity : k; }));
+      const j = Math.max(y.lastIndexOf('}'), y.lastIndexOf(']'));
+      if (i !== Infinity && j > i) { try { return JSON.parse(y.slice(i, j + 1)); } catch {} }
+    }
+    return undefined;
+  };
+  const blocks = [...t.matchAll(/(?:```|~~~)[^\n`]*\n?([\s\S]*?)(?:```|~~~)/g)].map(m => m[1].trim()).filter(Boolean);
+  const parsed = [...blocks, t].map(tryParse).filter(x => x !== undefined);
+  const hit = parsed.filter(wanted);
+  // 有多個符合時，取內容最多的（避免拿到指令裡的範本）
+  if (hit.length) return hit.sort((x, y) => JSON.stringify(y).length - JSON.stringify(x).length)[0];
+  if (parsed.length) return parsed[0];
+  if (!/[{\[]/.test(t)) throw new Error('找不到 JSON 內容（貼上的內容裡沒有 { }）');
+  const open = (t.match(/[{\[]/g) || []).length, close = (t.match(/[}\]]/g) || []).length;
+  throw new Error(open > close ? 'JSON 不完整，可能只複製到一部分，請把 ChatGPT 回覆從 { 到最後的 } 整段複製' : 'JSON 格式有錯，請 ChatGPT「只重新輸出 JSON」再貼一次');
 }
 function matchCustomer(id, name){
   if (id && custById(id)) return { c: custById(id), how: '編號' };
