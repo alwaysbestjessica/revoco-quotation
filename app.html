@@ -1138,7 +1138,8 @@ table.prev select{min-height:32px;padding:4px 6px;font-size:13px}
     <div class="thumbs" id="sqe_imgs"></div>
     <input type="file" id="sqe_addimg" accept="image/*" multiple style="margin-top:8px">
     <div class="actions">
-      <button class="btn" id="sqe_arch" style="margin-right:auto">封存</button>
+      <button class="btn btn-danger" id="sqe_del" style="margin-right:auto">刪除</button>
+      <button class="btn" id="sqe_arch">封存</button>
       <button class="btn" data-close>關閉</button>
       <button class="btn btn-primary" id="sqe_save">儲存</button>
     </div>
@@ -3105,6 +3106,23 @@ function extractJSON(t){
   const open = (t.match(/[{\[]/g) || []).length, close = (t.match(/[}\]]/g) || []).length;
   throw new Error(open > close ? 'JSON 不完整，可能只複製到一部分，請把 ChatGPT 回覆從 { 到最後的 } 整段複製' : 'JSON 格式有錯，請 ChatGPT「只重新輸出 JSON」再貼一次');
 }
+let jsonRepairLib = null;
+async function extractJSONAsync(t){
+  try { return extractJSON(t); } catch (first) {
+    try {
+      if (!jsonRepairLib) jsonRepairLib = window.__JSONREPAIR__ || (await import('https://cdn.jsdelivr.net/npm/jsonrepair@3.13.1/+esm')).jsonrepair;
+      const src = String(t || '').replace(/[​-‍﻿]/g, '');
+      const blocks = [...src.matchAll(/(?:```|~~~)[^\n`]*\n?([\s\S]*?)(?:```|~~~)/g)].map(m => m[1]);
+      const i = src.search(/[{\[]/), j = Math.max(src.lastIndexOf('}'), src.lastIndexOf(']'));
+      const cands = [...blocks, i >= 0 && j > i ? src.slice(i, j + 1) : null, i >= 0 ? src.slice(i) : null].filter(Boolean);
+      const ok = [];
+      for (const c of cands) { try { ok.push(JSON.parse(jsonRepairLib(c))); } catch {} }
+      const hit = ok.filter(o => o && typeof o === 'object' && (Array.isArray(o) || o.quotes || o.insights || o.documents || o.title || o.product_name));
+      if (hit.length) return hit.sort((x, y) => JSON.stringify(y).length - JSON.stringify(x).length)[0];
+    } catch {}
+    throw first;
+  }
+}
 function matchCustomer(id, name){
   if (id && custById(id)) return { c: custById(id), how: '編號' };
   const n = String(name || '').trim(); if (!n) return { c: null, how: '' };
@@ -3143,7 +3161,7 @@ const isUuid = v => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{1
 $('ai_check').onclick = async () => {
   const box = $('ai_preview'); $('ai_confirm').classList.add('hidden'); aiPending = [];
   let data;
-  try { data = extractJSON($('ai_paste').value); } catch (e) { box.innerHTML = `<div style="color:var(--red)">讀不懂這段內容：${esc(e.message)}。請確認貼的是 GPT 回覆裡完整的 JSON。</div>`; return; }
+  try { data = await extractJSONAsync($('ai_paste').value); } catch (e) { box.innerHTML = `<div style="color:var(--red)">讀不懂這段內容：${esc(e.message)}。請確認貼的是 GPT 回覆裡完整的 JSON。</div>`; return; }
   const top = Array.isArray(data) ? {} : data;
   const items = Array.isArray(data) ? data : Array.isArray(data.insights) ? data.insights : (data.title || data.next_action ? [data] : null);
   if (!items || !items.length) { box.innerHTML = '<div style="color:var(--red)">JSON 裡沒有 insights（分析清單）。</div>'; return; }
@@ -3608,9 +3626,10 @@ async function renderSQ(){
   catch (e) { $('sqList').innerHTML = `<div class="empty" style="color:var(--red)">讀取失敗：${esc(e.message)}<br>如果剛更新系統，請先到 Supabase 執行 13 那份 SQL。</div>`; return; }
   $('sqProducts').innerHTML = [...new Set(sqRows.map(q => q.product_name))].map(n => `<option value="${esc(n)}">`).join('');
   const pend = sqBatches().filter(b => !b.done);
-  $('sqBatches').innerHTML = pend.map(b => `<div class="batch"><span>📷 ${b.n} 張截圖還沒匯入結果${b.hint ? '：' + esc(b.hint) : ''}<span class="muted small">（${esc(String(b.at).slice(0, 10))}）</span></span><span><button class="btn btn-sm" data-bprompt="${b.id}">看指令</button> <button class="btn btn-sm btn-primary" data-bimport="${b.id}">貼上結果</button></span></div>`).join('');
+  $('sqBatches').innerHTML = pend.map(b => `<div class="batch"><span>📷 ${b.n} 張截圖還沒匯入結果${b.hint ? '：' + esc(b.hint) : ''}<span class="muted small">（${esc(String(b.at).slice(0, 10))}）</span></span><span><button class="btn btn-sm" data-bprompt="${b.id}">看指令</button> <button class="btn btn-sm btn-primary" data-bimport="${b.id}">貼上結果</button> <button class="btn btn-sm btn-danger" data-bdel="${b.id}">刪除</button></span></div>`).join('');
   $('sqBatches').querySelectorAll('[data-bprompt]').forEach(x => x.onclick = () => openSQPrompt(x.dataset.bprompt));
   $('sqBatches').querySelectorAll('[data-bimport]').forEach(x => x.onclick = () => openSQImport(x.dataset.bimport));
+  $('sqBatches').querySelectorAll('[data-bdel]').forEach(x => x.onclick = () => deleteSQBatch(x.dataset.bdel));
   renderSQList();
 }
 function sqBatches(){
@@ -3801,9 +3820,9 @@ function normalizeSQ(it, batch){
     quote_date: isoDate(it.quote_date) || today(), valid_until: isoDate(it.valid_until), source_channel: str(it.source_channel) || batch?.src || null, contact: str(it.contact), notes: str(it.notes),
     images: imgs, raw: it } };
 }
-$('sqi_check').onclick = () => {
+$('sqi_check').onclick = async () => {
   const box = $('sqi_preview'); $('sqi_confirm').classList.add('hidden'); sqPending = [];
-  let data; try { data = extractJSON($('sqi_text').value); } catch (e) { box.innerHTML = `<div style="color:var(--red)">讀不懂這段內容：${esc(e.message)}。請貼 ChatGPT 回覆裡完整的 JSON。</div>`; return; }
+  let data; try { data = await extractJSONAsync($('sqi_text').value); } catch (e) { box.innerHTML = `<div style="color:var(--red)">讀不懂這段內容：${esc(e.message)}</div><div class="small muted" style="margin-top:4px">貼上的內容共 ${$('sqi_text').value.length} 個字，開頭是：「${esc($('sqi_text').value.trim().slice(0, 40))}…」</div>`; return; }
   const items = Array.isArray(data) ? data : Array.isArray(data.quotes) ? data.quotes : (data.product_name ? [data] : null);
   if (!items || !items.length) { box.innerHTML = '<div style="color:var(--red)">JSON 裡沒有 quotes（報價清單）。</div>'; return; }
   const batch = sqBatches().find(b => b.id === $('sqi_batch').value) || null;
@@ -3913,7 +3932,7 @@ async function openSQEdit(id){
   $('sqe_supplier').innerHTML = '<option value="">—</option>' + suppliers.map(s => `<option value="${s.id}" ${s.id === q.supplier_id ? 'selected' : ''}>${esc(s.name)}</option>`).join('');
   $('sqe_taxinc').value = q.tax_included == null ? '' : String(q.tax_included);
   $('sqe_tiers').value = tiersOf(q).map(t => `${t.qty} ${t.price}`).join('\n');
-  $('sqe_arch').classList.toggle('hidden', !id); $('sqe_arch').textContent = q.archived ? '取消封存' : '封存';
+  $('sqe_arch').classList.toggle('hidden', !id); $('sqe_del').classList.toggle('hidden', !id); $('sqe_arch').textContent = q.archived ? '取消封存' : '封存';
   $('sqe_addimg').value = '';
   $('sqe_imgs').innerHTML = (q.images || []).length ? await thumbsHTML(q.images) : '<span class="small muted">沒有截圖</span>';
   if (q.supplier_name && !q.supplier_id) $('sqe_imgs').insertAdjacentHTML('beforebegin', '');
@@ -3938,6 +3957,23 @@ $('sqe_save').onclick = async () => {
     $('sqEditModal').classList.add('hidden'); toast('✅ 已儲存'); await renderSQ();
     if (!$('sqCmpModal').classList.contains('hidden')) { sqCmpName = row.product_name; renderSQCompare(); }
   } catch (e) { toast('⚠️ 儲存失敗：' + e.message); }
+};
+async function deleteSQBatch(batchId){
+  const b = sqBatches().find(x => x.id === batchId); if (!b) return;
+  const used = sqRows.some(q => (q.images || []).some(p => b.paths.includes(p)));
+  if (!confirm(`刪除這批 ${b.n} 張截圖？${used ? '\n已經匯入的報價會保留，但看不到這批截圖了。' : '\n截圖檔案會一起刪掉。'}`)) return;
+  try {
+    try { await sb.storage.from(SQ_BUCKET).remove(b.paths.filter(Boolean)); } catch {}
+    await run(sb.from('sq_uploads').delete().eq('batch_id', batchId));
+    if (used) for (const q of sqRows.filter(q => (q.images || []).some(p => b.paths.includes(p)))) await run(sb.from('supplier_quotes').update({ images: q.images.filter(p => !b.paths.includes(p)) }).eq('id', q.id));
+    toast('已刪除這批截圖'); renderSQ();
+  } catch (e) { toast('⚠️ 刪除失敗：' + e.message); }
+}
+$('sqe_del').onclick = async () => {
+  if (!sqEditing || !confirm(`刪除「${sqSupplierName(sqEditing)}」的這筆「${sqEditing.product_name}」報價？刪了就找不回來（不想看到可以用「封存」）。截圖會保留在原本的截圖批次裡。`)) return;
+  try { await run(sb.from('supplier_quotes').delete().eq('id', sqEditing.id)); $('sqEditModal').classList.add('hidden'); toast('已刪除'); await renderSQ();
+    if (!$('sqCmpModal').classList.contains('hidden')) renderSQCompare(); }
+  catch (e) { toast('⚠️ 刪除失敗：' + e.message); }
 };
 $('sqe_arch').onclick = async () => {
   if (!sqEditing) return; const archived = !sqEditing.archived;
