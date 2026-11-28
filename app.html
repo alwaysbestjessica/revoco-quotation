@@ -254,6 +254,22 @@ table.tasks input[type=checkbox]{width:22px;height:22px;min-height:0;margin-top:
 .lchip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:3px 6px 3px 10px;font-size:13px;margin:0 6px 6px 0;background:#fff}
 .lchip button{border:none;background:none;cursor:pointer;color:var(--quiet);font-size:14px;padding:0 4px}
 .lchip span.k{font-size:11px;color:var(--quiet)}
+/* 工廠報價庫 */
+.sqcard{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:8px;cursor:pointer}
+.sqcard:hover{border-color:#7FA7CF}
+.sqcard .t{font-weight:700;font-size:15px}.sqcard .meta{font-size:12px;color:var(--quiet);margin-top:3px}
+.sqcard .best{font-size:13px;margin-top:6px}
+.thumbs{display:flex;gap:6px;flex-wrap:wrap}
+.thumbs img{width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid var(--line);cursor:zoom-in;background:#f3f3f3}
+table.cmp{width:100%;border-collapse:collapse;font-size:13px;min-width:860px}
+table.cmp th{text-align:right;color:var(--quiet);font-size:12px;padding:6px;border-bottom:2px solid var(--line);white-space:nowrap}
+table.cmp th:first-child,table.cmp td:first-child{text-align:left}
+table.cmp td{padding:7px 6px;border-bottom:1px solid var(--line);text-align:right;vertical-align:top}
+table.cmp tr.best td{background:#EEF4EF}
+table.cmp tr.click{cursor:pointer}table.cmp tr.click:hover td{background:var(--mint-light)}
+.warn{color:var(--yellow);font-size:11px;font-weight:600}
+.batch{display:flex;justify-content:space-between;align-items:center;gap:8px;background:#E6EFF8;border-radius:10px;padding:8px 12px;margin-bottom:6px;font-size:14px}
+#imgZoom img{max-width:100%;max-height:80vh;border-radius:8px}
 .mods{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
 @media (max-width:720px){.mods{grid-template-columns:repeat(2,1fr)}}
 .mod{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px;cursor:pointer;text-align:left}
@@ -312,6 +328,7 @@ table.prev select{min-height:32px;padding:4px 6px;font-size:13px}
       <button class="tab" data-view="projects" data-g="deal">專案</button>
       <button class="tab" data-view="customers" data-g="data">客戶</button>
       <button class="tab" data-view="suppliers" data-g="data">工廠</button>
+      <button class="tab" data-view="sq" data-g="data">工廠報價</button>
       <button class="tab" data-view="ledger" data-g="money">帳本</button>
       <button class="tab" data-view="ai" data-g="brain">AI 策略</button>
       <button class="tab" data-view="playbook" data-g="brain">Playbook</button>
@@ -397,6 +414,24 @@ table.prev select{min-height:32px;padding:4px 6px;font-size:13px}
           <button class="btn btn-sm" id="pbLinkAdd" style="margin-top:8px">＋ 加入連結</button>
         </div>
       </div>
+    </section>
+
+    <!-- 工廠報價庫 -->
+    <section id="sqView" class="hidden">
+      <div class="toolbar">
+        <b style="font-size:16px;color:#3B5B95">工廠報價庫</b>
+        <span class="grow"></span>
+        <button class="btn btn-primary" id="sqUploadBtn">上傳截圖整理</button>
+        <button class="btn" id="sqImportBtn">貼上辨識結果</button>
+        <button class="btn" id="sqNewBtn">＋ 手動新增</button>
+      </div>
+      <div id="sqBatches"></div>
+      <div class="toolbar">
+        <input class="grow" id="sqSearch" placeholder="搜尋商品、工廠、材質…">
+        <div class="chips" style="margin:0"><button class="chip active" id="sqByProduct">依商品</button><button class="chip" id="sqBySupplier">依工廠</button></div>
+      </div>
+      <div id="sqList"></div>
+      <p class="small muted">流程：「上傳截圖整理」→ 系統給你一段指令 → 把同樣的截圖和指令一起丟給 ChatGPT → 把 ChatGPT 的回覆貼回「貼上辨識結果」→ 預覽確認後存入。截圖原檔會保存在你的私人檔案空間，隨時可以點開對照。</p>
     </section>
 
     <!-- 商機 -->
@@ -580,6 +615,7 @@ table.prev select{min-height:32px;padding:4px 6px;font-size:13px}
           </table>
         </div>
         <button class="btn btn-sm" id="addItemBtn" style="margin-top:10px">＋ 加一列</button>
+        <button class="btn btn-sm" id="sqPickBtn" style="margin-top:10px">📋 從工廠報價帶入</button>
         <p class="small muted" style="margin:8px 0 0">淺橘色欄位只在內部看得到，不會印在客戶報價單上。成本：填「成本單價」或直接填「成本小計」都可以，另一個會自動算；採購數量空白＝跟報價數量一樣；客製費是整批只收一次的費用（開模費、版費）。成本幣別在下面「成本設定」選。</p>
       </div>
 
@@ -1002,6 +1038,129 @@ table.prev select{min-height:32px;padding:4px 6px;font-size:13px}
   </div>
 </div>
 
+<!-- 工廠報價：上傳截圖 -->
+<div class="modal-bg hidden" id="sqUpModal">
+  <div class="modal wide">
+    <h3>上傳截圖整理</h3>
+    <div id="squ_step1">
+      <p class="small muted" style="margin-top:0">一次選同一個商品的所有報價截圖（LINE、微信、阿里巴巴／1688 都可以，可以多選）。</p>
+      <div class="grid g2">
+        <div><label>商品名稱（可空白，讓 ChatGPT 判斷）</label><input id="squ_hint" placeholder="例：玻璃杯 350ml"></div>
+        <div><label>截圖來源</label><select id="squ_src"><option>LINE</option><option>微信</option><option>阿里巴巴／1688</option><option>Email</option><option>混合</option><option>其他</option></select></div>
+      </div>
+      <input type="file" id="squ_files" accept="image/*" multiple style="margin-top:10px">
+      <div class="thumbs" id="squ_thumbs" style="margin-top:8px"></div>
+      <div class="actions"><button class="btn" data-close>取消</button><button class="btn btn-primary" id="squ_upload">上傳並產生 ChatGPT 指令</button></div>
+    </div>
+    <div id="squ_step2" class="hidden">
+      <div class="fact-box fb-fact" style="margin-top:0"><b>✓ 截圖已存好（<span id="squ_n"></span> 張）。</b>接下來：</div>
+      <ol style="font-size:14px;line-height:1.8;padding-left:20px">
+        <li>按下面的「複製指令」。</li>
+        <li>打開 ChatGPT，<b>把同樣這幾張截圖加進對話</b>（照圖 1、圖 2… 的順序），再貼上指令送出。</li>
+        <li>ChatGPT 回覆後，整段複製，回來按「貼上辨識結果」。</li>
+      </ol>
+      <div class="thumbs" id="squ_order"></div>
+      <textarea id="squ_prompt" style="min-height:160px;margin-top:8px;font-size:13px" readonly></textarea>
+      <div class="actions"><button class="btn" data-close>稍後再做</button><button class="btn" id="squ_copy">複製指令</button><button class="btn btn-primary" id="squ_next">貼上辨識結果</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- 工廠報價：貼上辨識結果 -->
+<div class="modal-bg hidden" id="sqImpModal">
+  <div class="modal wide">
+    <h3>貼上 ChatGPT 辨識結果</h3>
+    <div class="grid g2">
+      <div><label>這是哪一批截圖的結果</label><select id="sqi_batch"></select></div>
+      <div class="small muted" style="align-self:end">選對批次，截圖會自動附在每一筆報價上。</div>
+    </div>
+    <textarea id="sqi_text" style="min-height:150px;margin-top:8px;font-family:ui-monospace,Menlo,monospace;font-size:13px" placeholder="把 ChatGPT 回覆的整段內容貼在這裡"></textarea>
+    <div style="margin-top:8px"><button class="btn" id="sqi_check">檢查</button></div>
+    <div id="sqi_preview" style="margin-top:12px"></div>
+    <div class="actions"><button class="btn" data-close>關閉</button><button class="btn btn-primary hidden" id="sqi_confirm">確認存入</button></div>
+  </div>
+</div>
+
+<!-- 工廠報價：比價 -->
+<div class="modal-bg hidden" id="sqCmpModal">
+  <div class="modal wide" style="max-width:1000px">
+    <h3 id="sqc_title">比價</h3>
+    <div class="grid g4">
+      <div><label>比較數量</label><input id="sqc_qty" type="number"></div>
+      <div><label>不含票的加稅點 %</label><input id="sqc_tax" type="number" step="0.1"></div>
+      <div><label>人民幣匯率</label><input id="sqc_rate" type="number" step="0.01"></div>
+      <div><label>美元匯率</label><input id="sqc_usd" type="number" step="0.1"></div>
+    </div>
+    <label class="check-row"><input type="checkbox" id="sqc_amort" checked> 把打樣費、開模費、版費平均攤到每個商品</label>
+    <div class="items-wrap" style="margin-top:8px"><table class="cmp" id="sqc_table"></table></div>
+    <div id="sqc_logic" class="small" style="margin-top:12px"></div>
+    <div class="actions">
+      <button class="btn" id="sqc_gpt">匯出給 GPT 分析報價邏輯</button>
+      <button class="btn" data-close>關閉</button>
+    </div>
+  </div>
+</div>
+
+<!-- 工廠報價：單筆 -->
+<div class="modal-bg hidden" id="sqEditModal">
+  <div class="modal wide">
+    <h3 id="sqe_title">工廠報價</h3>
+    <div class="grid g3">
+      <div><label>商品名稱 *</label><input id="sqe_product" list="sqProducts"></div>
+      <div><label>類別</label><input id="sqe_cat" placeholder="杯瓶、袋子、文具…"></div>
+      <div><label>工廠</label><select id="sqe_supplier"></select></div>
+      <div><label>規格說明</label><input id="sqe_spec"></div>
+      <div><label>材質</label><input id="sqe_material"></div>
+      <div><label>尺寸</label><input id="sqe_size"></div>
+      <div><label>容量</label><input id="sqe_capacity"></div>
+      <div><label>顏色</label><input id="sqe_color"></div>
+      <div><label>印刷／加工</label><input id="sqe_print"></div>
+      <div><label>包裝</label><input id="sqe_pack"></div>
+      <div><label>幣別</label><select id="sqe_cur"><option value="CNY">人民幣</option><option value="TWD">台幣</option><option value="USD">美元</option></select></div>
+      <div><label>單價（沒有級距時）</label><input id="sqe_price" type="number" step="0.0001"></div>
+      <div style="grid-column:1/-1"><label>數量級距（一行一個：數量 單價，例如「500 12.5」）</label><textarea id="sqe_tiers" style="min-height:70px"></textarea></div>
+      <div><label>起訂量</label><input id="sqe_moq" type="number"></div>
+      <div><label>打樣費</label><input id="sqe_sample" type="number" step="0.01"></div>
+      <div><label>開模費</label><input id="sqe_mold" type="number" step="0.01"></div>
+      <div><label>版費／其他一次性</label><input id="sqe_setup" type="number" step="0.01"></div>
+      <div><label>大貨交期（天）</label><input id="sqe_lead" type="number"></div>
+      <div><label>打樣天數</label><input id="sqe_sdays" type="number"></div>
+      <div><label>含票</label><select id="sqe_taxinc"><option value="">不確定</option><option value="true">含票</option><option value="false">不含票</option></select></div>
+      <div><label>開票稅點 %</label><input id="sqe_taxpt" type="number" step="0.1"></div>
+      <div><label>運費條件</label><input id="sqe_ship" placeholder="出廠價、含運到深圳…"></div>
+      <div><label>報價日期</label><input id="sqe_date" type="date"></div>
+      <div><label>有效期限</label><input id="sqe_valid" type="date"></div>
+      <div><label>來源</label><input id="sqe_src" list="sqSources"></div>
+      <div><label>業務窗口</label><input id="sqe_contact"></div>
+      <div style="grid-column:1/-1"><label>備註</label><textarea id="sqe_notes"></textarea></div>
+    </div>
+    <h3 style="margin:14px 0 6px;font-size:14px">截圖</h3>
+    <div class="thumbs" id="sqe_imgs"></div>
+    <input type="file" id="sqe_addimg" accept="image/*" multiple style="margin-top:8px">
+    <div class="actions">
+      <button class="btn" id="sqe_arch" style="margin-right:auto">封存</button>
+      <button class="btn" data-close>關閉</button>
+      <button class="btn btn-primary" id="sqe_save">儲存</button>
+    </div>
+  </div>
+</div>
+<datalist id="sqProducts"></datalist>
+<datalist id="sqSources"><option value="LINE"><option value="微信"><option value="阿里巴巴／1688"><option value="Email"><option value="其他"></datalist>
+
+<!-- 工廠報價：帶入報價單 -->
+<div class="modal-bg hidden" id="sqPickModal">
+  <div class="modal wide">
+    <h3>從工廠報價帶入</h3>
+    <p class="small muted" style="margin-top:0">選一筆工廠報價，會在報價單加一列：品名、規格、工廠、成本單價（依數量自動選級距）和一次性費用都會帶好，再填報價單價就好。</p>
+    <div class="grid g2"><input id="sqp_search" placeholder="搜尋商品或工廠…"><div><label style="display:inline">數量</label> <input id="sqp_qty" type="number" style="width:120px;display:inline-block" placeholder="例：1000"></div></div>
+    <div id="sqp_list" style="margin-top:8px;max-height:50vh;overflow:auto"></div>
+    <div class="actions"><button class="btn" data-close>關閉</button></div>
+  </div>
+</div>
+
+<!-- 看大圖 -->
+<div class="modal-bg hidden" id="imgZoom"><div class="modal wide" style="text-align:center"><img id="imgZoomImg" alt="截圖"><div class="actions"><button class="btn" data-close>關閉</button></div></div></div>
+
 <!-- 備份 -->
 <div class="modal-bg hidden" id="backupModal">
   <div class="modal">
@@ -1110,11 +1269,12 @@ const custByName = name => customers.find(c => c.name === name.trim());
 // ================= 切換畫面 =================
 async function switchView(v){
   if (v !== 'edit' && !$('editView').classList.contains('hidden') && dirty) await saveQuote(true);
-  ['dash','ai','playbook','pbDoc','plan','prospects','deals','list','edit','projects','proj','customers','suppliers','ledger'].forEach(x => $(x + 'View').classList.toggle('hidden', x !== v));
+  ['dash','ai','playbook','pbDoc','plan','prospects','deals','list','edit','projects','proj','customers','suppliers','sq','ledger'].forEach(x => $(x + 'View').classList.toggle('hidden', x !== v));
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === v || (v === 'edit' && t.dataset.view === 'list') || (v === 'proj' && t.dataset.view === 'projects') || (v === 'pbDoc' && t.dataset.view === 'playbook')));
   if (v === 'dash') renderDash();
   if (v === 'ai') renderAI();
   if (v === 'playbook') renderPlaybook();
+  if (v === 'sq') renderSQ();
   if (v === 'deals') renderDeals();
   if (v === 'projects') renderProjects();
   if (v === 'list') renderQuoteList();
@@ -2622,7 +2782,7 @@ $('jlAddBtn').onclick = async () => {
 // ================= 備份與還原 =================
 const BACKUP_TABLES = [['customers','客戶'],['suppliers','工廠'],['contacts','窗口'],['products','產品'],['deals','商機'],['quotes','報價'],
   ['quote_items','報價品項'],['quote_fees','報價費用'],['projects','專案'],['project_tasks','專案細項'],['activities','聯絡紀錄'],
-  ['samples','樣品'],['payments','收付款'],['files','檔案'],['weekly_plans','每週計畫'],['app_settings','設定'],['ai_insights','AI分析'],['playbook_docs','Playbook文件'],['playbook_versions','Playbook版本'],['playbook_links','Playbook連結']];
+  ['samples','樣品'],['payments','收付款'],['files','檔案'],['weekly_plans','每週計畫'],['app_settings','設定'],['ai_insights','AI分析'],['playbook_docs','Playbook文件'],['playbook_versions','Playbook版本'],['playbook_links','Playbook連結'],['supplier_quotes','工廠報價'],['sq_uploads','報價截圖紀錄']];
 const PKEY = { weekly_plans:'week_start', app_settings:'key' };
 let pendingBackup = null;
 async function fetchAll(t){
@@ -3390,6 +3550,418 @@ $('px_json').onclick = () => {
     links: pbLinks.filter(l => l.doc_id === d.id).map(l => ({ type:l.target_type, id:l.target_id, name:linkName(l) || null })) }))) };
   downloadBlob(new Blob([JSON.stringify(out, null, 2)], { type:'application/json' }), `REVOCO_Playbook_${today()}.json`);
 };
+
+// ================= 工廠報價庫 =================
+const SQ_BUCKET = 'quote-images';
+const SQ_DEF = { tax: 10, usd: 31.5 };
+let sqRows = [], sqUploads = [], sqMode = 'product', sqUpBatch = null, sqPending = [], sqEditing = null, sqCmpName = null, sqUrlCache = {};
+const curName = { CNY:'¥', TWD:'NT$', USD:'US$' };
+const tiersOf = q => (Array.isArray(q.price_tiers) ? q.price_tiers : []).map(t => ({ qty: num(t.qty), price: num(t.price) })).filter(t => t.qty > 0 && t.price > 0).sort((a, b) => a.qty - b.qty);
+function priceAt(q, qty){
+  const ts = tiersOf(q), warn = [];
+  let p = null;
+  if (ts.length) {
+    const fit = ts.filter(t => t.qty <= qty);
+    if (fit.length) p = fit.at(-1).price; else { p = ts[0].price; warn.push(`數量低於最小級距 ${ts[0].qty}`); }
+  } else if (num(q.unit_price)) p = num(q.unit_price);
+  if (q.moq && qty < q.moq) warn.push(`低於起訂量 ${q.moq}`);
+  return { p, warn };
+}
+function normQuote(q, o){
+  const { p, warn } = priceAt(q, o.qty);
+  if (p == null) return { ok:false, warn:['沒有價格'] };
+  const fx = q.currency === 'TWD' ? 1 : q.currency === 'USD' ? o.usd : o.rate;
+  const taxF = q.tax_included === true ? 1 : 1 + (q.tax_point_pct != null ? num(q.tax_point_pct) : o.tax) / 100;
+  if (q.tax_included == null) warn.push('不確定是否含票，以不含票計');
+  const unit = p * fx * taxF;
+  const oneoff = (num(q.sample_fee) + num(q.mold_fee) + num(q.setup_fee)) * fx * taxF;
+  const per = o.amort && o.qty ? oneoff / o.qty : 0;
+  return { ok:true, raw:p, unit, oneoff, per, total: unit + per, warn };
+}
+const sqSupplierName = q => suppliers.find(s => s.id === q.supplier_id)?.name || q.supplier_name || '（未填工廠）';
+async function signedUrls(paths){
+  const need = paths.filter(p => p && !sqUrlCache[p]);
+  if (need.length) { try { const { data } = await sb.storage.from(SQ_BUCKET).createSignedUrls(need, 3600); (data || []).forEach(x => { if (x.signedUrl) sqUrlCache[x.path] = x.signedUrl; }); } catch {} }
+  return paths.map(p => sqUrlCache[p] || '');
+}
+async function thumbsHTML(paths){ const urls = await signedUrls(paths); return paths.map((p, i) => urls[i] ? `<img src="${esc(urls[i])}" data-zoom="${esc(urls[i])}" alt="截圖 ${i + 1}">` : `<span class="small muted">（截圖 ${i + 1} 讀不到）</span>`).join(''); }
+document.addEventListener('click', e => { const z = e.target.closest('[data-zoom]'); if (!z) return; $('imgZoomImg').src = z.dataset.zoom; $('imgZoom').classList.remove('hidden'); });
+
+async function renderSQ(){
+  $('sqList').innerHTML = '<div class="empty">載入中…</div>';
+  try { [sqRows, sqUploads] = await Promise.all([run(sb.from('supplier_quotes').select('*').order('quote_date', { ascending:false })), run(sb.from('sq_uploads').select('*').order('created_at', { ascending:false }))]); }
+  catch (e) { $('sqList').innerHTML = `<div class="empty" style="color:var(--red)">讀取失敗：${esc(e.message)}<br>如果剛更新系統，請先到 Supabase 執行 13 那份 SQL。</div>`; return; }
+  $('sqProducts').innerHTML = [...new Set(sqRows.map(q => q.product_name))].map(n => `<option value="${esc(n)}">`).join('');
+  const pend = sqBatches().filter(b => !b.done);
+  $('sqBatches').innerHTML = pend.map(b => `<div class="batch"><span>📷 ${b.n} 張截圖還沒匯入結果${b.hint ? '：' + esc(b.hint) : ''}<span class="muted small">（${esc(String(b.at).slice(0, 10))}）</span></span><span><button class="btn btn-sm" data-bprompt="${b.id}">看指令</button> <button class="btn btn-sm btn-primary" data-bimport="${b.id}">貼上結果</button></span></div>`).join('');
+  $('sqBatches').querySelectorAll('[data-bprompt]').forEach(x => x.onclick = () => openSQPrompt(x.dataset.bprompt));
+  $('sqBatches').querySelectorAll('[data-bimport]').forEach(x => x.onclick = () => openSQImport(x.dataset.bimport));
+  renderSQList();
+}
+function sqBatches(){
+  const m = new Map();
+  sqUploads.forEach(u => { const b = m.get(u.batch_id) || { id:u.batch_id, n:0, paths:[], hint:u.product_hint, src:u.source_channel, at:u.created_at, done:true };
+    b.n++; b.paths[u.seq - 1] = u.path; if (!u.done) b.done = false; if (u.created_at < b.at) b.at = u.created_at; m.set(u.batch_id, b); });
+  return [...m.values()].sort((a, b) => String(b.at).localeCompare(String(a.at)));
+}
+$('sqByProduct').onclick = () => { sqMode = 'product'; $('sqByProduct').classList.add('active'); $('sqBySupplier').classList.remove('active'); renderSQList(); };
+$('sqBySupplier').onclick = () => { sqMode = 'supplier'; $('sqBySupplier').classList.add('active'); $('sqByProduct').classList.remove('active'); renderSQList(); };
+$('sqSearch').addEventListener('input', () => renderSQList());
+const sqOpts = () => ({ tax: SQ_DEF.tax, rate: DEFAULTS.rate, usd: SQ_DEF.usd, amort: true });
+function commonQty(list){
+  const c = {}; list.forEach(q => tiersOf(q).forEach(t => c[t.qty] = (c[t.qty] || 0) + 1));
+  const best = Object.entries(c).sort((a, b) => b[1] - a[1] || b[0] - a[0])[0];
+  return best ? Number(best[0]) : (Math.max(0, ...list.map(q => q.moq || 0)) || 1000);
+}
+function renderSQList(){
+  const kw = $('sqSearch').value.trim().toLowerCase();
+  const live = sqRows.filter(q => !q.archived).filter(q => !kw || [q.product_name, q.product_category, sqSupplierName(q), q.material, q.spec, q.size, q.capacity, q.print_method, q.notes].some(v => (v || '').toLowerCase().includes(kw)));
+  if (!live.length) { $('sqList').innerHTML = `<div class="empty">${sqRows.length ? '沒有符合的報價' : '還沒有工廠報價。按「上傳截圖整理」開始。'}</div>`; return; }
+  if (sqMode === 'product') {
+    const groups = new Map(); live.forEach(q => { const g = groups.get(q.product_name) || []; g.push(q); groups.set(q.product_name, g); });
+    $('sqList').innerHTML = [...groups.entries()].sort((a, b) => String(b[1][0].quote_date).localeCompare(String(a[1][0].quote_date))).map(([name, l]) => {
+      const qty = commonQty(l), o = { ...sqOpts(), qty };
+      const ns = l.map(q => ({ q, n: normQuote(q, o) })).filter(x => x.n.ok).sort((a, b) => a.n.total - b.n.total);
+      const sups = new Set(l.map(sqSupplierName));
+      return `<div class="sqcard" data-p="${esc(name)}"><div class="t">${esc(name)}</div>
+        <div class="meta">${l.length} 筆報價・${sups.size} 家工廠${l[0].product_category ? '・' + esc(l[0].product_category) : ''}・最近 ${esc(String(l[0].quote_date || ''))}</div>
+        ${ns.length ? `<div class="best">以 ${fmt(qty)} 個比較：最低 <b>${esc(sqSupplierName(ns[0].q))}</b> NT$ ${fmt(ns[0].n.total, 2)}／個${ns.length > 1 ? `，最高 NT$ ${fmt(ns.at(-1).n.total, 2)}（差 ${Math.round((ns.at(-1).n.total / ns[0].n.total - 1) * 100)}%）` : ''}</div>` : ''}</div>`;
+    }).join('');
+    $('sqList').querySelectorAll('[data-p]').forEach(el => el.onclick = () => openSQCompare(el.dataset.p));
+  } else {
+    // 工廠評分：每筆報價跟同商品中位數比
+    const idx = {};
+    const groups = new Map(); live.forEach(q => { const g = groups.get(q.product_name) || []; g.push(q); groups.set(q.product_name, g); });
+    for (const l of groups.values()) {
+      const o = { ...sqOpts(), qty: commonQty(l) };
+      const ns = l.map(q => ({ q, n: normQuote(q, o) })).filter(x => x.n.ok);
+      const sorted = ns.map(x => x.n.total).sort((a, b) => a - b); const med = sorted.length ? sorted[Math.floor((sorted.length - 1) / 2)] : 0;
+      ns.forEach(x => { if (ns.length > 1 && med) (idx[sqSupplierName(x.q)] ||= []).push(x.n.total / med); });
+    }
+    const bySup = new Map(); live.forEach(q => { const k = sqSupplierName(q); const g = bySup.get(k) || []; g.push(q); bySup.set(k, g); });
+    $('sqList').innerHTML = [...bySup.entries()].sort((a, b) => b[1].length - a[1].length).map(([name, l]) => {
+      const ix = idx[name]; const avg = ix ? ix.reduce((a, b) => a + b, 0) / ix.length : null;
+      const leads = l.map(q => q.lead_time_days).filter(Boolean);
+      return `<div class="sqcard" data-s="${esc(name)}"><div class="t">${esc(name)}</div>
+        <div class="meta">${l.length} 筆報價・${new Set(l.map(q => q.product_name)).size} 種商品${leads.length ? `・平均交期 ${Math.round(leads.reduce((a, b) => a + b, 0) / leads.length)} 天` : ''}・最近 ${esc(String(l[0].quote_date || ''))}</div>
+        <div class="best">${avg == null ? '<span class="muted">還沒有可以比較的同商品報價</span>' : `價格指數 <b style="color:${avg <= 0.97 ? 'var(--green)' : avg >= 1.03 ? 'var(--red)' : 'inherit'}">${Math.round(avg * 100)}</b>（同商品中位數＝100，越低越便宜，依 ${ix.length} 筆比較）`}</div>
+        <div class="small muted" style="margin-top:4px">${esc([...new Set(l.map(q => q.product_name))].slice(0, 6).join('、'))}</div></div>`;
+    }).join('');
+    $('sqList').querySelectorAll('[data-s]').forEach(el => el.onclick = () => { $('sqSearch').value = el.dataset.s; $('sqByProduct').click(); });
+  }
+}
+
+// ---------- 上傳截圖 ----------
+$('sqUploadBtn').onclick = () => { $('squ_step1').classList.remove('hidden'); $('squ_step2').classList.add('hidden'); $('squ_files').value = ''; $('squ_thumbs').innerHTML = ''; $('squ_hint').value = ''; $('sqUpModal').classList.remove('hidden'); };
+$('squ_files').addEventListener('change', () => {
+  const fs = [...$('squ_files').files];
+  $('squ_thumbs').innerHTML = fs.map((f, i) => `<div style="text-align:center"><img src="${URL.createObjectURL(f)}" alt=""><div class="small muted">圖 ${i + 1}</div></div>`).join('');
+});
+async function compressImage(file){
+  try {
+    if (!file.type.startsWith('image/') || typeof createImageBitmap !== 'function') return file;
+    const bmp = await createImageBitmap(file); const scale = Math.min(1, 1800 / Math.max(bmp.width, bmp.height));
+    const c = document.createElement('canvas'); c.width = Math.round(bmp.width * scale); c.height = Math.round(bmp.height * scale);
+    c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+    const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.82));
+    return blob && blob.size < file.size ? blob : file;
+  } catch { return file; }
+}
+async function uploadImages(files, prefix){
+  const paths = [];
+  for (let i = 0; i < files.length; i++) {
+    const blob = await compressImage(files[i]);
+    const ext = blob.type === 'image/jpeg' ? 'jpg' : (files[i].name.split('.').pop() || 'png').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const path = `${prefix}/${String(i + 1).padStart(2, '0')}_${Date.now().toString(36)}.${ext}`;
+    const { error } = await sb.storage.from(SQ_BUCKET).upload(path, blob, { contentType: blob.type || 'image/png', upsert:false });
+    if (error) throw new Error(error.message || '上傳失敗');
+    paths.push(path);
+  }
+  return paths;
+}
+$('squ_upload').onclick = async () => {
+  const fs = [...$('squ_files').files]; if (!fs.length) { toast('請先選截圖'); return; }
+  $('squ_upload').disabled = true; $('squ_upload').textContent = `上傳中…（0/${fs.length}）`;
+  try {
+    const batch = crypto.randomUUID ? crypto.randomUUID() : ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c => (c ^ Math.random() * 16 >> c / 4).toString(16));
+    const paths = await uploadImages(fs, `${today().slice(0, 7)}/${batch}`);
+    await run(sb.from('sq_uploads').insert(paths.map((path, i) => ({ batch_id:batch, seq:i + 1, path, product_hint:$('squ_hint').value.trim() || null, source_channel:$('squ_src').value }))).select());
+    sqUploads = await run(sb.from('sq_uploads').select('*').order('created_at', { ascending:false }));
+    await openSQPrompt(batch);
+  } catch (e) { toast('⚠️ 上傳失敗：' + e.message + '（如果剛更新系統，請先執行 13 SQL）'); }
+  finally { $('squ_upload').disabled = false; $('squ_upload').textContent = '上傳並產生 ChatGPT 指令'; }
+};
+function sqPromptText(b){
+  return `請讀取我附上的 ${b.n} 張截圖（依序是圖 1～圖 ${b.n}，來源：${b.src || '不明'}），把裡面的工廠報價整理成資料。${b.hint ? `\n商品：${b.hint}` : ''}
+
+規則：
+1. 每一家工廠的每一個商品規格寫成一筆。同一家工廠不同規格要分開。
+2. 只寫截圖裡看得到的內容；看不清楚或沒寫的填 null，絕對不要猜或編造。
+3. 價格照截圖原本的幣別：currency 填 CNY（人民幣）、TWD（台幣）或 USD（美元）。
+4. 有數量級距的寫成 price_tiers，例如 [{"qty":500,"price":12.5},{"qty":1000,"price":11}]；只有一個價格就填 unit_price。
+5. 寫「含票／含稅」tax_included 填 true，寫「不含票」填 false，沒寫填 null；有寫稅點就填 tax_point_pct（數字）。
+6. 交期、打樣時間換算成天數（lead_time_days、sample_days）；原文另外寫進 notes。
+7. 打樣費 sample_fee、開模費 mold_fee、版費或其他一次性費用 setup_fee，都用跟單價相同的幣別。
+8. image_index 填這筆資料出自哪幾張圖（例如 [1,2]）。
+9. 用繁體中文；最後只回覆一個 JSON，放在 \`\`\`json 區塊裡。
+
+格式：
+\`\`\`json
+{
+  "schema": "revoco.supplier_quotes.v1",
+  "quotes": [
+    {
+      "product_name": "玻璃杯 350ml",
+      "product_category": "杯瓶",
+      "supplier_name": "截圖上的廠商名稱",
+      "contact": null,
+      "spec": null, "material": null, "size": null, "capacity": null, "color": null,
+      "print_method": null, "packaging": null,
+      "currency": "CNY",
+      "unit_price": null,
+      "price_tiers": [{"qty": 500, "price": 12.5}],
+      "moq": null, "sample_fee": null, "mold_fee": null, "setup_fee": null,
+      "lead_time_days": null, "sample_days": null,
+      "tax_included": null, "tax_point_pct": null,
+      "shipping_terms": null,
+      "quote_date": "${today()}", "valid_until": null,
+      "notes": null,
+      "image_index": [1]
+    }
+  ]
+}
+\`\`\``;
+}
+async function openSQPrompt(batchId){
+  const b = sqBatches().find(x => x.id === batchId); if (!b) { toast('找不到這批截圖'); return; }
+  sqUpBatch = b.id;
+  $('squ_step1').classList.add('hidden'); $('squ_step2').classList.remove('hidden');
+  $('squ_n').textContent = b.n; $('squ_prompt').value = sqPromptText(b);
+  $('squ_order').innerHTML = (await signedUrls(b.paths)).map((u, i) => `<div style="text-align:center">${u ? `<img src="${esc(u)}" data-zoom="${esc(u)}" alt="">` : ''}<div class="small muted">圖 ${i + 1}</div></div>`).join('');
+  $('sqUpModal').classList.remove('hidden');
+}
+$('squ_copy').onclick = async () => { try { await navigator.clipboard.writeText($('squ_prompt').value); toast('✅ 已複製，到 ChatGPT 先加截圖，再貼上指令'); } catch { $('squ_prompt').select(); document.execCommand('copy'); toast('已複製'); } };
+$('squ_next').onclick = () => { $('sqUpModal').classList.add('hidden'); openSQImport(sqUpBatch); };
+
+// ---------- 貼上辨識結果 ----------
+function openSQImport(batchId){
+  const bs = sqBatches();
+  $('sqi_batch').innerHTML = '<option value="">不附截圖</option>' + bs.map(b => `<option value="${b.id}" ${b.id === batchId ? 'selected' : ''}>${esc(String(b.at).slice(0, 10))}・${b.n} 張${b.hint ? '・' + esc(b.hint) : ''}${b.done ? '（已匯入過）' : ''}</option>`).join('');
+  if (!batchId) { const p = bs.find(b => !b.done); if (p) $('sqi_batch').value = p.id; }
+  $('sqi_text').value = ''; $('sqi_preview').innerHTML = ''; $('sqi_confirm').classList.add('hidden'); sqPending = [];
+  $('sqImpModal').classList.remove('hidden'); $('sqi_text').focus();
+}
+$('sqImportBtn').onclick = () => openSQImport(null);
+const CUR_ALIAS = { CNY:'CNY', RMB:'CNY', '人民幣':'CNY', '人民币':'CNY', '元':'CNY', '¥':'CNY', '￥':'CNY', TWD:'TWD', NTD:'TWD', 'NT$':'TWD', '台幣':'TWD', '新台幣':'TWD', USD:'USD', 'US$':'USD', '美元':'USD', '美金':'USD', '$':'USD' };
+const numN = v => { if (v === null || v === undefined || v === '') return null; const n = parseFloat(String(v).replace(/[,，\s]/g, '').replace(/[^\d.\-]/g, '')); return isNaN(n) ? null : n; };
+const intN = v => { const n = numN(v); return n == null ? null : Math.round(n); };
+function matchSupplier(name){
+  const n = String(name || '').trim(); if (!n) return { s:null, how:'' };
+  const ex = suppliers.find(s => s.name === n || s.short_name === n); if (ex) return { s:ex, how:'名稱' };
+  const part = suppliers.filter(s => s.name.includes(n) || n.includes(s.name));
+  return part.length === 1 ? { s:part[0], how:'相似名稱' } : { s:null, how: part.length > 1 ? '多個可能' : '' };
+}
+function normalizeSQ(it, batch){
+  const warn = [];
+  const product = String(it.product_name || it.product || '').trim() || (batch?.hint || '');
+  if (!product) warn.push('沒有商品名稱，請填');
+  const cur = CUR_ALIAS[String(it.currency || '').trim()] || CUR_ALIAS[String(it.currency || '').trim().toUpperCase()] || null;
+  if (!cur) warn.push(`看不懂幣別「${it.currency ?? '空白'}」，先當人民幣`);
+  const tiers = (Array.isArray(it.price_tiers) ? it.price_tiers : []).map(t => ({ qty: intN(t.qty ?? t.quantity), price: numN(t.price ?? t.unit_price) })).filter(t => t.qty && t.price);
+  const unit = numN(it.unit_price);
+  if (!tiers.length && unit == null) warn.push('沒有讀到價格');
+  const { s, how } = matchSupplier(it.supplier_name || it.supplier);
+  if (!s && (it.supplier_name || it.supplier)) warn.push(`新工廠「${it.supplier_name || it.supplier}」，存入時會自動加到工廠名單`);
+  if (s && how !== '名稱') warn.push(`用相似名稱比對到「${s.name}」，請確認`);
+  const tiRaw = it.tax_included; const taxInc = tiRaw === true || tiRaw === 'true' || tiRaw === '含票' ? true : tiRaw === false || tiRaw === 'false' || tiRaw === '不含票' ? false : null;
+  const idx = (Array.isArray(it.image_index) ? it.image_index : it.image_index != null ? [it.image_index] : []).map(intN).filter(Boolean);
+  const imgs = batch ? (idx.length ? idx.map(i => batch.paths[i - 1]).filter(Boolean) : batch.paths.filter(Boolean)) : [];
+  if (batch && idx.some(i => !batch.paths[i - 1])) warn.push('有些 image_index 對不到截圖');
+  const str = v => (v === null || v === undefined || v === '') ? null : (typeof v === 'string' ? v.trim() : JSON.stringify(v));
+  return { include: !!product && (tiers.length || unit != null), warn, newSupplier: !s && (it.supplier_name || it.supplier) ? String(it.supplier_name || it.supplier).trim() : null, row: {
+    product_name: product, product_category: str(it.product_category), supplier_id: s?.id || null, supplier_name: str(it.supplier_name || it.supplier),
+    spec: str(it.spec), material: str(it.material), size: str(it.size), capacity: str(it.capacity), color: str(it.color), print_method: str(it.print_method), packaging: str(it.packaging),
+    currency: cur || 'CNY', unit_price: unit, price_tiers: tiers, moq: intN(it.moq), sample_fee: numN(it.sample_fee), mold_fee: numN(it.mold_fee), setup_fee: numN(it.setup_fee),
+    lead_time_days: intN(it.lead_time_days), sample_days: intN(it.sample_days), tax_included: taxInc, tax_point_pct: numN(it.tax_point_pct), shipping_terms: str(it.shipping_terms),
+    quote_date: isoDate(it.quote_date) || today(), valid_until: isoDate(it.valid_until), source_channel: str(it.source_channel) || batch?.src || null, contact: str(it.contact), notes: str(it.notes),
+    images: imgs, raw: it } };
+}
+$('sqi_check').onclick = () => {
+  const box = $('sqi_preview'); $('sqi_confirm').classList.add('hidden'); sqPending = [];
+  let data; try { data = extractJSON($('sqi_text').value); } catch (e) { box.innerHTML = `<div style="color:var(--red)">讀不懂這段內容：${esc(e.message)}。請貼 ChatGPT 回覆裡完整的 JSON。</div>`; return; }
+  const items = Array.isArray(data) ? data : Array.isArray(data.quotes) ? data.quotes : (data.product_name ? [data] : null);
+  if (!items || !items.length) { box.innerHTML = '<div style="color:var(--red)">JSON 裡沒有 quotes（報價清單）。</div>'; return; }
+  const batch = sqBatches().find(b => b.id === $('sqi_batch').value) || null;
+  sqPending = items.filter(x => x && typeof x === 'object').map(it => normalizeSQ(it, batch));
+  renderSQIPreview();
+};
+function renderSQIPreview(){
+  const box = $('sqi_preview');
+  const supOpts = (sel, nw) => `${nw ? `<option value="__new" ${!sel ? 'selected' : ''}>＋ 新增「${esc(nw)}」</option>` : ''}<option value="" ${!sel && !nw ? 'selected' : ''}>不指定</option>` + suppliers.map(s => `<option value="${s.id}" ${s.id === sel ? 'selected' : ''}>${esc(s.name)}</option>`).join('');
+  box.innerHTML = `<div class="small" style="margin-bottom:8px"><b>共 ${sqPending.length} 筆報價</b>。確認商品名稱和工廠，再按「確認存入」。</div><div class="items-wrap"><table class="prev"><thead><tr><th style="width:30px">存</th><th style="width:160px">商品</th><th style="width:170px">工廠</th><th>價格</th><th style="width:150px">其他</th></tr></thead><tbody>` +
+    sqPending.map((p, i) => { const r = p.row, c = curName[r.currency];
+      const price = r.price_tiers.length ? r.price_tiers.map(t => `${fmt(t.qty)} 個 ${c}${t.price}`).join('<br>') : (r.unit_price != null ? `${c}${r.unit_price}` : '—');
+      return `<tr data-i="${i}"><td><input type="checkbox" data-p="inc" ${p.include ? 'checked' : ''} style="width:18px;height:18px;min-height:0"></td>
+        <td><input data-p="prod" value="${esc(r.product_name)}" list="sqProducts" style="min-height:32px;padding:4px 6px"><div class="small muted">${esc([r.spec, r.material, r.size, r.capacity].filter(Boolean).join('・'))}</div></td>
+        <td><select data-p="sup">${supOpts(r.supplier_id, p.newSupplier)}</select></td>
+        <td>${price}${p.warn.map(w => `<div class="warn">⚠ ${esc(w)}</div>`).join('')}</td>
+        <td class="small">${[r.moq && '起訂 ' + fmt(r.moq), r.lead_time_days && '交期 ' + r.lead_time_days + ' 天', r.tax_included === true ? '含票' : r.tax_included === false ? '不含票' : '', (r.sample_fee || r.mold_fee || r.setup_fee) ? `一次性 ${c}${num(r.sample_fee) + num(r.mold_fee) + num(r.setup_fee)}` : '', r.images.length ? `📷 ${r.images.length}` : ''].filter(Boolean).join('<br>')}</td></tr>`; }).join('') + '</tbody></table></div>';
+  box.querySelectorAll('tr[data-i]').forEach(tr => { const p = sqPending[tr.dataset.i];
+    tr.querySelector('[data-p=inc]').onchange = e => p.include = e.target.checked;
+    tr.querySelector('[data-p=prod]').onchange = e => p.row.product_name = e.target.value.trim();
+    tr.querySelector('[data-p=sup]').onchange = e => { if (e.target.value === '__new') { p.row.supplier_id = null; p.useNew = true; } else { p.row.supplier_id = e.target.value || null; p.useNew = false; } }; 
+    if (p.newSupplier && !p.row.supplier_id) p.useNew = true; });
+  $('sqi_confirm').classList.toggle('hidden', !sqPending.length);
+}
+$('sqi_confirm').onclick = async () => {
+  const items = sqPending.filter(p => p.include); if (!items.length) { toast('沒有勾選任何一筆'); return; }
+  if (items.some(p => !p.row.product_name)) { toast('有報價沒有商品名稱'); return; }
+  $('sqi_confirm').disabled = true;
+  try {
+    const created = {};
+    for (const p of items) if (p.useNew && p.newSupplier && !p.row.supplier_id) {
+      const ex = suppliers.find(s => s.name === p.newSupplier) || created[p.newSupplier];
+      if (ex) { p.row.supplier_id = ex.id; continue; }
+      const s = await run(sb.from('suppliers').insert({ name:p.newSupplier, notes:'從工廠報價截圖建立' }).select().single());
+      created[p.newSupplier] = s; p.row.supplier_id = s.id;
+    }
+    await run(sb.from('supplier_quotes').insert(items.map(p => p.row)).select());
+    const bid = $('sqi_batch').value; if (bid) await run(sb.from('sq_uploads').update({ done:true }).eq('batch_id', bid));
+    if (Object.keys(created).length) await loadMasters();
+    $('sqImpModal').classList.add('hidden'); toast(`✅ 已存入 ${items.length} 筆報價${Object.keys(created).length ? `，新增 ${Object.keys(created).length} 家工廠` : ''}`);
+    const names = [...new Set(items.map(p => p.row.product_name))];
+    if ($('sqView').classList.contains('hidden')) await switchView('sq'); else await renderSQ();
+    if (names.length === 1) openSQCompare(names[0]);
+  } catch (e) { toast('⚠️ 存入失敗：' + e.message); }
+  finally { $('sqi_confirm').disabled = false; }
+};
+
+// ---------- 比價 ----------
+function openSQCompare(name){
+  sqCmpName = name; const l = sqRows.filter(q => q.product_name === name && !q.archived);
+  $('sqc_title').textContent = `比價：${name}`;
+  $('sqc_qty').value = commonQty(l); $('sqc_tax').value = SQ_DEF.tax; $('sqc_rate').value = DEFAULTS.rate; $('sqc_usd').value = SQ_DEF.usd; $('sqc_amort').checked = true;
+  $('sqCmpModal').classList.remove('hidden'); renderSQCompare();
+}
+['sqc_qty','sqc_tax','sqc_rate','sqc_usd'].forEach(id => $(id).addEventListener('input', () => renderSQCompare()));
+$('sqc_amort').addEventListener('change', () => renderSQCompare());
+async function renderSQCompare(){
+  const l = sqRows.filter(q => q.product_name === sqCmpName && !q.archived);
+  const o = { qty: num($('sqc_qty').value) || 1, tax: num($('sqc_tax').value), rate: num($('sqc_rate').value) || DEFAULTS.rate, usd: num($('sqc_usd').value) || SQ_DEF.usd, amort: $('sqc_amort').checked };
+  const rows = l.map(q => ({ q, n: normQuote(q, o) })).sort((a, b) => (a.n.ok ? a.n.total : 1e12) - (b.n.ok ? b.n.total : 1e12));
+  const best = rows.find(r => r.n.ok)?.n.total;
+  $('sqc_table').innerHTML = `<thead><tr><th>工廠</th><th>原報價</th><th>換算單價 NT$</th><th>一次性費用／個</th><th>合計 NT$／個</th><th>比最低</th><th>起訂量</th><th>交期</th><th>含票</th><th>來源・日期</th></tr></thead><tbody>` +
+    rows.map((r, i) => { const q = r.q, n = r.n, c = curName[q.currency];
+      const tiers = tiersOf(q);
+      return `<tr class="click ${n.ok && n.total === best ? 'best' : ''}" data-id="${q.id}">
+        <td><b>${esc(sqSupplierName(q))}</b><div class="small muted">${esc([q.spec, q.material, q.size, q.capacity, q.print_method].filter(Boolean).join('・'))}</div>${n.warn.map(w => `<div class="warn">⚠ ${esc(w)}</div>`).join('')}</td>
+        <td>${n.ok ? `${c}${n.raw}` : '—'}${tiers.length > 1 ? `<div class="small muted">${tiers.map(t => `${fmt(t.qty)}:${t.price}`).join(' ')}</div>` : ''}</td>
+        <td>${n.ok ? fmt(n.unit, 2) : '—'}</td><td>${n.ok ? (n.per ? fmt(n.per, 2) : '—') : '—'}</td>
+        <td><b>${n.ok ? fmt(n.total, 2) : '—'}</b></td><td>${n.ok && best ? (n.total === best ? '最低' : '+' + Math.round((n.total / best - 1) * 100) + '%') : ''}</td>
+        <td>${q.moq ? fmt(q.moq) : '—'}</td><td>${q.lead_time_days ? q.lead_time_days + ' 天' : '—'}</td>
+        <td>${q.tax_included === true ? '含票' : q.tax_included === false ? '不含' + (q.tax_point_pct != null ? `（${q.tax_point_pct}%）` : '') : '?'}</td>
+        <td class="small">${esc([q.source_channel, q.quote_date].filter(Boolean).join('・'))}${q.images?.length ? `<br>📷 ${q.images.length}` : ''}</td></tr>`; }).join('') + '</tbody>';
+  $('sqc_table').querySelectorAll('tr[data-id]').forEach(tr => tr.onclick = () => openSQEdit(tr.dataset.id));
+  // 報價邏輯
+  const lines = [];
+  const ok = rows.filter(r => r.n.ok);
+  if (ok.length > 1) { const ts = ok.map(r => r.n.total).sort((a, b) => a - b); lines.push(`以 ${fmt(o.qty)} 個、含票、換成台幣比較：最低 NT$ ${fmt(ts[0], 2)}、中位數 NT$ ${fmt(ts[Math.floor((ts.length - 1) / 2)], 2)}、最高 NT$ ${fmt(ts.at(-1), 2)}，價差 ${Math.round((ts.at(-1) / ts[0] - 1) * 100)}%。`); }
+  rows.forEach(r => { const ts = tiersOf(r.q); if (ts.length > 1) { const d = Math.round((1 - ts.at(-1).price / ts[0].price) * 100); lines.push(`${esc(sqSupplierName(r.q))}：${fmt(ts[0].qty)} 個 → ${fmt(ts.at(-1).qty)} 個，單價降 ${d}%（約每多 ${fmt(Math.round((ts.at(-1).qty - ts[0].qty) / Math.max(1, ts.length - 1)))} 個降一級）。`); } });
+  const one = ok.filter(r => r.n.oneoff); if (one.length) lines.push(`一次性費用（打樣、開模、版費）：${one.map(r => `${esc(sqSupplierName(r.q))} NT$ ${fmt(r.n.oneoff)}`).join('、')}。數量越少，攤到每個的影響越大。`);
+  const unsure = rows.filter(r => r.q.tax_included == null).length; if (unsure) lines.push(`有 ${unsure} 筆不確定是否含票，已先當不含票、加 ${o.tax}% 計算；確認後打開那一筆修改會更準。`);
+  $('sqc_logic').innerHTML = lines.length ? `<b>報價邏輯</b><ul style="margin:6px 0;padding-left:20px">${lines.map(x => `<li>${x}</li>`).join('')}</ul>` : '<span class="muted">報價數量還不夠分析，至少需要兩家或有數量級距。</span>';
+}
+$('sqc_gpt').onclick = async () => {
+  const l = sqRows.filter(q => q.product_name === sqCmpName && !q.archived);
+  const strip = q => { const { raw, images, id, created_at, updated_at, archived, ...r } = q; return { ...r, supplier: sqSupplierName(q) }; };
+  const out = { schema:'revoco.supplier_quote_analysis.v1', today:today(), product:sqCmpName,
+    request:'請分析這些工廠報價：1. 換成同一個基準（數量、含票、台幣）後誰最划算；2. 這個商品的報價邏輯（數量級距怎麼降、材質尺寸加工對價格的影響、一次性費用的行情）；3. 下次詢價或議價可以怎麼談；4. 推估類似商品的合理成本範圍。只根據資料判斷，資料不足的寫進 open_questions，不要編造。',
+    settings:{ compare_qty:num($('sqc_qty').value), tax_point_pct_if_not_included:num($('sqc_tax').value), cny_to_twd:num($('sqc_rate').value), usd_to_twd:num($('sqc_usd').value) },
+    quotes: l.map(strip),
+    response_format:{ schema:'revoco.insights.v1', analysis_date:today(), source:'GPT', module:'market', insights:[{ ref:`market-${today().replace(/-/g, '')}-01`, module:'market', title:`${sqCmpName}：報價分析`, customer_id:null,
+      confirmed_facts:['從報價資料直接看得到的事實'], ai_inferences:['你的推論'], open_questions:['需要再跟工廠確認的事'], strategy:'議價或採購建議', next_action:'下一步', due_date:today(),
+      details:{ topic:sqCmpName, competitors:'各工廠的優缺點', pricing:'報價邏輯與合理成本範圍', opportunity:'可以爭取的條件', sources:'工廠報價庫' } }] } };
+  const t = '請依照下面 JSON 的 request 分析，並依 response_format 只回覆一個 JSON（放在 ```json 區塊）：\n\n```json\n' + JSON.stringify(out, null, 2) + '\n```';
+  try { await navigator.clipboard.writeText(t); toast('✅ 已複製，貼到 ChatGPT；回覆貼到「AI 策略」→「匯入 GPT 分析結果」'); } catch { showPrompt(t); }
+};
+
+// ---------- 單筆報價 ----------
+const SQF = { product_name:'sqe_product', product_category:'sqe_cat', spec:'sqe_spec', material:'sqe_material', size:'sqe_size', capacity:'sqe_capacity', color:'sqe_color', print_method:'sqe_print', packaging:'sqe_pack',
+  currency:'sqe_cur', unit_price:'sqe_price', moq:'sqe_moq', sample_fee:'sqe_sample', mold_fee:'sqe_mold', setup_fee:'sqe_setup', lead_time_days:'sqe_lead', sample_days:'sqe_sdays', tax_point_pct:'sqe_taxpt',
+  shipping_terms:'sqe_ship', quote_date:'sqe_date', valid_until:'sqe_valid', source_channel:'sqe_src', contact:'sqe_contact', notes:'sqe_notes' };
+const SQ_NUM = ['unit_price','moq','sample_fee','mold_fee','setup_fee','lead_time_days','sample_days','tax_point_pct'];
+async function openSQEdit(id){
+  sqEditing = id ? sqRows.find(q => q.id === id) : null;
+  const q = sqEditing || { currency:'CNY', quote_date:today(), price_tiers:[], images:[] };
+  $('sqe_title').textContent = id ? '工廠報價' : '新增工廠報價';
+  for (const [k, el] of Object.entries(SQF)) $(el).value = q[k] ?? '';
+  $('sqe_supplier').innerHTML = '<option value="">—</option>' + suppliers.map(s => `<option value="${s.id}" ${s.id === q.supplier_id ? 'selected' : ''}>${esc(s.name)}</option>`).join('');
+  $('sqe_taxinc').value = q.tax_included == null ? '' : String(q.tax_included);
+  $('sqe_tiers').value = tiersOf(q).map(t => `${t.qty} ${t.price}`).join('\n');
+  $('sqe_arch').classList.toggle('hidden', !id); $('sqe_arch').textContent = q.archived ? '取消封存' : '封存';
+  $('sqe_addimg').value = '';
+  $('sqe_imgs').innerHTML = (q.images || []).length ? await thumbsHTML(q.images) : '<span class="small muted">沒有截圖</span>';
+  if (q.supplier_name && !q.supplier_id) $('sqe_imgs').insertAdjacentHTML('beforebegin', '');
+  $('sqEditModal').classList.remove('hidden');
+}
+$('sqNewBtn').onclick = () => openSQEdit(null);
+function parseTiers(t){ return String(t || '').split(/\r?\n/).map(l => l.split(/[\s,，:：個pcs件]+/).map(numN).filter(x => x != null)).filter(a => a.length >= 2 && a[0] > 0 && a[1] > 0).map(a => ({ qty: Math.round(a[0]), price: a[1] })).sort((a, b) => a.qty - b.qty); }
+$('sqe_save').onclick = async () => {
+  const row = {};
+  for (const [k, el] of Object.entries(SQF)) { const v = $(el).value.trim(); row[k] = SQ_NUM.includes(k) ? (['moq','lead_time_days','sample_days'].includes(k) ? intN(v) : numN(v)) : (v || null); }
+  if (!row.product_name) { toast('請填商品名稱'); return; }
+  row.currency = row.currency || 'CNY'; row.quote_date = row.quote_date || today();
+  row.supplier_id = $('sqe_supplier').value || null; row.tax_included = $('sqe_taxinc').value === '' ? null : $('sqe_taxinc').value === 'true';
+  row.price_tiers = parseTiers($('sqe_tiers').value);
+  if (!row.price_tiers.length && row.unit_price == null) { toast('請填單價或數量級距'); return; }
+  try {
+    const files = [...$('sqe_addimg').files];
+    let images = [...(sqEditing?.images || [])];
+    if (files.length) images = images.concat(await uploadImages(files, `${today().slice(0, 7)}/manual`));
+    row.images = images;
+    if (sqEditing) await run(sb.from('supplier_quotes').update(row).eq('id', sqEditing.id)); else await run(sb.from('supplier_quotes').insert(row).select());
+    $('sqEditModal').classList.add('hidden'); toast('✅ 已儲存'); await renderSQ();
+    if (!$('sqCmpModal').classList.contains('hidden')) { sqCmpName = row.product_name; renderSQCompare(); }
+  } catch (e) { toast('⚠️ 儲存失敗：' + e.message); }
+};
+$('sqe_arch').onclick = async () => {
+  if (!sqEditing) return; const archived = !sqEditing.archived;
+  try { await run(sb.from('supplier_quotes').update({ archived }).eq('id', sqEditing.id)); $('sqEditModal').classList.add('hidden'); toast(archived ? '已封存（不會出現在比價裡）' : '已取消封存'); await renderSQ();
+    if (!$('sqCmpModal').classList.contains('hidden')) renderSQCompare(); }
+  catch (e) { toast('⚠️ ' + e.message); }
+};
+
+// ---------- 從工廠報價帶入報價單 ----------
+$('sqPickBtn').onclick = async () => {
+  try { sqRows = await run(sb.from('supplier_quotes').select('*').order('quote_date', { ascending:false })); } catch (e) { toast('⚠️ 讀不到工廠報價：' + e.message); return; }
+  $('sqp_search').value = ''; $('sqp_qty').value = ''; $('sqPickModal').classList.remove('hidden'); renderSQPick();
+};
+['sqp_search','sqp_qty'].forEach(id => $(id).addEventListener('input', () => renderSQPick()));
+function renderSQPick(){
+  const kw = $('sqp_search').value.trim().toLowerCase(), qty = num($('sqp_qty').value);
+  const l = sqRows.filter(q => !q.archived && (!kw || [q.product_name, sqSupplierName(q), q.material, q.spec].some(v => (v || '').toLowerCase().includes(kw)))).slice(0, 80);
+  $('sqp_list').innerHTML = l.length ? l.map(q => { const pa = priceAt(q, qty || q.moq || tiersOf(q)[0]?.qty || 1); return `<div class="hl sqcard" data-id="${q.id}" style="margin-bottom:6px"><div class="t" style="font-size:14px">${esc(q.product_name)}　<span class="muted" style="font-weight:400">${esc(sqSupplierName(q))}</span></div>
+    <div class="meta">${esc([q.spec, q.material, q.size, q.capacity].filter(Boolean).join('・'))}${pa.p != null ? `・${curName[q.currency]}${pa.p}${qty ? `（${fmt(qty)} 個）` : ''}` : ''}・${esc(q.quote_date || '')}</div></div>`; }).join('') : '<div class="muted small">沒有工廠報價</div>';
+  $('sqp_list').querySelectorAll('[data-id]').forEach(el => el.onclick = () => pickSQ(el.dataset.id));
+}
+function pickSQ(id){
+  const q = sqRows.find(x => x.id === id); if (!q) return;
+  const qty = num($('sqp_qty').value) || q.moq || tiersOf(q)[0]?.qty || 0;
+  const { p } = priceAt(q, qty || 1);
+  const twdCost = isTWDcost();
+  const toCost = v => { if (v == null) return ''; let x = num(v); const r = num($('f_rate').value) || DEFAULTS.rate;
+    if (twdCost) x = q.currency === 'CNY' ? x * r : q.currency === 'USD' ? x * SQ_DEF.usd : x;
+    else x = q.currency === 'TWD' ? x / r : q.currency === 'USD' ? x * SQ_DEF.usd / r : x;
+    return +x.toFixed(4); };
+  const it = { ...blankItem(), description:q.product_name, spec:[q.spec, q.material, q.size, q.capacity, q.color, q.print_method].filter(Boolean).join('・'),
+    quantity: qty || '', supplier_id: q.supplier_id || '', unit_cost_cny: toCost(p), custom_fee_cny: toCost(num(q.mold_fee) + num(q.setup_fee) + num(q.sample_fee)) || '',
+    note: `工廠報價 ${q.quote_date || ''}${q.tax_included === true ? ' 含票' : q.tax_included === false ? ' 不含票' : ''}` };
+  const emptyIdx = items.findIndex(x => !String(x.description || '').trim());
+  if (emptyIdx >= 0) items[emptyIdx] = it; else items.push(it);
+  renderItems(); recalc(); markDirty();
+  $('sqPickModal').classList.add('hidden');
+  toast(`已帶入「${q.product_name}」${q.currency !== (twdCost ? 'TWD' : 'CNY') ? '（已依匯率換算幣別）' : ''}，記得填報價單價`);
+}
 
 // ================= 帳本 =================
 const iso = d => new Date(d - d.getTimezoneOffset()*60000).toISOString().slice(0,10);
